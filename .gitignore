@@ -6,3 +6,5 @@ _data/*.exe
 _data/*.dll
 _data/*.ini
 _data/*.osm
+_data/*.gpx
+_data/*.tcx

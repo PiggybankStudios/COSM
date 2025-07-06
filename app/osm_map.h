@@ -7,17 +7,6 @@ Date:   07\06\2025
 #ifndef _OSM_MAP_H
 #define _OSM_MAP_H
 
-typedef union GeoLoc GeoLoc;
-union GeoLoc
-{
-	r64 values[2];
-	struct
-	{
-		union { r64 lon; r64 longitude; r64 x; };
-		union { r64 lat; r64 lattitude; r64 y; };
-	};
-};
-
 // <tag k="highway" v="secondary"/>
 typedef struct OsmTag OsmTag;
 struct OsmTag

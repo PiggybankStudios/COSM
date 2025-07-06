@@ -27,6 +27,9 @@ struct AppData
 	bool keepViewMenuOpenUntilMouseOver;
 	
 	OsmMap map;
+	rec mapRec;
+	v2 viewPos;
+	r32 viewZoom;
 };
 
 #endif //  _APP_MAIN_H

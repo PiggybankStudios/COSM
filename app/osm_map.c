@@ -93,3 +93,34 @@ Result TryParseOsmMap(Arena* arena, Str8 xmlFileContents, OsmMap* mapOut)
 	
 	return Result_Success;
 }
+
+OsmNode* AddOsmNode(OsmMap* map, GeoLoc location)
+{
+	NotNull(map);
+	NotNull(map->arena);
+	OsmNode* result = VarArrayAdd(OsmNode, &map->nodes);
+	result->id = map->nextNodeId;
+	map->nextNodeId++;
+	result->location = location;
+	result->visible = true;
+	InitVarArray(OsmTag, &result->tags, map->arena);
+	return result;
+}
+
+OsmWay* AddOsmWay(OsmMap* map, u64 numNodes, u64* nodeIds)
+{
+	NotNull(map);
+	NotNull(map->arena);
+	Assert(numNodes == 0 || nodeIds != nullptr);
+	OsmWay* result = VarArrayAdd(OsmWay, &map->ways);
+	result->id = map->nextWayId;
+	map->nextWayId++;
+	result->visible = true;
+	InitVarArrayWithInitial(u64, &result->nodeIds, map->arena, numNodes);
+	for (u64 nIndex = 0; nIndex < numNodes; nIndex++)
+	{
+		VarArrayAddValue(u64, &result->nodeIds, nodeIds[nIndex]);
+	}
+	InitVarArray(OsmTag, &result->tags, map->arena);
+	return result;
+}
