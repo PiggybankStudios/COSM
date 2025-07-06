@@ -6,8 +6,6 @@ Description:
 	** None
 */
 
-#if BUILD_WITH_SOKOL_GFX
-
 ImageData LoadImageData(Arena* arena, const char* path)
 {
 	ScratchBegin1(scratch, arena);
@@ -21,7 +19,6 @@ ImageData LoadImageData(Arena* arena, const char* path)
 	return imageData;
 }
 
-#if BUILD_WITH_SOKOL_APP
 void LoadWindowIcon()
 {
 	ScratchBegin(scratch);
@@ -35,6 +32,61 @@ void LoadWindowIcon()
 	platform->SetWindowIcon(ArrayCount(iconImageDatas), &iconImageDatas[0]);
 	ScratchEnd(scratch);
 }
-#endif //BUILD_WITH_SOKOL_APP
 
-#endif //BUILD_WITH_SOKOL_GFX
+bool AppCreateFonts()
+{
+	FontCharRange fontCharRanges[] = {
+		FontCharRange_ASCII,
+		FontCharRange_LatinExt,
+		NewFontCharRangeSingle(UNICODE_ELLIPSIS_CODEPOINT),
+		NewFontCharRangeSingle(UNICODE_RIGHT_ARROW_CODEPOINT),
+	};
+	
+	PigFont newUiFont = ZEROED;
+	{
+		newUiFont = InitFont(stdHeap, StrLit("uiFont"));
+		Result attachResult = AttachOsTtfFileToFont(&newUiFont, StrLit(UI_FONT_NAME), app->uiFontSize, UI_FONT_STYLE);
+		Assert(attachResult == Result_Success);
+		Result bakeResult = BakeFontAtlas(&newUiFont, app->uiFontSize, UI_FONT_STYLE, NewV2i(256, 256), ArrayCount(fontCharRanges), &fontCharRanges[0]);
+		if (bakeResult != Result_Success)
+		{
+			bakeResult = BakeFontAtlas(&newUiFont, app->uiFontSize, UI_FONT_STYLE, NewV2i(512, 512), ArrayCount(fontCharRanges), &fontCharRanges[0]);
+			if (bakeResult != Result_Success)
+			{
+				RemoveAttachedTtfFile(&newUiFont);
+				FreeFont(&newUiFont);
+				return false;
+			}
+		}
+		Assert(bakeResult == Result_Success);
+		FillFontKerningTable(&newUiFont);
+		RemoveAttachedTtfFile(&newUiFont);
+	}
+	
+	if (app->uiFont.arena != nullptr) { FreeFont(&app->uiFont); }
+	app->uiFont = newUiFont;
+	return true;
+}
+
+bool AppChangeFontSize(bool increase)
+{
+	if (increase)
+	{
+		app->uiFontSize += 1;
+		app->uiScale = app->uiFontSize / (r32)DEFAULT_UI_FONT_SIZE;
+		if (!AppCreateFonts())
+		{
+			app->uiFontSize -= 1;
+			app->uiScale = app->uiFontSize / (r32)DEFAULT_UI_FONT_SIZE;
+		}
+		return true;
+	}
+	else if (AreSimilarOrGreaterR32(app->uiFontSize - 1.0f, MIN_UI_FONT_SIZE, DEFAULT_R32_TOLERANCE))
+	{
+		app->uiFontSize -= 1;
+		app->uiScale = app->uiFontSize / (r32)DEFAULT_UI_FONT_SIZE;
+		AppCreateFonts();
+		return true;
+	}
+	else { return false; }
+}

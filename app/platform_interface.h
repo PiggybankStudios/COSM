@@ -35,6 +35,7 @@ struct AppInput
 	bool isFocusedChanged;
 	v2i screenSize;
 	bool screenSizeChanged;
+	bool isWindowTopmost;
 	// v2i windowSize; //TODO: Can we somehow ask sokol_sapp for the window size (include title bar and border)?
 };
 
@@ -44,7 +45,9 @@ struct AppInput
 #define GET_NATIVE_WINDOW_HANDLE_DEF(functionName) const void* functionName()
 typedef GET_NATIVE_WINDOW_HANDLE_DEF(GetNativeWindowHandle_f);
 
-#if BUILD_WITH_SOKOL_APP
+#define REQUEST_QUIT_DEF(functionName) void functionName()
+typedef REQUEST_QUIT_DEF(RequestQuit_f);
+
 #define GET_SOKOL_SWAPCHAIN_DEF(functionName) sg_swapchain functionName()
 typedef GET_SOKOL_SWAPCHAIN_DEF(GetSokolSwapchain_f);
 
@@ -59,19 +62,21 @@ typedef SET_WINDOW_TITLE_DEF(SetWindowTitle_f);
 
 #define SET_WINDOW_ICON_DEF(functionName) void functionName(uxx numIconSizes, const ImageData* iconSizes)
 typedef SET_WINDOW_ICON_DEF(SetWindowIcon_f);
-#endif //BUILD_WITH_SOKOL_APP
+
+#define SET_WINDOW_TOPMOST_DEF(functionName) void functionName(bool topmost)
+typedef SET_WINDOW_TOPMOST_DEF(SetWindowTopmost_f);
 
 typedef struct PlatformApi PlatformApi;
 struct PlatformApi
 {
 	GetNativeWindowHandle_f* GetNativeWindowHandle;
-	#if BUILD_WITH_SOKOL_APP
+	RequestQuit_f* RequestQuit;
 	GetSokolSwapchain_f* GetSokolSwapchain;
 	SetMouseLocked_f* SetMouseLocked;
 	SetMouseCursorType_f* SetMouseCursorType;
 	SetWindowTitle_f* SetWindowTitle;
 	SetWindowIcon_f* SetWindowIcon;
-	#endif
+	SetWindowTopmost_f* SetWindowTopmost;
 };
 
 // +--------------------------------------------------------------+

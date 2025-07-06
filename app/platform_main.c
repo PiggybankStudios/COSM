@@ -59,7 +59,6 @@ Description:
 // +--------------------------------------------------------------+
 #include "platform_interface.h"
 #include "platform_main.h"
-// TODO: Add header files here
 
 #if BUILD_INTO_SINGLE_UNIT
 EXPORT_FUNC APP_GET_API_DEF(AppGetApi);
@@ -78,54 +77,6 @@ PlatformApi* platform = nullptr;
 // |                    Platform Source Files                     |
 // +--------------------------------------------------------------+
 #include "platform_api.c"
-// TODO: Add source files here
-
-#if BUILD_WITH_RAYLIB
-void RaylibLogCallback(int logLevel, const char* text, va_list args)
-{
-	DbgLevel dbgLevel;
-	switch (logLevel)
-	{
-		case LOG_TRACE:   dbgLevel = DbgLevel_Debug;   break;
-		case LOG_DEBUG:   dbgLevel = DbgLevel_Debug;   break;
-		case LOG_INFO:    dbgLevel = DbgLevel_Info;    break;
-		case LOG_WARNING: dbgLevel = DbgLevel_Warning; break;
-		case LOG_ERROR:   dbgLevel = DbgLevel_Error;   break;
-		case LOG_FATAL:   dbgLevel = DbgLevel_Error;   break;
-		default: dbgLevel = DbgLevel_Regular; break;
-	}
-	if (dbgLevel == DbgLevel_Debug && !ENABLE_RAYLIB_LOGS_DEBUG) { return; }
-	if (dbgLevel == DbgLevel_Info && !ENABLE_RAYLIB_LOGS_INFO) { return; }
-	if (dbgLevel == DbgLevel_Warning && !ENABLE_RAYLIB_LOGS_WARNING) { return; }
-	if (dbgLevel == DbgLevel_Error && !ENABLE_RAYLIB_LOGS_ERROR) { return; }
-	
-	ScratchBegin(scratch);
-	va_list argsCopy;
-	va_copy(argsCopy, args);
-	char* formattedText = nullptr;
-	int formattedTextLength = MyVaListPrintf(nullptr, 0, text, args);
-	if (formattedTextLength >= 0)
-	{
-		formattedText = AllocArray(char, scratch, formattedTextLength+1);
-		if (formattedText != nullptr)
-		{
-			MyVaListPrintf(formattedText, formattedTextLength+1, text, argsCopy);
-			formattedText[formattedTextLength] = '\0';
-		}
-	}
-	va_end(argsCopy);
-	if (formattedText != nullptr)
-	{
-		WriteLineAt(dbgLevel, formattedText);
-	}
-	else
-	{
-		WriteLine_E("RaylibLogCallback PRINT FAILURE!");
-		WriteLineAt(dbgLevel, text);
-	}
-	ScratchEnd(scratch);
-}
-#endif //BUILD_WITH_RAYLIB
 
 bool PlatDoUpdate(void)
 {
@@ -136,19 +87,9 @@ bool PlatDoUpdate(void)
 	AppInput* oldAppInput = platformData->currentAppInput;
 	AppInput* newAppInput = (platformData->currentAppInput == &platformData->appInputs[0]) ? &platformData->appInputs[1] : &platformData->appInputs[0];
 	
-	#if BUILD_WITH_RAYLIB
-	v2i newScreenSize = NewV2i((i32)GetRenderWidth(), (i32)GetRenderHeight());
-	bool newIsFullScreen = IsWindowFullscreen();
-	bool isMouseLocked = IsCursorHidden();
-	#elif BUILD_WITH_SOKOL_APP
 	v2i newScreenSize = NewV2i(sapp_width(), sapp_height());
 	bool newIsFullScreen = sapp_is_fullscreen();
 	bool isMouseLocked = sapp_mouse_locked();
-	#else
-	v2i newScreenSize = NewV2i(800, 600);
-	bool newIsFullScreen = false;
-	bool isMouseLocked = false;
-	#endif
 	
 	if (!AreEqual(newScreenSize, oldAppInput->screenSize)) { oldAppInput->screenSizeChanged = true; }
 	oldAppInput->screenSize = newScreenSize;
@@ -175,11 +116,7 @@ bool PlatDoUpdate(void)
 // +--------------------------------------------------------------+
 // |                       Main Entry Point                       |
 // +--------------------------------------------------------------+
-#if BUILD_WITH_SOKOL_APP
 void PlatSappInit(void)
-#else
-int main()
-#endif
 {
 	Arena stdHeapLocal = ZEROED;
 	InitArenaStdHeap(&stdHeapLocal);
@@ -193,14 +130,6 @@ int main()
 	InitScratchArenasVirtual(Gigabytes(4));
 	
 	ScratchBegin(loadScratch);
-	
-	#if BUILD_WITH_RAYLIB
-	SetTraceLogCallback(RaylibLogCallback);
-	InitWindow(800, 600, PROJECT_READABLE_NAME_STR);
-	SetWindowMinSize(400, 200);
-	SetWindowState(FLAG_WINDOW_RESIZABLE);
-	SetTargetFPS(60);
-	#endif //BUILD_WITH_RAYLIB
 	
 	InitKeyboardState(&platformData->appInputs[0].keyboard);
 	InitKeyboardState(&platformData->appInputs[1].keyboard);
@@ -219,13 +148,13 @@ int main()
 	NotNull(platform);
 	ClearPointer(platform);
 	platform->GetNativeWindowHandle = Plat_GetNativeWindowHandle;
-	#if BUILD_WITH_SOKOL_APP
+	platform->RequestQuit = Plat_RequestQuit;
 	platform->GetSokolSwapchain = Plat_GetSokolSwapchain;
 	platform->SetMouseLocked = Plat_SetMouseLocked;
 	platform->SetMouseCursorType = Plat_SetMouseCursorType;
 	platform->SetWindowTitle = Plat_SetWindowTitle;
 	platform->SetWindowIcon = Plat_SetWindowIcon;
-	#endif
+	platform->SetWindowTopmost = Plat_SetWindowTopmost;
 	
 	#if BUILD_INTO_SINGLE_UNIT
 	{
@@ -255,7 +184,6 @@ int main()
 	
 	//TODO: Should we do an early call into app dll to get options?
 	
-	#if BUILD_WITH_SOKOL_GFX
 	InitSokolGraphics((sg_desc){
 		// .buffer_pool_size = ?; //int
 		// .image_pool_size = ?; //int
@@ -282,41 +210,12 @@ int main()
 	gfx.prevFontFlow.glyphs = AllocArray(FontFlowGlyph, stdHeap, gfx.prevFontFlow.numGlyphsAlloc);
 	NotNull(gfx.prevFontFlow.glyphs);
 	#endif
-	#endif
 	
 	platformData->appMemoryPntr = platformData->appApi.AppInit(platformInfo, platform);
 	NotNull(platformData->appMemoryPntr);
 	
 	ScratchEnd(loadScratch);
-	
-	// +--------------------------------------------------------------+
-	// |                        Main Game Loop                        |
-	// +--------------------------------------------------------------+
-	#if BUILD_WITH_RAYLIB
-	while (!WindowShouldClose())
-	{
-		//Grab all scratch arenas so we can ensure they get reset at the end of each frame
-		ScratchBegin(scratch1);
-		ScratchBegin1(scratch2, scratch1);
-		ScratchBegin2(scratch3, scratch1, scratch2);
-		
-		PlatDoUpdate();
-		
-		ScratchEnd(scratch1);
-		ScratchEnd(scratch2);
-		ScratchEnd(scratch3);
-	}
-	#if !BUILD_INTO_SINGLE_UNIT
-	CloseWindow();
-	#endif
-	#endif //BUILD_WITH_RAYLIB
-	
-	#if !BUILD_WITH_SOKOL_APP
-	return 0;
-	#endif
 }
-
-#if BUILD_WITH_SOKOL_APP
 
 void PlatSappCleanup(void)
 {
@@ -407,8 +306,6 @@ sapp_desc sokol_main(int argc, char* argv[])
 		.logger.func = SokolLogCallback,
 	};
 }
-
-#endif
 
 #if BUILD_INTO_SINGLE_UNIT
 #include "app/app_main.c"
