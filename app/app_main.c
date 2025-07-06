@@ -215,6 +215,8 @@ EXPORT_FUNC APP_INIT_DEF(AppInit)
 			u64 nodeId67 = AddOsmNode(&app->map, NewGeoLoc(47.58393661978137,  -122.48313903808595))->id;
 			u64 wayIds[] = { nodeId1, nodeId2, nodeId3, nodeId4, nodeId5, nodeId6, nodeId7, nodeId8, nodeId9, nodeId10, nodeId11, nodeId12, nodeId13, nodeId14, nodeId15, nodeId16, nodeId17, nodeId18, nodeId19, nodeId20, nodeId21, nodeId22, nodeId23, nodeId24, nodeId25, nodeId26, nodeId27, nodeId28, nodeId29, nodeId30, nodeId31, nodeId32, nodeId33, nodeId34, nodeId35, nodeId36, nodeId37, nodeId38, nodeId39, nodeId40, nodeId41, nodeId42, nodeId43, nodeId44, nodeId45, nodeId46, nodeId47, nodeId48, nodeId49, nodeId50, nodeId51, nodeId52, nodeId53, nodeId54, nodeId55, nodeId56, nodeId57, nodeId58, nodeId59, nodeId60, nodeId61, nodeId62, nodeId63, nodeId64, nodeId65, nodeId66, nodeId67 };
 			OsmWay* testWay = AddOsmWay(&app->map, ArrayCount(wayIds), &wayIds[0]);
+			app->viewPos = NewV2(159.687271f, 99.153770f);
+			app->viewZoom = 622.0f;
 			#endif
 			
 			PrintLine_I("Parsed test file, %llu node%s %llu way%s", app->map.nodes.length, Plural(app->map.nodes.length, "s"), app->map.ways.length, Plural(app->map.ways.length, "s"));
@@ -417,6 +419,22 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 					} Clay__CloseElement();
 					
 					CLAY({ .layout = { .sizing = { .width=CLAY_SIZING_GROW(0) } } }) {}
+					
+					CLAY({ .id = CLAY_ID("ViewPosDisplay") })
+					{
+						CLAY_TEXT(
+							PrintInArenaStr(uiArena, "Pos (%lf, %lf) Scale %lf", app->viewPos.X, app->viewPos.Y, app->viewZoom),
+							CLAY_TEXT_CONFIG({
+								.fontId = app->clayUiFontId,
+								.fontSize = (u16)app->uiFontSize,
+								.textColor = TEXT_WHITE,
+								.wrapMode = CLAY_TEXT_WRAP_NONE,
+								.textAlignment = CLAY_TEXT_ALIGN_SHRINK,
+								.userData = { .contraction = TextContraction_ClipRight },
+							})
+						);
+					}
+					CLAY({ .layout={ .sizing={ .width=CLAY_SIZING_FIXED(UI_R32(4)) } } }) {}
 				}
 				
 				// +==============================+
