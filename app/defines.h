@@ -26,4 +26,9 @@ Date:   02\25\2025
 #define SELECTED_BLUE        NewColor(0, 121, 166, 255)   //FF0079A6
 #define ERROR_RED            NewColor(255, 102, 102, 255) //FFFF6666
 
+#define OSM_API_URL "https://api.openstreetmap.org/api"
+#define OHM_API_URL "https://api.openhistoricalmap.org/api"
+
+#define TEST_OSM_FILE "test.osm" //download a portion of OSM from https://www.openstreetmap.org/export and put it in the _data folder
+
 #endif //  _DEFINES_H

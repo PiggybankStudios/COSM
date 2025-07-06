@@ -30,6 +30,7 @@ Description:
 // +--------------------------------------------------------------+
 #include "platform_interface.h"
 #include "app_resources.h"
+#include "osm_map.h"
 #include "app_main.h"
 
 // +--------------------------------------------------------------+
@@ -50,6 +51,7 @@ static Arena* stdHeap = nullptr;
 // +--------------------------------------------------------------+
 #include "main2d_shader.glsl.h"
 #include "app_resources.c"
+#include "osm_map.c"
 #include "app_clay_helpers.c"
 #include "app_helpers.c"
 #include "app_clay.c"
@@ -128,6 +130,23 @@ EXPORT_FUNC APP_INIT_DEF(AppInit)
 	
 	InitClayUIRenderer(stdHeap, V2_Zero, &app->clay);
 	app->clayUiFontId = AddClayUIRendererFont(&app->clay, &app->uiFont, UI_FONT_STYLE);
+	
+	Str8 testFileContents = Str8_Empty;
+	bool foundTestFile = OsReadTextFile(FilePathLit(TEST_OSM_FILE), scratch, &testFileContents);
+	if (foundTestFile)
+	{
+		PrintLine_I("Opened test file, %llu bytes", testFileContents.length);
+		Result parseResult = TryParseOsmMap(stdHeap, testFileContents, &app->map);
+		if (parseResult == Result_Success)
+		{
+			PrintLine_I("Parsed test file, %llu node%s %llu way%s", app->map.nodes.length, Plural(app->map.nodes.length, "s"), app->map.ways.length, Plural(app->map.ways.length, "s"));
+		}
+		else { PrintLine_E("Parse failure: %s", GetResultStr(parseResult)); }
+	}
+	else
+	{
+		PrintLine_E("Failed to find test file \"%s\"", TEST_OSM_FILE);
+	}
 	
 	app->initialized = true;
 	ScratchEnd(scratch);

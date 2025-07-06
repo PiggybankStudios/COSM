@@ -218,7 +218,7 @@ int main(int argc, char* argv[])
 	{
 		if (BUILD_WINDOWS)
 		{
-			InitializeMsvcIf(&isMsvcInitialized);
+			InitializeMsvcIf(StrLit("../core"), &isMsvcInitialized);
 			PrintLine("\n[Building %s for Windows...]", FILENAME_PIGGEN_EXE);
 			
 			CliArgList cmd = ZEROED;
@@ -440,7 +440,7 @@ int main(int argc, char* argv[])
 	
 	if (BUILD_SHADERS)
 	{
-		if (BUILD_WINDOWS) { InitializeMsvcIf(&isMsvcInitialized); }
+		if (BUILD_WINDOWS) { InitializeMsvcIf(StrLit("../core"), &isMsvcInitialized); }
 		
 		PrintLine("Found %u shader%s", findContext.shaderPaths.length, findContext.shaderPaths.length == 1 ? "" : "s");
 		// for (uxx sIndex = 0; sIndex < findContext.shaderPaths.length; sIndex++)
@@ -567,7 +567,7 @@ int main(int argc, char* argv[])
 	{
 		if (BUILD_WINDOWS)
 		{
-			InitializeMsvcIf(&isMsvcInitialized);
+			InitializeMsvcIf(StrLit("../core"), &isMsvcInitialized);
 			PrintLine("\n[Building %s for Windows...]", FILENAME_PIG_CORE_DLL);
 			
 			CliArgList cmd = ZEROED;
@@ -629,7 +629,7 @@ int main(int argc, char* argv[])
 	{
 		if (BUILD_WINDOWS)
 		{
-			InitializeMsvcIf(&isMsvcInitialized);
+			InitializeMsvcIf(StrLit("../core"), &isMsvcInitialized);
 			PrintLine("\n[Building %.*s for Windows...]", filenameAppExe.length, filenameAppExe.chars);
 			
 			CliArgList cmd = ZEROED;
@@ -696,7 +696,7 @@ int main(int argc, char* argv[])
 	{
 		if (BUILD_WINDOWS)
 		{
-			InitializeMsvcIf(&isMsvcInitialized);
+			InitializeMsvcIf(StrLit("../core"), &isMsvcInitialized);
 			PrintLine("\n[Building %.*s for Windows...]", filenameAppDll.length, filenameAppDll.chars);
 			
 			CliArgList cmd = ZEROED;

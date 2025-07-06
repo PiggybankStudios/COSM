@@ -155,8 +155,24 @@
 		],
 		"custom_functions":
 		[
+			"#define InitVarArray(type, arrayPntr, arena)",
+			"#define InitVarArrayWithInitial(type, arrayPntr, arena, initialCountNeeded)",
 			"Result OsLoadDll(FilePath path, OsDll* dllOut)",
 			"Result TryParseImageFile(Slice fileContents, Arena* arena, ImageData* imageDataOut)",
+			"Str8 AllocStrAndCopy(Arena* arena, uxx numChars, const char* charsToCopy, bool addNullTerm)",
+			"Str8 AllocStrAndCopyNt(Arena* arena, const char* nullTermStr, bool addNullTerm)",
+			"Str8 EscapeString(Arena* arena, Str8 rawString)",
+			"Str8 EscapeStringEx(Arena* arena, Str8 rawString, u8 escapeSequences, bool addNullTerm)",
+			"Str8 JoinStringsInArena(Arena* arena, Str8 left, Str8 right, bool addNullTerm)",
+			"Str8 JoinStringsInArena3(Arena* arena, Str8 left, Str8 middle, Str8 right, bool addNullTerm)",
+			"Str8 JoinStringsInArenaWithChar(Arena* arena, Str8 left, char sepChar, Str8 right, bool addNullTerm)",
+			"Str8 StrReplace(Arena* arena, Str8 str, Str8 target, Str8 replacement, bool addNullTerm)",
+			"Str8 UnescapeString(Arena* arena, Str8 escapedString)",
+			"Str8 UnescapeStringEx(Arena* arena, Str8 escapedString, u8 escapeSequences, bool addNullTerm)",
+			"char* AllocAndCopyChars(Arena* arena, uxx numChars, const char* charsToCopy, bool addNullTerm)",
+			"char* AllocAndCopyCharsNt(Arena* arena, const char* nullTermStr, bool addNullTerm)",
+			"void FreeStr8(Arena* arena, Str8* stringPntr)",
+			"void FreeStr8WithNt(Arena* arena, Str8* stringPntr)",
 		],
 		"custom_globals":
 		[

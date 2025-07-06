@@ -25,6 +25,8 @@ struct AppData
 	bool keepFileMenuOpenUntilMouseOver;
 	bool isViewMenuOpen;
 	bool keepViewMenuOpenUntilMouseOver;
+	
+	OsmMap map;
 };
 
 #endif //  _APP_MAIN_H
