@@ -8,3 +8,7 @@ _data/*.ini
 _data/*.osm
 _data/*.gpx
 _data/*.tcx
+third_party/libroxml/
+third_party/libxml2-*/
+third_party/xmlh/
+third_party/yxml/

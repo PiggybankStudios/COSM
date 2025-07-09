@@ -12,6 +12,8 @@ Description:
 #include "defines.h"
 #define PIG_CORE_IMPLEMENTATION BUILD_INTO_SINGLE_UNIT
 
+#define HOXML_ENABLED 1
+
 #include "base/base_all.h"
 #include "std/std_all.h"
 #include "os/os_all.h"
@@ -25,9 +27,22 @@ Description:
 #include "gfx/gfx_system_global.h"
 #include "phys/phys_all.h"
 
+#if HOXML_ENABLED
+#if COMPILER_IS_MSVC
+#pragma warning(push)
+#pragma warning(disable: 4244)
+#endif
+#define HOXML_IMPLEMENTATION
+#include "third_party/hoxml/hoxml.h"
+#if COMPILER_IS_MSVC
+#pragma warning(pop)
+#endif
+#endif
+
 // +--------------------------------------------------------------+
 // |                         Header Files                         |
 // +--------------------------------------------------------------+
+#include "parse_xml.h"
 #include "platform_interface.h"
 #include "app_resources.h"
 #include "map_geoloc.h"
@@ -51,6 +66,7 @@ static Arena* stdHeap = nullptr;
 // +--------------------------------------------------------------+
 // |                         Source Files                         |
 // +--------------------------------------------------------------+
+#include "parse_xml.c"
 #include "main2d_shader.glsl.h"
 #include "app_resources.c"
 #include "osm_map.c"
@@ -255,6 +271,77 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 	// |            Update            |
 	// +==============================+
 	{
+		// +==============================+
+		// |       Test XML Parsers       |
+		// +==============================+
+		if (IsKeyboardKeyPressed(&appIn->keyboard, Key_Enter))
+		{
+			Str8 xmlFileContents = Str8_Empty;
+			bool readSuccess = OsReadTextFile(FilePathLit(TEST_OSM_FILE), scratch, &xmlFileContents);
+			if (readSuccess)
+			{
+				#if 0
+				hoxml_context_t context;
+				char* buffer = AllocMem(scratch, xmlFileContents.length);
+				hoxml_init(&context, buffer, xmlFileContents.length);
+				
+				u64 codeIndex = 0;
+				hoxml_code_t xmlCode;
+				while ((xmlCode = hoxml_parse(&context, xmlFileContents.chars, xmlFileContents.length)) != HOXML_END_OF_DOCUMENT)
+				{
+					switch (xmlCode)
+					{
+						case HOXML_ELEMENT_BEGIN:
+						{
+							PrintLine_D("Opened <%s>", context.tag);
+							bool foundSrlInfo = false;
+							for (u64 sIndex = 0; sIndex < ArrayCount(xOsmSrlInfos); sIndex++)
+							{
+								const SrlInfo* info = &xOsmSrlInfos[sIndex];
+								if (StrExactEquals(StrLit(context.tag), StrLit(info->serializedName)))
+								{
+									PrintLine_D("\tShould have %llu members!", info->numMembers);
+									foundSrlInfo = true;
+									break;
+								}
+							}
+							if (!foundSrlInfo)
+							{
+								WriteLine_W("\tUnknown type!");
+							}
+						} break;
+						case HOXML_ELEMENT_END:   PrintLine_D("Closed <%s>", context.tag); break;
+						case HOXML_ATTRIBUTE: PrintLine_D("Attribute \"%s\" of <%s> has value: %s", context.attribute, context.tag, context.value); break;
+						default: PrintLine_D("HoxmlCode[%llu]: %s", codeIndex, GetHoxmlCodeStr(xmlCode));
+					}
+					if (xmlCode == HOXML_ERROR_INSUFFICIENT_MEMORY) { break; }
+					codeIndex++;
+				}
+				#endif
+				
+				#if HOXML_ENABLED
+				XmlParser parser;
+				InitXmlParser(stdHeap, xmlFileContents, false, ArrayCount(xOsmSrlInfos), &xOsmSrlInfos[0], 8, &parser);
+				XmlParserResult parseResult;
+				while ((parseResult = XmlParseStep(&parser)).isFinished == false)
+				{
+					if (parseResult.isError || parseResult.isWarning)
+					{
+						PrintLineAt(parseResult.isError ? DbgLevel_Error : DbgLevel_Warning, "XML %s: %.*s",
+							parseResult.isError ? "Error" : "Warning",
+							StrPrint(parseResult.message)
+						);
+						if (parseResult.isError) { MyBreak(); break; }
+					}
+				}
+				if (parseResult.isFinished)
+				{
+					WriteLine_I("Successfully parsed XML without errors!");
+				}
+				#endif
+			}
+		}
+		
 		// +==============================+
 		// |  Scroll Wheel Zooms In/Out   |
 		// +==============================+
