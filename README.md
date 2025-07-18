@@ -4,4 +4,4 @@ A viewer/editor for [OpenStreetMaps](https://www.openstreetmap.org/) data built 
 The tempoary name COSM is based on [JOSM](https://josm.openstreetmap.de/) (a Java editor for OpenStreetMaps)
 
 # Screenshots
-![Screenshot 1](/_media/screenshot2.png)
+![Screenshot of Bräcke](/_media/screenshot3.png)

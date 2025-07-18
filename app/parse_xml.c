@@ -156,7 +156,6 @@ XmlElement* XmlGetChild(XmlFile* file, XmlElement* parent, Str8 type, u64 index)
 			findIndex++;
 		}
 	}
-	if (result == nullptr) { file->error = Result_NotFound; }
 	return result;
 }
 

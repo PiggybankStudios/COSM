@@ -36,7 +36,7 @@ void FreeOsmWay(Arena* arena, OsmWay* way)
 	NotNull(way);
 	FreeStr8(arena, &way->timestampStr);
 	FreeStr8(arena, &way->user);
-	FreeVarArray(&way->nodeIds);
+	FreeVarArray(&way->nodes);
 	VarArrayLoop(&way->tags, tIndex)
 	{
 		VarArrayLoopGet(OsmTag, tag, &way->tags, tIndex);
@@ -79,11 +79,22 @@ void InitOsmMap(Arena* arena, OsmMap* mapOut, u64 numNodesExpected, u64 numWaysE
 	InitVarArrayWithInitial(OsmWay, &mapOut->ways, arena, numWaysExpected);
 }
 
+OsmNode* FindOsmNode(OsmMap* map, u64 nodeId)
+{
+	VarArrayLoop(&map->nodes, nIndex)
+	{
+		VarArrayLoopGet(OsmNode, node, &map->nodes, nIndex);
+		if (node->id == nodeId) { return node; }
+	}
+	return nullptr;
+}
+
 OsmNode* AddOsmNode(OsmMap* map, v2d location, u64 id)
 {
 	NotNull(map);
 	NotNull(map->arena);
 	OsmNode* result = VarArrayAdd(OsmNode, &map->nodes);
+	ClearPointer(result);
 	result->id = (id == 0) ? map->nextNodeId : id;
 	if (id == 0) { map->nextNodeId++; }
 	result->location = location;
@@ -92,19 +103,25 @@ OsmNode* AddOsmNode(OsmMap* map, v2d location, u64 id)
 	return result;
 }
 
-OsmWay* AddOsmWay(OsmMap* map, u64 numNodes, u64* nodeIds)
+OsmWay* AddOsmWay(OsmMap* map, u64 id, u64 numNodes, u64* nodeIds)
 {
 	NotNull(map);
 	NotNull(map->arena);
 	Assert(numNodes == 0 || nodeIds != nullptr);
 	OsmWay* result = VarArrayAdd(OsmWay, &map->ways);
-	result->id = map->nextWayId;
-	map->nextWayId++;
+	ClearPointer(result);
+	result->id = (id == 0) ? map->nextWayId : id;
+	if (id == 0) { map->nextWayId++; }
 	result->visible = true;
-	InitVarArrayWithInitial(u64, &result->nodeIds, map->arena, numNodes);
+	InitVarArrayWithInitial(OsmNodeRef, &result->nodes, map->arena, numNodes);
 	for (u64 nIndex = 0; nIndex < numNodes; nIndex++)
 	{
-		VarArrayAddValue(u64, &result->nodeIds, nodeIds[nIndex]);
+		OsmNodeRef* newRef = VarArrayAdd(OsmNodeRef, &result->nodes);
+		NotNull(newRef);
+		ClearPointer(newRef);
+		newRef->id = nodeIds[nIndex];
+		newRef->pntr = FindOsmNode(map, newRef->id);
+		NotNull(newRef->pntr);
 	}
 	InitVarArray(OsmTag, &result->tags, map->arena);
 	return result;
@@ -153,7 +170,52 @@ Result TryParseOsmMap(Arena* arena, Str8 xmlFileContents, OsmMap* mapOut)
 			// TODO: Parse "uid" attribute
 		}
 		if (xml.error != Result_None) { break; }
+		
+		XmlElement* xmlWay;
+		u64 wayIndex = 0;
+		while ((xmlWay = XmlGetChild(&xml, root, StrLit("way"), wayIndex++)) != nullptr)
+		{
+			u64 mark = ArenaGetMark(scratch);
+			u64 numNodesInWay = 0;
+			VarArrayLoop(&xmlWay->children, cIndex)
+			{
+				VarArrayLoopGet(XmlElement, xmlChild, &xmlWay->children, cIndex);
+				if (StrExactEquals(xmlChild->type, StrLit("nd"))) { numNodesInWay++; }
+			}
+			
+			u64* nodeIds = (numNodesInWay != 0) ? AllocArray(u64, scratch, numNodesInWay) : nullptr;
+			u64 nIndex = 0;
+			VarArrayLoop(&xmlWay->children, cIndex)
+			{
+				VarArrayLoopGet(XmlElement, xmlChild, &xmlWay->children, cIndex);
+				if (StrExactEquals(xmlChild->type, StrLit("nd")))
+				{
+					nodeIds[nIndex] = XmlGetAttributeU64OrBreak(&xml, xmlChild, StrLit("ref"));
+					nIndex++;
+				}
+			}
+			if (xml.error != Result_None) { break; }
+			
+			u64 id = XmlGetAttributeU64OrBreak(&xml, xmlWay, StrLit("id"));
+			// TODO: Parse "visible" attribute
+			// TODO: Parse "version" attribute
+			// TODO: Parse "changeset" attribute
+			// TODO: Parse "timestamp" attribute
+			// TODO: Parse "user" attribute
+			// TODO: Parse "uid" attribute
+			OsmWay* newWay = AddOsmWay(mapOut, id, numNodesInWay, nodeIds);
+			NotNull(newWay);
+			//TODO: Parse the <tag> elements under the <way>
+			ArenaResetToMark(scratch, mark);
+		}
+		if (xml.error != Result_None) { break; }
+		
 	} while(false);
+	
+	if (xml.error)
+	{
+		FreeOsmMap(mapOut);
+	}
 	
 	ScratchEnd(scratch);
 	return (xml.error == Result_None) ? Result_Success : xml.error;

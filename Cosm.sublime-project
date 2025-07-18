@@ -276,6 +276,8 @@
 			"Circle NewCircle(r32 x, r32 y, r32 radius)",
 			"Circle NewCircleV(v2 center, r32 radius)",
 			"OsmNode* AddOsmNode(OsmMap* map, v2d location, u64 id)",
+			"OsmNode* FindOsmNode(OsmMap* map, u64 nodeId)",
+			"OsmWay* AddOsmWay(OsmMap* map, u64 id, u64 numNodes, u64* nodeIds)",
 			"PEXPI bool AreEqualBox(box left, box right)",
 			"PEXPI bool AreEqualBoxd(boxd left, boxd right)",
 			"PEXPI bool AreEqualBoxi(boxi left, boxi right)",
@@ -628,6 +630,7 @@
 		[
 			"ArrayVisitFunc_f",
 			"OsDll",
+			"OsmNodeRef",
 			"VarArray",
 			"Vec2R64",
 			"Vec3R64",

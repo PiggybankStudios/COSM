@@ -393,6 +393,7 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 			
 			DrawRectangleOutlineEx(mapRec, 4.0f, MonokaiPurple, false);
 			
+			#if 0
 			v2 prevPos = V2_Zero;
 			VarArrayLoop(&app->map.nodes, nIndex)
 			{
@@ -405,6 +406,27 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 				}
 				prevPos = nodePos;
 			}
+			#endif
+			
+			#if 1
+			{
+				VarArrayLoop(&app->map.ways, wIndex)
+				{
+					VarArrayLoopGet(OsmWay, way, &app->map.ways, wIndex);
+					v2 prevPos = V2_Zero;
+					VarArrayLoop(&way->nodes, nIndex)
+					{
+						VarArrayLoopGet(OsmNodeRef, nodeRef, &way->nodes, nIndex);
+						v2 nodePos = ProjectMercator(nodeRef->pntr->location, mapRec);
+						if (nIndex > 0)
+						{
+							DrawLine(prevPos, nodePos, 1.0f, GetMonokaiColorByIndex(wIndex+nIndex));
+						}
+						prevPos = nodePos;
+					}
+				}
+			}
+			#endif
 		}
 		
 		// +==============================+

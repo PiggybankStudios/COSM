@@ -30,6 +30,13 @@ struct OsmNode
 	VarArray tags; //OsmTag
 };
 
+typedef struct OsmNodeRef OsmNodeRef;
+struct OsmNodeRef
+{
+	u64 id;
+	OsmNode* pntr;
+};
+
 // <way id="428033729" visible="true" version="5" changeset="81153531" timestamp="2020-02-18T06:41:24Z" user="thadekam" uid="10455646">
 typedef struct OsmWay OsmWay;
 struct OsmWay
@@ -41,7 +48,7 @@ struct OsmWay
 	Str8 timestampStr;
 	Str8 user;
 	u64 uid;
-	VarArray nodeIds; //u64 <nd ref="136907743"/>
+	VarArray nodes; //OsmNodeRef
 	VarArray tags; //OsmTag
 };
 
