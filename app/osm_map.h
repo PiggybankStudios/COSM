@@ -26,7 +26,7 @@ struct OsmNode
 	Str8 timestampStr;
 	Str8 user;
 	u64 uid;
-	GeoLoc location;
+	v2d location;
 	VarArray tags; //OsmTag
 };
 

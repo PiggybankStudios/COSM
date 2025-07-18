@@ -203,7 +203,6 @@ r32 XmlGetAttributeR32(XmlFile* file, XmlElement* element, Str8 attributeName)
 	file->error = Result_NotFound;
 	return 0.0f;
 }
-
 r32 XmlGetAttributeR32OrDefault(XmlFile* file, XmlElement* element, Str8 attributeName, r32 defaultValue)
 {
 	NotNull(file);
@@ -222,7 +221,81 @@ r32 XmlGetAttributeR32OrDefault(XmlFile* file, XmlElement* element, Str8 attribu
 	return defaultValue;
 }
 
+r64 XmlGetAttributeR64(XmlFile* file, XmlElement* element, Str8 attributeName)
+{
+	NotNull(file);
+	NotNull(element);
+	VarArrayLoop(&element->attributes, aIndex)
+	{
+		VarArrayLoopGet(XmlAttribute, attribute, &element->attributes, aIndex);
+		if (StrExactEquals(attribute->key, attributeName))
+		{
+			r64 valueR64 = 0.0;
+			Result error = Result_None;
+			if (TryParseR64(attribute->value, &valueR64, &error)) { return valueR64; }
+			else { file->error = Result_FloatParseFailure; return 0.0; }
+		}
+	}
+	file->error = Result_NotFound;
+	return 0.0;
+}
+r64 XmlGetAttributeR64OrDefault(XmlFile* file, XmlElement* element, Str8 attributeName, r64 defaultValue)
+{
+	NotNull(file);
+	NotNull(element);
+	VarArrayLoop(&element->attributes, aIndex)
+	{
+		VarArrayLoopGet(XmlAttribute, attribute, &element->attributes, aIndex);
+		if (StrExactEquals(attribute->key, attributeName))
+		{
+			r64 valueR64 = 0.0;
+			Result error = Result_None;
+			if (TryParseR64(attribute->value, &valueR64, &error)) { return valueR64; }
+			else { file->error = Result_FloatParseFailure; return defaultValue; }
+		}
+	}
+	return defaultValue;
+}
+
+u64 XmlGetAttributeU64(XmlFile* file, XmlElement* element, Str8 attributeName)
+{
+	NotNull(file);
+	NotNull(element);
+	VarArrayLoop(&element->attributes, aIndex)
+	{
+		VarArrayLoopGet(XmlAttribute, attribute, &element->attributes, aIndex);
+		if (StrExactEquals(attribute->key, attributeName))
+		{
+			u64 valueU64 = 0;
+			Result error = Result_None;
+			if (TryParseU64(attribute->value, &valueU64, &error)) { return valueU64; }
+			else { file->error = Result_FloatParseFailure; return 0; }
+		}
+	}
+	file->error = Result_NotFound;
+	return 0;
+}
+u64 XmlGetAttributeU64OrDefault(XmlFile* file, XmlElement* element, Str8 attributeName, u64 defaultValue)
+{
+	NotNull(file);
+	NotNull(element);
+	VarArrayLoop(&element->attributes, aIndex)
+	{
+		VarArrayLoopGet(XmlAttribute, attribute, &element->attributes, aIndex);
+		if (StrExactEquals(attribute->key, attributeName))
+		{
+			u64 valueU64 = 0;
+			Result error = Result_None;
+			if (TryParseU64(attribute->value, &valueU64, &error)) { return valueU64; }
+			else { file->error = Result_FloatParseFailure; return defaultValue; }
+		}
+	}
+	return defaultValue;
+}
+
 #define XmlGetOneChildOrBreak(file, parent, type) XmlGetOneChild((file), (parent), (type)); if ((file)->error != Result_None) { break; }
 #define XmlGetChildOrBreak(file, parent, type, index) XmlGetChild((file), (parent), (type), (index)); if ((file)->error != Result_None) { break; }
 #define XmlGetAttributeOrBreak(file, element, attributeName) XmlGetAttribute((file), (element), (attributeName)); if ((file)->error != Result_None) { break; }
 #define XmlGetAttributeR32OrBreak(file, element, attributeName) XmlGetAttributeR32((file), (element), (attributeName)); if ((file)->error != Result_None) { break; }
+#define XmlGetAttributeR64OrBreak(file, element, attributeName) XmlGetAttributeR64((file), (element), (attributeName)); if ((file)->error != Result_None) { break; }
+#define XmlGetAttributeU64OrBreak(file, element, attributeName) XmlGetAttributeU64((file), (element), (attributeName)); if ((file)->error != Result_None) { break; }

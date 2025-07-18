@@ -45,7 +45,6 @@ Description:
 #include "parse_xml.h"
 #include "platform_interface.h"
 #include "app_resources.h"
-#include "map_geoloc.h"
 #include "map_projections.h"
 #include "osm_map.h"
 #include "app_main.h"
@@ -161,7 +160,7 @@ EXPORT_FUNC APP_INIT_DEF(AppInit)
 		Result parseResult = TryParseOsmMap(stdHeap, testFileContents, &app->map);
 		if (parseResult == Result_Success)
 		{
-			#if 1
+			#if 0
 			u64 nodeId1  = AddOsmNode(&app->map, NewGeoLoc(47.584399766577576, -122.48176574707033))->id;
 			u64 nodeId2  = AddOsmNode(&app->map, NewGeoLoc(47.581620824334166, -122.49755859375001))->id;
 			u64 nodeId3  = AddOsmNode(&app->map, NewGeoLoc(47.57606249728773,  -122.50030517578126))->id;
