@@ -320,24 +320,13 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 				#endif
 				
 				#if HOXML_ENABLED
-				XmlParser parser;
-				InitXmlParser(stdHeap, xmlFileContents, false, ArrayCount(xOsmSrlInfos), &xOsmSrlInfos[0], 8, &parser);
-				XmlParserResult parseResult;
-				while ((parseResult = XmlParseStep(&parser)).isFinished == false)
+				XmlFile xmlFile = ZEROED;
+				Result parseResult = TryParseXml(xmlFileContents, scratch, &xmlFile);
+				if (parseResult == Result_Success)
 				{
-					if (parseResult.isError || parseResult.isWarning)
-					{
-						PrintLineAt(parseResult.isError ? DbgLevel_Error : DbgLevel_Warning, "XML %s: %.*s",
-							parseResult.isError ? "Error" : "Warning",
-							StrPrint(parseResult.message)
-						);
-						if (parseResult.isError) { MyBreak(); break; }
-					}
+					PrintLine_I("Parsed xml file, %llu root elements, %llu total elements", xmlFile.roots.length, xmlFile.numElements);
 				}
-				if (parseResult.isFinished)
-				{
-					WriteLine_I("Successfully parsed XML without errors!");
-				}
+				else { PrintLine_E("Failed to parse XML file: %s", GetResultStr(parseResult)); }
 				#endif
 			}
 		}

@@ -29,99 +29,200 @@ const char* GetHoxmlCodeStr(hoxml_code_t code)
 	}
 }
 
-void FreeXmlParser(XmlParser* parser)
+Result TryParseXml(Str8 xmlContents, Arena* arena, XmlFile* fileOut)
 {
-	NotNull(parser);
-	if (parser->arena != nullptr)
-	{
-		if (parser->infos != nullptr) { FreeArray(SrlInfo, parser->arena, parser->numInfos, parser->infos); }
-		if (parser->stack != nullptr) { FreeArray(XmlStackElem, parser->arena, parser->maxStackSize, parser->stack); }
-		if (xmlStrIsOwned) { FreeStr8(parser->arena, &parser->xmlStr); }
-		if (parser->errorMessage.chars != nullptr) { FreeStr8(parser->arena, &parser->errorMessage); }
-		if (parserOut->hoxmlBuffer != nullptr) { FreeMem(parser->arena, parser->hoxmlBuffer, parser->hoxmlBufferSize); }
-	}
-	ClearPointer(parser);
-}
-
-const SrlInfo* FindSerialInfo(u64 numSrlInfos, const SrlInfo* srlInfos, Str8 name)
-{
-	
-}
-
-XmlResult TryParseXml(Arena* arena, Str8 xmlData, u64 numSrlInfos, const SrlInfo* srlInfos, u64 maxStackSize)
-{
+	NotNullStr(xmlContents);
 	NotNull(arena);
-	NotNullStr(xmlData);
-	Assert(numSrlInfos > 0 && srlInfos != nullptr);
-	Assert(maxStackSize > 0);
-	XmlResult result = ZEROED;
-	
+	NotNull(fileOut);
 	ScratchBegin1(scratch, arena);
-	{
-		u64 stackSize = 0;
-		XmlStackElem* stack = AllocArray(XmlStackElem, scratch, maxStackSize);
-		NotNull(stack);
-		MyMemSet(stack, 0x00, sizeof(XmlStackElem) * maxStackSize);
-		
-		u64 hoxmlBufferSize = xmlData.length; //TODO: Hone this allocation better? Or investigate how to dynamically allocate?
-		u8* hoxmlBuffer = (u8*)AllocMem(scratch, hoxmlBufferSize);
-		NotNull(hoxmlBuffer);
-		hoxml_context_t hoxmlContext;
-		hoxml_init(&hoxmlContext, hoxmlBuffer, hoxmlBufferSize);
-		
-		hoxml_code_t hoxmlCode;
-		while ((hoxmlCode = hoxml_parse(&hoxmlContext, xmlData.chars, xmlData.length)) != HOXML_END_OF_DOCUMENT)
-		{
-			if (hoxmlCode == HOXML_ELEMENT_BEGIN)
-			{
-				if (stackSize == 0)
-				{
-					
-				}
-			}
-			else
-			{
-				PrintLine_W("Unhandled hoxml code %u %s", hoxmlCode, GetHoxmlCodeStr(hoxmlCode));
-			}
-		}
-	}
-	ScratchEnd(scratch);
 	
-	return result;
-}
-
-XmlParserResult XmlParseStep(XmlParser* parser)
-{
-	NotNull(parser);
-	NotNull(parser->arena);
-	XmlParserResult result = ZEROED;
-	if (parser->isFinished) { result.isFinished = true; return result; }
+	ClearPointer(fileOut);
+	fileOut->arena = arena;
+	InitVarArray(XmlElement, &fileOut->roots, arena);
 	
-	hoxml_code_t hoxmlCode;
-	while ((hoxmlCode = hoxml_parse(&parser->hoxmlContext, parser->xmlStr.chars, parser->xmlStr.length)) != HOXML_END_OF_DOCUMENT)
+	u32 stackSize = 0;
+	XmlElement* stack[XML_MAX_DEPTH];
+	
+	uxx hoxmlBufferSize = MaxUXX(xmlContents.length, 128);
+	char* hoxmlBuffer = (char*)AllocMem(scratch, hoxmlBufferSize);
+	hoxml_context_t hoxml;
+	hoxml_init(&hoxml, hoxmlBuffer, (size_t)hoxmlBufferSize);
+	
+	bool insideProcessingInstruction = false;
+	Result result = Result_None;
+	hoxml_code_t code;
+	while ((code = hoxml_parse(&hoxml, xmlContents.chars, (size_t)xmlContents.length)) != HOXML_END_OF_DOCUMENT)
 	{
-		switch (hoxmlCode)
+		switch (code)
 		{
-			case HOXML_ERROR_INSUFFICIENT_MEMORY:
+			case HOXML_PROCESSING_INSTRUCTION_BEGIN: insideProcessingInstruction = true; break;
+			
+			case HOXML_ELEMENT_BEGIN:
 			{
-				result = XmlCreateError(parser, false,
-					"Not enough xml parsing memory allocated! Allocated %llu bytes for %llu char xml string. Parsed %llu xml elements before running out of memory, stack is %llu elements deep",
-					parser->hoxmlBufferSize,
-					parser->xmlStr.length,
-					parser->numXmlTokensParsed, parser->stackSize
-				);
-				return result;
+				if (stackSize >= XML_MAX_DEPTH) { result = Result_StackOverflow; break; }
+				
+				XmlElement* parent = (stackSize > 0) ? parent = stack[stackSize-1] : nullptr;
+				VarArray* elementArray = (parent != nullptr) ? &parent->children : &fileOut->roots;
+				XmlElement* newElement = VarArrayAdd(XmlElement, elementArray);
+				NotNull(newElement);
+				ClearPointer(newElement);
+				newElement->type = AllocStr8Nt(arena, hoxml.tag);
+				InitVarArray(XmlAttribute, &newElement->attributes, arena);
+				InitVarArray(XmlElement, &newElement->children, arena);
+				stack[stackSize] = newElement;
+				stackSize++;
+				fileOut->numElements++;
 			} break;
 			
-			default:
+			case HOXML_ELEMENT_END:
 			{
-				result = XmlCreateError(parser, true, "Unhandled hoxml code: %u %s", (u32)hoxmlCode, GetHoxmlCodeStr(hoxmlCode));
-				return result;
+				if (stackSize == 0) { result = Result_UnexpectedEndElement; break; }
+				XmlElement* element = stack[stackSize-1];
+				if (!StrExactEquals(StrLit(hoxml.tag), element->type)) { result = Result_WrongEndElementType; break; }
+				stackSize--;
 			} break;
+			
+			case HOXML_ATTRIBUTE:
+			{
+				// if (insideProcessingInstruction) { PrintLine_D("Ignoring processing attribute %s", hoxml.attribute); break; }
+				if (stackSize == 0) { result = Result_UnexpectedAttribute; break; }
+				XmlElement* element = stack[stackSize-1];
+				XmlAttribute* newAttribute = VarArrayAdd(XmlAttribute, &element->attributes);
+				NotNull(newAttribute);
+				ClearPointer(newAttribute);
+				newAttribute->key = AllocStr8Nt(arena, hoxml.attribute);
+				newAttribute->value = AllocStr8Nt(arena, hoxml.value);
+			} break;
+			
+			case HOXML_PROCESSING_INSTRUCTION_END: insideProcessingInstruction = false; break;
+			
+			case HOXML_ERROR_INSUFFICIENT_MEMORY: result = Result_Overflow; break;
+			case HOXML_ERROR_INVALID_INPUT: result = Result_InvalidInput; break;
+			case HOXML_ERROR_INTERNAL: result = Result_Failure; break;
+			case HOXML_ERROR_UNEXPECTED_EOF: result = Result_NoMoreBytes; break;
+			case HOXML_ERROR_SYNTAX: result = Result_InvalidSyntax; break;
+			case HOXML_ERROR_ENCODING: result = Result_InvalidUtf8; break;
+			case HOXML_ERROR_TAG_MISMATCH: result = Result_WrongEndElementType; break;
+			case HOXML_ERROR_INVALID_DOCUMENT_TYPE_DECLARATION: result = Result_MissingFileHeader; break;
+			case HOXML_ERROR_INVALID_DOCUMENT_DECLARATION: result = Result_MissingFileHeader; break;
+			
+			default: PrintLine_W("Unhandled HOXML code: \"%s\"", GetHoxmlCodeStr(code)); break;
 		}
+		
+		if (result != Result_None) { break; }
 	}
 	
-	parser->isFinished = true;
-	result.isFinished = true;
+	if (result == Result_None)
+	{
+		if (fileOut->roots.length == 0) { result = Result_EmptyFile; }
+		else if (stackSize > 0) { result = Result_MissingEndElement; }
+		else { result = Result_Success; }
+	}
+	
+	ScratchEnd(scratch);
 	return result;
 }
+
+XmlElement* XmlGetOneChild(XmlFile* file, XmlElement* parent, Str8 type)
+{
+	NotNull(file);
+	VarArray* childArray = (parent != nullptr) ? &parent->children : &file->roots;
+	XmlElement* result = nullptr;
+	VarArrayLoop(childArray, cIndex)
+	{
+		VarArrayLoopGet(XmlElement, child, childArray, cIndex);
+		if (StrExactEquals(child->type, type))
+		{
+			if (result != nullptr) { file->error = Result_Duplicate; return nullptr; }
+			result = child;
+		}
+	}
+	if (result == nullptr) { file->error = Result_NotFound; }
+	return result;
+}
+
+XmlElement* XmlGetChild(XmlFile* file, XmlElement* parent, Str8 type, u64 index)
+{
+	NotNull(file);
+	VarArray* childArray = (parent != nullptr) ? &parent->children : &file->roots;
+	XmlElement* result = nullptr;
+	u64 findIndex = 0;
+	VarArrayLoop(childArray, cIndex)
+	{
+		VarArrayLoopGet(XmlElement, child, childArray, cIndex);
+		if (StrExactEquals(child->type, type))
+		{
+			if (findIndex >= index) { return child; }
+			findIndex++;
+		}
+	}
+	if (result == nullptr) { file->error = Result_NotFound; }
+	return result;
+}
+
+Str8 XmlGetAttribute(XmlFile* file, XmlElement* element, Str8 attributeName)
+{
+	NotNull(file);
+	NotNull(element);
+	VarArrayLoop(&element->attributes, aIndex)
+	{
+		VarArrayLoopGet(XmlAttribute, attribute, &element->attributes, aIndex);
+		if (StrExactEquals(attribute->key, attributeName)) { return attribute->value; }
+	}
+	file->error = Result_NotFound;
+	return Str8_Empty;
+}
+
+Str8 XmlGetAttributeOrDefault(XmlFile* file, XmlElement* element, Str8 attributeName, Str8 defaultValue)
+{
+	NotNull(file);
+	NotNull(element);
+	VarArrayLoop(&element->attributes, aIndex)
+	{
+		VarArrayLoopGet(XmlAttribute, attribute, &element->attributes, aIndex);
+		if (StrExactEquals(attribute->key, attributeName)) { return attribute->value; }
+	}
+	return defaultValue;
+}
+
+r32 XmlGetAttributeR32(XmlFile* file, XmlElement* element, Str8 attributeName)
+{
+	NotNull(file);
+	NotNull(element);
+	VarArrayLoop(&element->attributes, aIndex)
+	{
+		VarArrayLoopGet(XmlAttribute, attribute, &element->attributes, aIndex);
+		if (StrExactEquals(attribute->key, attributeName))
+		{
+			r32 valueR32 = 0.0f;
+			Result error = Result_None;
+			if (TryParseR32(attribute->value, &valueR32, &error)) { return valueR32; }
+			else { file->error = Result_FloatParseFailure; return 0.0f; }
+		}
+	}
+	file->error = Result_NotFound;
+	return 0.0f;
+}
+
+r32 XmlGetAttributeR32OrDefault(XmlFile* file, XmlElement* element, Str8 attributeName, r32 defaultValue)
+{
+	NotNull(file);
+	NotNull(element);
+	VarArrayLoop(&element->attributes, aIndex)
+	{
+		VarArrayLoopGet(XmlAttribute, attribute, &element->attributes, aIndex);
+		if (StrExactEquals(attribute->key, attributeName))
+		{
+			r32 valueR32 = 0.0f;
+			Result error = Result_None;
+			if (TryParseR32(attribute->value, &valueR32, &error)) { return valueR32; }
+			else { file->error = Result_FloatParseFailure; return defaultValue; }
+		}
+	}
+	return defaultValue;
+}
+
+#define XmlGetOneChildOrBreak(file, parent, type) XmlGetOneChild((file), (parent), (type)); if ((file)->error != Result_None) { break; }
+#define XmlGetChildOrBreak(file, parent, type, index) XmlGetChild((file), (parent), (type), (index)); if ((file)->error != Result_None) { break; }
+#define XmlGetAttributeOrBreak(file, element, attributeName) XmlGetAttribute((file), (element), (attributeName)); if ((file)->error != Result_None) { break; }
+#define XmlGetAttributeR32OrBreak(file, element, attributeName) XmlGetAttributeR32((file), (element), (attributeName)); if ((file)->error != Result_None) { break; }

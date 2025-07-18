@@ -81,16 +81,35 @@ void InitOsmMap(Arena* arena, OsmMap* mapOut, u64 numNodesExpected, u64 numWaysE
 
 Result TryParseOsmMap(Arena* arena, Str8 xmlFileContents, OsmMap* mapOut)
 {
-	//TODO: Make sure the file is parseable as XML
+	ScratchBegin1(scratch, arena);
+	XmlFile xml = ZEROED;
+	Result parseResult = TryParseXml(xmlFileContents, scratch, &xml);
+	if (parseResult != Result_Success) { ScratchEnd(scratch); return parseResult; }
 	
-	u64 numNodesInFile = 0;
-	u64 numWaysInFile = 0;
-	//TODO: Figure out how many nodes and ways there are in the file
+	
 	
 	InitOsmMap(arena, mapOut, numNodesInFile, numWaysInFile);
 	
+	do
+	{
+		XmlElement* root = XmlGetOneChildOrBreak(&xml, nullptr, StrLit("osm"));
+		Str8 versionStr = XmlGetAttributeOrDefault(&xml, root, StrLit("version"), Str8_Empty);
+		// Str8 generator = XmlGetAttributeOrDefault(&xml, root, StrLit("generator"), Str8_Empty);
+		// Str8 copyright = XmlGetAttributeOrDefault(&xml, root, StrLit("copyright"), Str8_Empty);
+		// Str8 attribution = XmlGetAttributeOrDefault(&xml, root, StrLit("attribution"), Str8_Empty);
+		// Str8 license = XmlGetAttributeOrDefault(&xml, root, StrLit("license"), Str8_Empty);
+		XmlElement* bounds = XmlGetOneChildOrBreak(&xml, root, StrLit("bounds"));
+		//TODO: Should these be r64?
+		r32 boundsMinLat = XmlGetAttributeR32OrBreak(&xml, bounds, StrLit("minlat"));
+		r32 boundsMinLon = XmlGetAttributeR32OrBreak(&xml, bounds, StrLit("minlon"));
+		r32 boundsMaxLat = XmlGetAttributeR32OrBreak(&xml, bounds, StrLit("maxlat"));
+		r32 boundsMaxLon = XmlGetAttributeR32OrBreak(&xml, bounds, StrLit("maxlon"));
+		rec boundsRec = NewRec(boundsMinLon, boundsMinLat, boundsMaxLon - boundsMinLon, boundsMaxLat - boundsMinLat);
+	} while(false);
+	
 	//TODO: Implement me!
 	
+	ScratchEnd(scratch);
 	return Result_Success;
 }
 
