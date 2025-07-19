@@ -14,7 +14,7 @@ Description:
 #ifndef _BUILD_CONFIG_H
 #define /* Don't show in CSwitch */ _BUILD_CONFIG_H
 
-#define BUILD_PIG_BUILD 1
+#define BUILD_PIG_BUILD 0
 
 // Controls whether we are making a build that we want to run with a Debugger.
 // This often sacrifices runtime speed or code size for extra debug information.
@@ -24,6 +24,8 @@ Description:
 #define BUILD_INTO_SINGLE_UNIT  0
 // The .exe will use the resources_zip.h/c file instead of loading resources from disk
 #define USE_BUNDLED_RESOURCES   0
+// Enables linking with tracy.lib to enable profiling through Tracy
+#define PROFILING_ENABLED       1
 
 
 // Build .exe binaries for Windows platform
@@ -35,23 +37,21 @@ Description:
 
 
 // Builds third_party/tracy/TracyClient.cpp in C++ mode into tracy.obj which will be linked into pig_core.dll
-#define BUILD_TRACY_OBJ 1
-// Enables linking with tracy.obj to enable profiling through Tracy
-#define BUILD_WITH_TRACY 1
+#define BUILD_TRACY_DLL 0
 
 // Compiles piggen/main.c
 #define BUILD_PIGGEN   0
 // Generates code using piggen.exe (you can turn this off if you're not making changes to generated code and you've already generated it once)
 #define RUN_PIGGEN    0
 
+// Builds dll_main.c into pig_core.dll and pig_core.lib
+#define BUILD_PIG_CORE_DLL            0
+
 // This puts all the contents of _data/resources into a zip file and converts the contents of that zip into resources_zip.c (and resources_zip.h in app/)
 #define BUNDLE_RESOURCES_ZIP            0
 
-// Builds dll_main.c into pig_core.dll and pig_core.lib
-#define BUILD_PIG_CORE_DLL            1
-
 // Compiles app/platform_main.c to %PROJECT_EXE_NAME%.exe
-#define BUILD_APP_EXE  1
+#define BUILD_APP_EXE  0
 // Compiles app/app_main.c to %PROJECT_DLL_NAME%.dll
 #define BUILD_APP_DLL  1
 // Runs the %PROJECT_EXE_NAME%.exe

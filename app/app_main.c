@@ -565,7 +565,6 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 		RenderClayCommandArray(&app->clay, &gfx, &clayRenderCommands);
 		FlagUnset(uiArena->flags, ArenaFlag_DontPop);
 		ArenaResetToMark(uiArena, uiArenaMark);
-	TracyCZoneN(_Render, "Render", true);
 		uiArena = nullptr;
 	}
 	TracyCZoneEnd(_Render);

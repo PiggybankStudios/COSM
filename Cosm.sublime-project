@@ -16,10 +16,6 @@
 			],
 		},
 		{
-			"name": "Third Party",
-			"path": "third_party",
-		},
-		{
 			"name": "PigCore",
 			"path": "core",
 			"folder_exclude_patterns": [
@@ -161,14 +157,12 @@
 			"BUILD_PIGGEN_IF_NEEDED",
 			"BUILD_PIG_CORE_LIB",
 			"BUILD_PIG_CORE_LIB_IF_NEEDED",
-			"BUILD_TRACY_OBJ",
-			"BUILD_WITH_TRACY",
+			"BUILD_TRACY_DLL",
 			"COPY_TO_DATA_DIRECTORY",
-			"FILENAME_TRACY_O",
-			"FILENAME_TRACY_OBJ",
 			"PIG_CORE_BUILDING_AS_DLL",
 			"PIG_CORE_IMPLEMENTATION",
 			"PIG_CORE_INLINE",
+			"PROFILING_ENABLED",
 			"Result_Duplicate",
 			"Result_StackOverflow",
 			"Result_UnexpectedEndElement",
