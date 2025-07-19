@@ -256,6 +256,9 @@ EXPORT_FUNC APP_INIT_DEF(AppInit)
 // bool AppUpdate(PlatformInfo* inPlatformInfo, PlatformApi* inPlatformApi, void* memoryPntr, AppInput* appInput)
 EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 {
+	TracyCFrameMark
+	TracyCZoneN(_AppUpdate, "AppUpdate", true);
+	
 	ScratchBegin(scratch);
 	ScratchBegin1(scratch2, scratch);
 	ScratchBegin2(scratch3, scratch, scratch2);
@@ -266,6 +269,7 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 	v2 screenCenter = Div(screenSize, 2.0f);
 	v2 mousePos = appIn->mouse.position;
 	
+	TracyCZoneN(_Update, "Update", true);
 	// +==============================+
 	// |            Update            |
 	// +==============================+
@@ -359,10 +363,12 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 			app->viewPos.X += viewSpeed / app->viewZoom;
 		}
 	}
+	TracyCZoneEnd(_Update);
 	
 	// +==============================+
 	// |          Rendering           |
 	// +==============================+
+	TracyCZoneN(_Render, "Render", true);
 	BeginFrame(platform->GetSokolSwapchain(), screenSizei, BACKGROUND_BLACK, 1.0f);
 	{
 		BindShader(&app->mainShader);
@@ -556,10 +562,13 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 		uiArena = nullptr;
 	}
 	EndFrame();
+	TracyCZoneEnd(_Render);
 	
 	ScratchEnd(scratch);
 	ScratchEnd(scratch2);
 	ScratchEnd(scratch3);
+	
+	TracyCZoneEnd(_AppUpdate);
 	return renderedFrame;
 }
 

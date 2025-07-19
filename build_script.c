@@ -44,6 +44,8 @@ Description:
 #define FILENAME_RESOURCES_ZIP     "resources.zip"
 #define FILENAME_PIGGEN_EXE        "piggen.exe"
 #define FILENAME_PIGGEN            "piggen"
+#define FILENAME_TRACY_OBJ         "tracy.obj"
+#define FILENAME_TRACY_O           "tracy.o"
 #define FILENAME_PIG_CORE_DLL      "pig_core.dll"
 #define FILENAME_PIG_CORE_LIB      "pig_core.lib"
 #define FILENAME_PIG_CORE_SO       "libpig_core.so"
@@ -141,6 +143,8 @@ int main(int argc, char* argv[])
 	bool USE_BUNDLED_RESOURCES    = ExtractBoolDefine(buildConfigContents, StrLit("USE_BUNDLED_RESOURCES"));
 	bool BUILD_WINDOWS            = ExtractBoolDefine(buildConfigContents, StrLit("BUILD_WINDOWS"));
 	bool BUILD_LINUX              = ExtractBoolDefine(buildConfigContents, StrLit("BUILD_LINUX"));
+	bool BUILD_TRACY_OBJ          = ExtractBoolDefine(buildConfigContents, StrLit("BUILD_TRACY_OBJ"));
+	bool BUILD_WITH_TRACY         = ExtractBoolDefine(buildConfigContents, StrLit("BUILD_WITH_TRACY"));
 	bool BUILD_SHADERS            = ExtractBoolDefine(buildConfigContents, StrLit("BUILD_SHADERS"));
 	bool BUILD_PIGGEN             = ExtractBoolDefine(buildConfigContents, StrLit("BUILD_PIGGEN"));
 	bool RUN_PIGGEN               = ExtractBoolDefine(buildConfigContents, StrLit("RUN_PIGGEN"));
@@ -299,6 +303,43 @@ int main(int argc, char* argv[])
 		
 		RunCliProgramAndExitOnFailure(StrLit(EXEC_PROGRAM_IN_FOLDER_PREFIX RUNNABLE_FILENAME_PIGGEN), &cmd, StrLit(RUNNABLE_FILENAME_PIGGEN " Failed!"));
 	}
+	
+	// +==============================+
+	// |       Build tracy.obj        |
+	// +==============================+
+	if (BUILD_WITH_TRACY && !BUILD_TRACY_OBJ && BUILD_WINDOWS && !DoesFileExist(StrLit(FILENAME_TRACY_OBJ))) { PrintLine("Building %s because it's missing", FILENAME_TRACY_OBJ); BUILD_TRACY_OBJ = true; }
+	if (BUILD_WITH_TRACY && !BUILD_TRACY_OBJ && BUILD_LINUX && !DoesFileExist(StrLit(FILENAME_TRACY_OBJ))) { PrintLine("Building %s because it's missing", FILENAME_TRACY_OBJ); BUILD_TRACY_OBJ = true; }
+	if (BUILD_TRACY_OBJ)
+	{
+		if (BUILD_WINDOWS)
+		{
+			InitializeMsvcIf(StrLit(".."), &isMsvcInitialized);
+			PrintLine("[Building %s for Windows...]", FILENAME_TRACY_OBJ);
+			
+			CliArgList cmd = ZEROED;
+			AddArg(&cmd, CL_COMPILE);
+			AddArgNt(&cmd, CLI_QUOTED_ARG, "[ROOT]/core/third_party/tracy/TracyClient.cpp");
+			AddArgNt(&cmd, CL_INCLUDE_DIR, "[ROOT]/core/third_party/tracy");
+			AddArgNt(&cmd, CL_OBJ_FILE, FILENAME_TRACY_OBJ);
+			AddArgNt(&cmd, CL_DEFINE, "TRACY_ENABLE");
+			AddArgNt(&cmd, CL_DEFINE, "TRACY_EXPORTS");
+			AddArgNt(&cmd, CL_CONFIGURE_EXCEPTION_HANDLING, "s"); //enable stack-unwinding
+			AddArgNt(&cmd, CL_CONFIGURE_EXCEPTION_HANDLING, "c"); //extern "C" functions don't through exceptions
+			AddArgList(&cmd, &cl_CommonFlags);
+			AddArgList(&cmd, &cl_LangCppFlags);
+			AddArg(&cmd, CL_LINK);
+			AddArgList(&cmd, &cl_CommonLinkerFlags);
+			
+			RunCliProgramAndExitOnFailure(StrLit(EXE_MSVC_CL), &cmd, StrLit("Failed to build " FILENAME_TRACY_OBJ "!"));
+			AssertFileExist(StrLit(FILENAME_TRACY_OBJ), true);
+			PrintLine("[Built %s for Windows!]", FILENAME_TRACY_OBJ);
+		}
+		if (BUILD_LINUX)
+		{
+			//TODO: Implement Linux version!
+		}
+	}
+	if (BUILD_WITH_TRACY) { AddArgNt(&cl_PigCoreLibraries, CLI_QUOTED_ARG, FILENAME_TRACY_OBJ); }
 	
 	// +--------------------------------------------------------------+
 	// |                       Bundle Resources                       |
