@@ -256,8 +256,7 @@ EXPORT_FUNC APP_INIT_DEF(AppInit)
 // bool AppUpdate(PlatformInfo* inPlatformInfo, PlatformApi* inPlatformApi, void* memoryPntr, AppInput* appInput)
 EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 {
-	TracyCFrameMark
-	TracyCZoneN(_AppUpdate, "AppUpdate", true);
+	TracyCZoneN(funcZone, "AppUpdate", true);
 	
 	ScratchBegin(scratch);
 	ScratchBegin1(scratch2, scratch);
@@ -279,6 +278,9 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 		// +==============================+
 		if (IsKeyboardKeyPressed(&appIn->keyboard, Key_Enter))
 		{
+			TracyCZoneN(_TestXML, "TestXML", true);
+			TracyCMessageL("Enter Pressed");
+			
 			Str8 xmlFileContents = Str8_Empty;
 			bool readSuccess = OsReadTextFile(FilePathLit(TEST_OSM_FILE), scratch, &xmlFileContents);
 			if (readSuccess)
@@ -332,6 +334,8 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 				else { PrintLine_E("Failed to parse XML file: %s", GetResultStr(parseResult)); }
 				#endif
 			}
+			
+			TracyCZoneEnd(_TestXML);
 		}
 		
 		// +==============================+
@@ -368,8 +372,10 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 	// +==============================+
 	// |          Rendering           |
 	// +==============================+
-	TracyCZoneN(_Render, "Render", true);
+	TracyCZoneN(_BeginFrame, "BeginFrame", true);
 	BeginFrame(platform->GetSokolSwapchain(), screenSizei, BACKGROUND_BLACK, 1.0f);
+	TracyCZoneEnd(_BeginFrame);
+	TracyCZoneN(_Render, "Render", true);
 	{
 		BindShader(&app->mainShader);
 		ClearDepthBuffer(1.0f);
@@ -559,16 +565,20 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 		RenderClayCommandArray(&app->clay, &gfx, &clayRenderCommands);
 		FlagUnset(uiArena->flags, ArenaFlag_DontPop);
 		ArenaResetToMark(uiArena, uiArenaMark);
+	TracyCZoneN(_Render, "Render", true);
 		uiArena = nullptr;
 	}
-	EndFrame();
 	TracyCZoneEnd(_Render);
+	TracyCZoneN(_EndFrame, "EndFrame", true);
+	EndFrame();
+	TracyCZoneEnd(_EndFrame);
 	
 	ScratchEnd(scratch);
 	ScratchEnd(scratch2);
 	ScratchEnd(scratch3);
 	
-	TracyCZoneEnd(_AppUpdate);
+	TracyCZoneEnd(funcZone);
+	// TracyCFrameMarkEnd("Game Loop");
 	return renderedFrame;
 }
 

@@ -80,6 +80,10 @@ PlatformApi* platform = nullptr;
 
 bool PlatDoUpdate(void)
 {
+	#if BUILD_WITH_TRACY
+	TracyCFrameMarkNamed("Game Loop");
+	TracyCZoneN(funcZone, "PlatDoUpdate", true);
+	#endif
 	bool renderedFrame = true;
 	//TODO: Check for dll changes, reload it!
 	
@@ -108,8 +112,17 @@ bool PlatDoUpdate(void)
 	platformData->oldAppInput = oldAppInput;
 	platformData->currentAppInput = newAppInput;
 	
+	#if BUILD_WITH_TRACY
+	TracyCZoneN(_AppDll, "AppDll", true);
+	#endif
 	renderedFrame = platformData->appApi.AppUpdate(platformInfo, platform, platformData->appMemoryPntr, oldAppInput);
+	#if BUILD_WITH_TRACY
+	TracyCZoneEnd(_AppDll);
+	#endif
 	
+	#if BUILD_WITH_TRACY
+	TracyCZoneEnd(funcZone);
+	#endif
 	return renderedFrame;
 }
 
@@ -118,6 +131,10 @@ bool PlatDoUpdate(void)
 // +--------------------------------------------------------------+
 void PlatSappInit(void)
 {
+	#if BUILD_WITH_TRACY
+	TracyCZoneN(funcZone, "PlatSappInit", true);
+	#endif
+	
 	Arena stdHeapLocal = ZEROED;
 	InitArenaStdHeap(&stdHeapLocal);
 	platformData = AllocType(PlatformData, &stdHeapLocal);
@@ -215,6 +232,9 @@ void PlatSappInit(void)
 	NotNull(platformData->appMemoryPntr);
 	
 	ScratchEnd(loadScratch);
+	#if BUILD_WITH_TRACY
+	TracyCZoneEnd(funcZone);
+	#endif
 }
 
 void PlatSappCleanup(void)
@@ -225,6 +245,7 @@ void PlatSappCleanup(void)
 
 void PlatSappEvent(const sapp_event* event)
 {
+	TracyCZoneN(funcZone, "PlatSappEvent", true);
 	bool handledEvent = false;
 	
 	if (platformData->currentAppInput != nullptr)
@@ -288,12 +309,21 @@ void PlatSappEvent(const sapp_event* event)
 			default: PrintLine_D("Event: UNKNOWN(%d)", event->type); break;
 		}
 	}
+	
+	TracyCZoneEnd(funcZone);
 }
 
 sapp_desc sokol_main(int argc, char* argv[])
 {
 	UNUSED(argc);
 	UNUSED(argv);
+	
+	#if BUILD_WITH_TRACY
+	TracyCSetThreadName("main");
+	Str8 projectName = StrLit(PROJECT_READABLE_NAME_STR);
+	TracyCAppInfo(projectName.chars, projectName.length);
+	#endif
+	
 	return (sapp_desc){
 		.init_cb = PlatSappInit,
 		.frame_cb = PlatDoUpdate,

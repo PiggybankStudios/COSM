@@ -323,6 +323,7 @@ int main(int argc, char* argv[])
 			AddArgNt(&cmd, CL_OBJ_FILE, FILENAME_TRACY_OBJ);
 			AddArgNt(&cmd, CL_DEFINE, "TRACY_ENABLE");
 			AddArgNt(&cmd, CL_DEFINE, "TRACY_EXPORTS");
+			// AddArgNt(&cmd, CL_DEFINE, "TRACY_FIBERS");
 			AddArgNt(&cmd, CL_CONFIGURE_EXCEPTION_HANDLING, "s"); //enable stack-unwinding
 			AddArgNt(&cmd, CL_CONFIGURE_EXCEPTION_HANDLING, "c"); //extern "C" functions don't through exceptions
 			AddArgList(&cmd, &cl_CommonFlags);
