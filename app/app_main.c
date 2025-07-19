@@ -152,6 +152,7 @@ EXPORT_FUNC APP_INIT_DEF(AppInit)
 	app->viewPos = NewV2(app->mapRec.X + app->mapRec.Width/2.0f, app->mapRec.Y + app->mapRec.Height/2.0f);
 	app->viewZoom = 0.0f; //this will get set to something reasonable after our first UI layout
 	
+	#if 0
 	Str8 testFileContents = Str8_Empty;
 	bool foundTestFile = OsReadTextFile(FilePathLit(TEST_OSM_FILE), scratch, &testFileContents);
 	if (foundTestFile)
@@ -242,6 +243,7 @@ EXPORT_FUNC APP_INIT_DEF(AppInit)
 	{
 		PrintLine_E("Failed to find test file \"%s\"", TEST_OSM_FILE);
 	}
+	#endif
 	
 	app->initialized = true;
 	ScratchEnd(scratch);
@@ -437,6 +439,13 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 						prevPos = nodePos;
 					}
 				}
+				
+				v2 boundsTopLeft = ProjectMercator(app->map.bounds.TopLeft, mapRec);
+				v2 boundsBottomRight = ProjectMercator(AddV2d(app->map.bounds.TopLeft, app->map.bounds.Size), mapRec);
+				rec boundsRec = NewRecBetweenV(boundsTopLeft, boundsBottomRight);
+				DrawRectangleOutline(boundsRec, 2.0f, MonokaiRed);
+				// DrawCircle(NewCircleV(boundsRec.TopLeft, 5), MonokaiRed);
+				// DrawCircle(NewCircleV(Add(boundsRec.TopLeft, boundsRec.Size), 5), MonokaiOrange);
 			}
 			#endif
 		}
@@ -488,7 +497,38 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 					{
 						if (ClayBtn("Open" UNICODE_ELLIPSIS_STR, "Ctrl+O", true, nullptr))
 						{
-							//TODO: Implement me!
+							FilePath selectedFilePath = FilePath_Empty;
+							Result openResult = OsDoOpenFileDialog(scratch, &selectedFilePath);
+							if (openResult == Result_Success)
+							{
+								Str8 fileContents = Str8_Empty;
+								bool openedSelectedFile = OsReadTextFile(selectedFilePath, scratch, &fileContents);
+								if (openedSelectedFile)
+								{
+									PrintLine_I("Opened \"%.*s\", %llu bytes", StrPrint(selectedFilePath), fileContents.length);
+									OsmMap newMap = ZEROED;
+									Result parseResult = TryParseOsmMap(stdHeap, fileContents, &newMap);
+									if (parseResult == Result_Success)
+									{
+										FreeOsmMap(&app->map);
+										MyMemCopy(&app->map, &newMap, sizeof(OsmMap));
+										PrintLine_I("Parsed map! %llu node%s, %llu way%s",
+											app->map.nodes.length, Plural(app->map.nodes.length, "s"),
+											app->map.ways.length, Plural(app->map.ways.length, "s")
+										);
+										
+										v2d targetLocation = AddV2d(app->map.bounds.TopLeft, ShrinkV2d(app->map.bounds.Size, 2.0));
+										app->viewPos = ProjectMercator(targetLocation, NewRecV(V2_Zero, app->mapRec.Size));
+										app->viewZoom = (r32)MinR64(
+											1.0 / (app->map.bounds.SizeLon / 360.0),
+											1.0 / (app->map.bounds.SizeLat / 180.0)
+										);
+									}
+									else { PrintLine_E("Failed to parse as OpenStreetMaps XML data! Error: %s", GetResultStr(parseResult)); }
+								}
+								else { PrintLine_E("Failed to open \"%.*s\"", StrPrint(selectedFilePath)); }
+							}
+							else if (openResult != Result_Canceled) { PrintLine_E("OpenFileDialog failed: %s", GetResultStr(openResult)); }
 						} Clay__CloseElement();
 						
 						if (ClayBtn("Close File", "Ctrl+W", true, nullptr))

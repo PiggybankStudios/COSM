@@ -56,6 +56,7 @@ typedef struct OsmMap OsmMap;
 struct OsmMap
 {
 	Arena* arena;
+	recd bounds;
 	
 	u64 nextNodeId;
 	VarArray nodes; //OsmNode

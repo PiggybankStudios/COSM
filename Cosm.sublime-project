@@ -616,6 +616,7 @@
 			"uxx StrAnyCaseFind(Str8 haystack, Str8 needle)",
 			"uxx StrExactFind(Str8 haystack, Str8 needle)",
 			"uxx StrFind(Str8 haystack, Str8 needle, bool caseSensitive)",
+			"v2 ProjectMercator(v2d geoLoc, rec mapRec)",
 			"v2d NewV2d(r64 x, r64 y)",
 			"v3d NewV3d(r64 x, r64 y, r64 z)",
 			"v4d NewV4d(r64 x, r64 y, r64 z, r64 w)",

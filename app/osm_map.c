@@ -146,12 +146,12 @@ Result TryParseOsmMap(Arena* arena, Str8 xmlFileContents, OsmMap* mapOut)
 		// Str8 license = XmlGetAttributeOrDefault(&xml, root, StrLit("license"), Str8_Empty);
 		XmlElement* bounds = XmlGetOneChildOrBreak(&xml, root, StrLit("bounds"));
 		//TODO: Should these be r64?
-		r64 boundsMinLat = XmlGetAttributeR64OrBreak(&xml, bounds, StrLit("minlat"));
 		r64 boundsMinLon = XmlGetAttributeR64OrBreak(&xml, bounds, StrLit("minlon"));
-		r64 boundsMaxLat = XmlGetAttributeR64OrBreak(&xml, bounds, StrLit("maxlat"));
+		r64 boundsMinLat = XmlGetAttributeR64OrBreak(&xml, bounds, StrLit("minlat"));
 		r64 boundsMaxLon = XmlGetAttributeR64OrBreak(&xml, bounds, StrLit("maxlon"));
+		r64 boundsMaxLat = XmlGetAttributeR64OrBreak(&xml, bounds, StrLit("maxlat"));
 		//TODO: This does not properly handle if the rectangle passes over the international date line (max longitude will be less than min longitude)
-		recd boundsRec = NewRecd(boundsMinLon, boundsMinLat, boundsMaxLon - boundsMinLon, boundsMaxLat - boundsMinLat);
+		mapOut->bounds = NewRecd(boundsMinLon, boundsMinLat, boundsMaxLon - boundsMinLon, boundsMaxLat - boundsMinLat);
 		
 		XmlElement* xmlNode;
 		u64 nodeIndex = 0;
@@ -160,7 +160,7 @@ Result TryParseOsmMap(Arena* arena, Str8 xmlFileContents, OsmMap* mapOut)
 			u64 id = XmlGetAttributeU64OrBreak(&xml, xmlNode, StrLit("id"));
 			r64 longitude = XmlGetAttributeR64OrBreak(&xml, xmlNode, StrLit("lon"));
 			r64 latitude = XmlGetAttributeR64OrBreak(&xml, xmlNode, StrLit("lat"));
-			OsmNode* newNode = AddOsmNode(mapOut, NewV2d(latitude, longitude), id);
+			OsmNode* newNode = AddOsmNode(mapOut, NewV2d(longitude, latitude), id);
 			NotNull(newNode);
 			// TODO: Parse "visible" attribute
 			// TODO: Parse "version" attribute
