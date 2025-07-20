@@ -12,9 +12,11 @@ ImageData LoadImageData(Arena* arena, const char* path)
 	Slice fileContents = Slice_Empty;
 	Result readFileResult = TryReadAppResource(&app->resources, scratch, FilePathLit(path), false, &fileContents);
 	Assert(readFileResult == Result_Success);
+	UNUSED(readFileResult);
 	ImageData imageData = ZEROED;
 	Result parseResult = TryParseImageFile(fileContents, arena, &imageData);
 	Assert(parseResult == Result_Success);
+	UNUSED(parseResult);
 	ScratchEnd(scratch);
 	return imageData;
 }
@@ -47,6 +49,7 @@ bool AppCreateFonts()
 		newUiFont = InitFont(stdHeap, StrLit("uiFont"));
 		Result attachResult = AttachOsTtfFileToFont(&newUiFont, StrLit(UI_FONT_NAME), app->uiFontSize, UI_FONT_STYLE);
 		Assert(attachResult == Result_Success);
+		UNUSED(attachResult);
 		Result bakeResult = BakeFontAtlas(&newUiFont, app->uiFontSize, UI_FONT_STYLE, NewV2i(256, 256), ArrayCount(fontCharRanges), &fontCharRanges[0]);
 		if (bakeResult != Result_Success)
 		{
@@ -89,4 +92,40 @@ bool AppChangeFontSize(bool increase)
 		return true;
 	}
 	else { return false; }
+}
+
+void OpenOsmMap(FilePath filePath)
+{
+	TracyCZoneN(funcZone, "OpenOsmMap", true);
+	ScratchBegin(scratch);
+	Str8 fileContents = Str8_Empty;
+	TracyCZoneN(_ReadTextFile, "OsReadTextFile", true);
+	bool openedSelectedFile = OsReadTextFile(filePath, scratch, &fileContents);
+	TracyCZoneEnd(_ReadTextFile);
+	if (openedSelectedFile)
+	{
+		PrintLine_I("Opened \"%.*s\", %llu bytes", StrPrint(filePath), fileContents.length);
+		OsmMap newMap = ZEROED;
+		Result parseResult = TryParseOsmMap(stdHeap, fileContents, &newMap);
+		if (parseResult == Result_Success)
+		{
+			FreeOsmMap(&app->map);
+			MyMemCopy(&app->map, &newMap, sizeof(OsmMap));
+			PrintLine_I("Parsed map! %llu node%s, %llu way%s",
+				app->map.nodes.length, Plural(app->map.nodes.length, "s"),
+				app->map.ways.length, Plural(app->map.ways.length, "s")
+			);
+			
+			v2d targetLocation = AddV2d(app->map.bounds.TopLeft, ShrinkV2d(app->map.bounds.Size, 2.0));
+			app->viewPos = ProjectMercator(targetLocation, NewRecV(V2_Zero, app->mapRec.Size));
+			app->viewZoom = (r32)MinR64(
+				1.0 / (app->map.bounds.SizeLon / 360.0),
+				1.0 / (app->map.bounds.SizeLat / 180.0)
+			);
+		}
+		else { PrintLine_E("Failed to parse as OpenStreetMaps XML data! Error: %s", GetResultStr(parseResult)); }
+	}
+	else { PrintLine_E("Failed to open \"%.*s\"", StrPrint(filePath)); }
+	ScratchEnd(scratch);
+	TracyCZoneEnd(funcZone);
 }

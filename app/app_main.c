@@ -144,6 +144,7 @@ EXPORT_FUNC APP_INIT_DEF(AppInit)
 	app->uiScale = 1.0f;
 	bool fontBakeSuccess = AppCreateFonts();
 	Assert(fontBakeSuccess);
+	UNUSED(fontBakeSuccess);
 	
 	InitClayUIRenderer(stdHeap, V2_Zero, &app->clay);
 	app->clayUiFontId = AddClayUIRendererFont(&app->clay, &app->uiFont, UI_FONT_STYLE);
@@ -267,7 +268,7 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 	UpdateDllGlobals(inPlatformInfo, inPlatformApi, memoryPntr, appInput);
 	v2i screenSizei = appIn->screenSize;
 	v2 screenSize = ToV2Fromi(appIn->screenSize);
-	v2 screenCenter = Div(screenSize, 2.0f);
+	// v2 screenCenter = Div(screenSize, 2.0f);
 	v2 mousePos = appIn->mouse.position;
 	
 	TracyCZoneN(_Update, "Update", true);
@@ -498,35 +499,12 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 						if (ClayBtn("Open" UNICODE_ELLIPSIS_STR, "Ctrl+O", true, nullptr))
 						{
 							FilePath selectedFilePath = FilePath_Empty;
+							TracyCZoneN(Zone_OsOpenFileDialog, "OsDoOpenFileDialog", true);
 							Result openResult = OsDoOpenFileDialog(scratch, &selectedFilePath);
+							TracyCZoneEnd(Zone_OsOpenFileDialog);
 							if (openResult == Result_Success)
 							{
-								Str8 fileContents = Str8_Empty;
-								bool openedSelectedFile = OsReadTextFile(selectedFilePath, scratch, &fileContents);
-								if (openedSelectedFile)
-								{
-									PrintLine_I("Opened \"%.*s\", %llu bytes", StrPrint(selectedFilePath), fileContents.length);
-									OsmMap newMap = ZEROED;
-									Result parseResult = TryParseOsmMap(stdHeap, fileContents, &newMap);
-									if (parseResult == Result_Success)
-									{
-										FreeOsmMap(&app->map);
-										MyMemCopy(&app->map, &newMap, sizeof(OsmMap));
-										PrintLine_I("Parsed map! %llu node%s, %llu way%s",
-											app->map.nodes.length, Plural(app->map.nodes.length, "s"),
-											app->map.ways.length, Plural(app->map.ways.length, "s")
-										);
-										
-										v2d targetLocation = AddV2d(app->map.bounds.TopLeft, ShrinkV2d(app->map.bounds.Size, 2.0));
-										app->viewPos = ProjectMercator(targetLocation, NewRecV(V2_Zero, app->mapRec.Size));
-										app->viewZoom = (r32)MinR64(
-											1.0 / (app->map.bounds.SizeLon / 360.0),
-											1.0 / (app->map.bounds.SizeLat / 180.0)
-										);
-									}
-									else { PrintLine_E("Failed to parse as OpenStreetMaps XML data! Error: %s", GetResultStr(parseResult)); }
-								}
-								else { PrintLine_E("Failed to open \"%.*s\"", StrPrint(selectedFilePath)); }
+								OpenOsmMap(selectedFilePath);
 							}
 							else if (openResult != Result_Canceled) { PrintLine_E("OpenFileDialog failed: %s", GetResultStr(openResult)); }
 						} Clay__CloseElement();

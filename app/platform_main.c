@@ -33,15 +33,23 @@ Description:
 #include "third_party/raylib/raylib.h"
 #endif
 
+//TODO: We really should only have one spot where we include sokol_app.h (inside misc_sokol_app_include.h)
 #if BUILD_WITH_SOKOL_APP
 #define SOKOL_APP_IMPL
 #if TARGET_IS_LINUX
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wmissing-field-initializers" //warning: missing field 'revents' initializer [-Wmissing-field-initializers]
 #endif
+#if COMPILER_IS_MSVC
+#pragma warning(push)
+#pragma warning(disable: 4189) //warning: local variable is initialized but not referenced
+#endif
 #include "third_party/sokol/sokol_app.h"
 #if TARGET_IS_LINUX
 #pragma clang diagnostic pop
+#endif
+#if COMPILER_IS_MSVC
+#pragma warning(pop)
 #endif
 #endif //BUILD_WITH_SOKOL_APP
 

@@ -2,6 +2,7 @@
 core/
 # _data/resources/
 _build/
+_traces/
 _data/*.exe
 _data/*.dll
 _data/*.ini
@@ -12,3 +13,4 @@ third_party/libroxml/
 third_party/libxml2-*/
 third_party/xmlh/
 third_party/yxml/
+third_party/pugixml/

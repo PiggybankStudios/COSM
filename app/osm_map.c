@@ -48,6 +48,7 @@ void FreeOsmWay(Arena* arena, OsmWay* way)
 
 void FreeOsmMap(OsmMap* map)
 {
+	TracyCZoneN(funcZone, "FreeOsmMap", true);
 	NotNull(map);
 	if (map->arena != nullptr)
 	{
@@ -65,10 +66,12 @@ void FreeOsmMap(OsmMap* map)
 		FreeVarArray(&map->ways);
 	}
 	ClearPointer(map);
+	TracyCZoneEnd(funcZone);
 }
 
 void InitOsmMap(Arena* arena, OsmMap* mapOut, u64 numNodesExpected, u64 numWaysExpected)
 {
+	TracyCZoneN(funcZone, "InitOsmMap", true);
 	NotNull(arena);
 	NotNull(mapOut);
 	ClearPointer(mapOut);
@@ -77,20 +80,24 @@ void InitOsmMap(Arena* arena, OsmMap* mapOut, u64 numNodesExpected, u64 numWaysE
 	mapOut->nextWayId = 1;
 	InitVarArrayWithInitial(OsmNode, &mapOut->nodes, arena, numNodesExpected);
 	InitVarArrayWithInitial(OsmWay, &mapOut->ways, arena, numWaysExpected);
+	TracyCZoneEnd(funcZone);
 }
 
 OsmNode* FindOsmNode(OsmMap* map, u64 nodeId)
 {
+	TracyCZoneN(funcZone, "FindOsmNode", true);
 	VarArrayLoop(&map->nodes, nIndex)
 	{
 		VarArrayLoopGet(OsmNode, node, &map->nodes, nIndex);
-		if (node->id == nodeId) { return node; }
+		if (node->id == nodeId) { TracyCZoneEnd(funcZone); return node; }
 	}
+	TracyCZoneEnd(funcZone);
 	return nullptr;
 }
 
 OsmNode* AddOsmNode(OsmMap* map, v2d location, u64 id)
 {
+	TracyCZoneN(funcZone, "AddOsmNode", true);
 	NotNull(map);
 	NotNull(map->arena);
 	OsmNode* result = VarArrayAdd(OsmNode, &map->nodes);
@@ -100,11 +107,13 @@ OsmNode* AddOsmNode(OsmMap* map, v2d location, u64 id)
 	result->location = location;
 	result->visible = true;
 	InitVarArray(OsmTag, &result->tags, map->arena);
+	TracyCZoneEnd(funcZone);
 	return result;
 }
 
 OsmWay* AddOsmWay(OsmMap* map, u64 id, u64 numNodes, u64* nodeIds)
 {
+	TracyCZoneN(funcZone, "AddOsmWay", true);
 	NotNull(map);
 	NotNull(map->arena);
 	Assert(numNodes == 0 || nodeIds != nullptr);
@@ -124,22 +133,29 @@ OsmWay* AddOsmWay(OsmMap* map, u64 id, u64 numNodes, u64* nodeIds)
 		NotNull(newRef->pntr);
 	}
 	InitVarArray(OsmTag, &result->tags, map->arena);
+	TracyCZoneEnd(funcZone);
 	return result;
 }
 
 Result TryParseOsmMap(Arena* arena, Str8 xmlFileContents, OsmMap* mapOut)
 {
+	TracyCZoneN(funcZone, "TryParseOsmMap", true);
 	ScratchBegin1(scratch, arena);
 	XmlFile xml = ZEROED;
 	Result parseResult = TryParseXml(xmlFileContents, scratch, &xml);
-	if (parseResult != Result_Success) { ScratchEnd(scratch); return parseResult; }
+	if (parseResult != Result_Success)
+	{
+		ScratchEnd(scratch);
+		TracyCZoneEnd(funcZone);
+		return parseResult;
+	}
 	
 	InitOsmMap(arena, mapOut, 0, 0);
 	
 	do
 	{
 		XmlElement* root = XmlGetOneChildOrBreak(&xml, nullptr, StrLit("osm"));
-		Str8 versionStr = XmlGetAttributeOrDefault(&xml, root, StrLit("version"), Str8_Empty);
+		// Str8 versionStr = XmlGetAttributeOrDefault(&xml, root, StrLit("version"), Str8_Empty);
 		// Str8 generator = XmlGetAttributeOrDefault(&xml, root, StrLit("generator"), Str8_Empty);
 		// Str8 copyright = XmlGetAttributeOrDefault(&xml, root, StrLit("copyright"), Str8_Empty);
 		// Str8 attribution = XmlGetAttributeOrDefault(&xml, root, StrLit("attribution"), Str8_Empty);
@@ -153,15 +169,15 @@ Result TryParseOsmMap(Arena* arena, Str8 xmlFileContents, OsmMap* mapOut)
 		//TODO: This does not properly handle if the rectangle passes over the international date line (max longitude will be less than min longitude)
 		mapOut->bounds = NewRecd(boundsMinLon, boundsMinLat, boundsMaxLon - boundsMinLon, boundsMaxLat - boundsMinLat);
 		
-		XmlElement* xmlNode;
-		u64 nodeIndex = 0;
-		while ((xmlNode = XmlGetChild(&xml, root, StrLit("node"), nodeIndex++)) != nullptr)
+		XmlElement* xmlNode = nullptr;
+		while ((xmlNode = XmlGetNextChild(&xml, root, StrLit("node"), xmlNode)) != nullptr)
 		{
 			u64 id = XmlGetAttributeU64OrBreak(&xml, xmlNode, StrLit("id"));
 			r64 longitude = XmlGetAttributeR64OrBreak(&xml, xmlNode, StrLit("lon"));
 			r64 latitude = XmlGetAttributeR64OrBreak(&xml, xmlNode, StrLit("lat"));
 			OsmNode* newNode = AddOsmNode(mapOut, NewV2d(longitude, latitude), id);
 			NotNull(newNode);
+			UNUSED(newNode);
 			// TODO: Parse "visible" attribute
 			// TODO: Parse "version" attribute
 			// TODO: Parse "changeset" attribute
@@ -171,9 +187,8 @@ Result TryParseOsmMap(Arena* arena, Str8 xmlFileContents, OsmMap* mapOut)
 		}
 		if (xml.error != Result_None) { break; }
 		
-		XmlElement* xmlWay;
-		u64 wayIndex = 0;
-		while ((xmlWay = XmlGetChild(&xml, root, StrLit("way"), wayIndex++)) != nullptr)
+		XmlElement* xmlWay = nullptr;
+		while ((xmlWay = XmlGetNextChild(&xml, root, StrLit("way"), xmlWay)) != nullptr)
 		{
 			u64 mark = ArenaGetMark(scratch);
 			u64 numNodesInWay = 0;
@@ -205,6 +220,7 @@ Result TryParseOsmMap(Arena* arena, Str8 xmlFileContents, OsmMap* mapOut)
 			// TODO: Parse "uid" attribute
 			OsmWay* newWay = AddOsmWay(mapOut, id, numNodesInWay, nodeIds);
 			NotNull(newWay);
+			UNUSED(newWay);
 			//TODO: Parse the <tag> elements under the <way>
 			ArenaResetToMark(scratch, mark);
 		}
@@ -218,5 +234,6 @@ Result TryParseOsmMap(Arena* arena, Str8 xmlFileContents, OsmMap* mapOut)
 	}
 	
 	ScratchEnd(scratch);
+	TracyCZoneEnd(funcZone);
 	return (xml.error == Result_None) ? Result_Success : xml.error;
 }

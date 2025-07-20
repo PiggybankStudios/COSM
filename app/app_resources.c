@@ -50,6 +50,7 @@ Result TryReadAppResource(AppResources* resources, Arena* arena, FilePath path, 
 	}
 	#else
 	{
+		UNUSED(resources);
 		if (fileContentsOut != nullptr)
 		{
 			bool readSuccess = OsReadFile(path, arena, convertNewLines, fileContentsOut);
@@ -67,6 +68,7 @@ Slice ReadAppResource(AppResources* resources, Arena* arena, FilePath path, bool
 	Slice result = Slice_Empty;
 	Result openResult = TryReadAppResource(resources, arena, path, convertNewLines, &result);
 	Assert(openResult == Result_Success);
+	UNUSED(openResult);
 	return result;
 }
 

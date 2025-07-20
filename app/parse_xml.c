@@ -31,6 +31,7 @@ const char* GetHoxmlCodeStr(hoxml_code_t code)
 
 Result TryParseXml(Str8 xmlContents, Arena* arena, XmlFile* fileOut)
 {
+	TracyCZoneN(funcZone, "TryParseXml", true);
 	NotNullStr(xmlContents);
 	NotNull(arena);
 	NotNull(fileOut);
@@ -45,21 +46,26 @@ Result TryParseXml(Str8 xmlContents, Arena* arena, XmlFile* fileOut)
 	
 	uxx hoxmlBufferSize = MaxUXX(xmlContents.length, 128);
 	char* hoxmlBuffer = (char*)AllocMem(scratch, hoxmlBufferSize);
+	// PrintLine_D("hoxmlBuffer: %p-%p", hoxmlBuffer, hoxmlBuffer + hoxmlBufferSize);
 	hoxml_context_t hoxml;
 	hoxml_init(&hoxml, hoxmlBuffer, (size_t)hoxmlBufferSize);
 	
 	bool insideProcessingInstruction = false;
 	Result result = Result_None;
 	hoxml_code_t code;
-	while ((code = hoxml_parse(&hoxml, xmlContents.chars, (size_t)xmlContents.length)) != HOXML_END_OF_DOCUMENT)
+	do
 	{
+		TracyCZoneN(Zone_hoxml_parse, "hoxml_parse", true);
+		code = hoxml_parse(&hoxml, xmlContents.chars, (size_t)xmlContents.length);
+		TracyCZoneEnd(Zone_hoxml_parse);
 		switch (code)
 		{
 			case HOXML_PROCESSING_INSTRUCTION_BEGIN: insideProcessingInstruction = true; break;
 			
 			case HOXML_ELEMENT_BEGIN:
 			{
-				if (stackSize >= XML_MAX_DEPTH) { result = Result_StackOverflow; break; }
+				TracyCZoneN(Zone_ELEMENT_BEGIN, "HOXML_ELEMENT_BEGIN", true);
+				if (stackSize >= XML_MAX_DEPTH) { result = Result_StackOverflow; TracyCZoneEnd(Zone_ELEMENT_BEGIN); break; }
 				
 				XmlElement* parent = (stackSize > 0) ? parent = stack[stackSize-1] : nullptr;
 				VarArray* elementArray = (parent != nullptr) ? &parent->children : &fileOut->roots;
@@ -72,26 +78,35 @@ Result TryParseXml(Str8 xmlContents, Arena* arena, XmlFile* fileOut)
 				stack[stackSize] = newElement;
 				stackSize++;
 				fileOut->numElements++;
+				TracyCZoneEnd(Zone_ELEMENT_BEGIN);
 			} break;
 			
 			case HOXML_ELEMENT_END:
 			{
-				if (stackSize == 0) { result = Result_UnexpectedEndElement; break; }
+				TracyCZoneN(Zone_ELEMENT_END, "HOXML_ELEMENT_END", true);
+				if (stackSize == 0) { result = Result_UnexpectedEndElement; TracyCZoneEnd(Zone_ELEMENT_END); break; }
 				XmlElement* element = stack[stackSize-1];
-				if (!StrExactEquals(StrLit(hoxml.tag), element->type)) { result = Result_WrongEndElementType; break; }
+				if (!StrExactEquals(StrLit(hoxml.tag), element->type)) { result = Result_WrongEndElementType; TracyCZoneEnd(Zone_ELEMENT_END); break; }
 				stackSize--;
+				TracyCZoneEnd(Zone_ELEMENT_END);
 			} break;
 			
 			case HOXML_ATTRIBUTE:
 			{
+				TracyCZoneN(Zone_ATTRIBUTE, "HOXML_ATTRIBUTE", true);
 				// if (insideProcessingInstruction) { PrintLine_D("Ignoring processing attribute %s", hoxml.attribute); break; }
-				if (stackSize == 0) { result = Result_UnexpectedAttribute; break; }
+				if (stackSize == 0) { result = Result_UnexpectedAttribute; TracyCZoneEnd(Zone_ATTRIBUTE); break; }
 				XmlElement* element = stack[stackSize-1];
+				TracyCZoneN(Zone_VarArrayAdd, "VarArrayAdd", true);
 				XmlAttribute* newAttribute = VarArrayAdd(XmlAttribute, &element->attributes);
+				TracyCZoneEnd(Zone_VarArrayAdd);
 				NotNull(newAttribute);
 				ClearPointer(newAttribute);
+				TracyCZoneN(Zone_AllocStrs, "AllocStrs", true);
 				newAttribute->key = AllocStr8Nt(arena, hoxml.attribute);
 				newAttribute->value = AllocStr8Nt(arena, hoxml.value);
+				TracyCZoneEnd(Zone_AllocStrs);
+				TracyCZoneEnd(Zone_ATTRIBUTE);
 			} break;
 			
 			case HOXML_PROCESSING_INSTRUCTION_END: insideProcessingInstruction = false; break;
@@ -106,11 +121,12 @@ Result TryParseXml(Str8 xmlContents, Arena* arena, XmlFile* fileOut)
 			case HOXML_ERROR_INVALID_DOCUMENT_TYPE_DECLARATION: result = Result_MissingFileHeader; break;
 			case HOXML_ERROR_INVALID_DOCUMENT_DECLARATION: result = Result_MissingFileHeader; break;
 			
+			case HOXML_END_OF_DOCUMENT: /* Do nothing */ break;
 			default: PrintLine_W("Unhandled HOXML code: \"%s\"", GetHoxmlCodeStr(code)); break;
 		}
 		
 		if (result != Result_None) { break; }
-	}
+	} while(code != HOXML_END_OF_DOCUMENT);
 	
 	if (result == Result_None)
 	{
@@ -120,6 +136,7 @@ Result TryParseXml(Str8 xmlContents, Arena* arena, XmlFile* fileOut)
 	}
 	
 	ScratchEnd(scratch);
+	TracyCZoneEnd(funcZone);
 	return result;
 }
 
@@ -143,6 +160,7 @@ XmlElement* XmlGetOneChild(XmlFile* file, XmlElement* parent, Str8 type)
 
 XmlElement* XmlGetChild(XmlFile* file, XmlElement* parent, Str8 type, u64 index)
 {
+	TracyCZoneN(funcZone, "XmlGetChild", true);
 	NotNull(file);
 	VarArray* childArray = (parent != nullptr) ? &parent->children : &file->roots;
 	XmlElement* result = nullptr;
@@ -152,11 +170,34 @@ XmlElement* XmlGetChild(XmlFile* file, XmlElement* parent, Str8 type, u64 index)
 		VarArrayLoopGet(XmlElement, child, childArray, cIndex);
 		if (StrExactEquals(child->type, type))
 		{
-			if (findIndex >= index) { return child; }
+			if (findIndex >= index) { TracyCZoneEnd(funcZone); return child; }
 			findIndex++;
 		}
 	}
+	TracyCZoneEnd(funcZone);
 	return result;
+}
+XmlElement* XmlGetNextChild(XmlFile* file, XmlElement* parent, Str8 type, XmlElement* prevChild)
+{
+	TracyCZoneN(funcZone, "XmlGetNextChild", true);
+	
+	VarArray* childArray = (parent != nullptr) ? &parent->children : &file->roots;
+	u64 startIndex = 0;
+	if (prevChild != nullptr)
+	{
+		bool foundChildIndex = VarArrayGetIndexOf(XmlElement, childArray, prevChild, &startIndex);
+		Assert(foundChildIndex); UNUSED(foundChildIndex);
+		startIndex += 1;
+	}
+	
+	for (uxx cIndex = startIndex; cIndex < childArray->length; cIndex++)
+	{
+		VarArrayLoopGet(XmlElement, child, childArray, cIndex);
+		if (StrExactEquals(child->type, type)) { TracyCZoneEnd(funcZone); return child; }
+	}
+	
+	TracyCZoneEnd(funcZone);
+	return nullptr;
 }
 
 Str8 XmlGetAttribute(XmlFile* file, XmlElement* element, Str8 attributeName)
@@ -174,6 +215,7 @@ Str8 XmlGetAttribute(XmlFile* file, XmlElement* element, Str8 attributeName)
 
 Str8 XmlGetAttributeOrDefault(XmlFile* file, XmlElement* element, Str8 attributeName, Str8 defaultValue)
 {
+	UNUSED(file);
 	NotNull(file);
 	NotNull(element);
 	VarArrayLoop(&element->attributes, aIndex)
@@ -293,7 +335,6 @@ u64 XmlGetAttributeU64OrDefault(XmlFile* file, XmlElement* element, Str8 attribu
 }
 
 #define XmlGetOneChildOrBreak(file, parent, type) XmlGetOneChild((file), (parent), (type)); if ((file)->error != Result_None) { break; }
-#define XmlGetChildOrBreak(file, parent, type, index) XmlGetChild((file), (parent), (type), (index)); if ((file)->error != Result_None) { break; }
 #define XmlGetAttributeOrBreak(file, element, attributeName) XmlGetAttribute((file), (element), (attributeName)); if ((file)->error != Result_None) { break; }
 #define XmlGetAttributeR32OrBreak(file, element, attributeName) XmlGetAttributeR32((file), (element), (attributeName)); if ((file)->error != Result_None) { break; }
 #define XmlGetAttributeR64OrBreak(file, element, attributeName) XmlGetAttributeR64((file), (element), (attributeName)); if ((file)->error != Result_None) { break; }

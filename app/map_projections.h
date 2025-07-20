@@ -26,6 +26,8 @@ v2 ProjectMercator(v2d geoLoc, rec mapRec)
 
 v2d UnprojectMercator(v2 mapPos, rec mapRec)
 {
+	UNUSED(mapPos);
+	UNUSED(mapRec);
 	//TODO: Implement me!
 	return V2d_Zero;
 }

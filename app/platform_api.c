@@ -134,7 +134,7 @@ SET_WINDOW_TOPMOST_DEF(Plat_SetWindowTopmost)
 			0, //cy,
 			SWP_NOMOVE | SWP_NOSIZE //uFlags
 		);
-		Assert(setResult != 0);
+		UNUSED(setResult);
 		//Change the value in both old and current AppInput so the application immediately sees the value change in the AppInput it has a handle to
 		platformData->currentAppInput->isWindowTopmost = topmost;
 		platformData->oldAppInput->isWindowTopmost = topmost;

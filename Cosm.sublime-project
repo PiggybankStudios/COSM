@@ -142,6 +142,14 @@
 				"LICENSE",
 			],
 		},
+		{
+			"name": "hoxml",
+			"path": "third_party/hoxml",
+			"file_exclude_patterns": [
+				"README.md",
+				"LICENSE",
+			],
+		},
 	],
 	"settings":
 	{
@@ -277,7 +285,6 @@
 			"#define VarArrayRemoveLast(type, arrayPntr)",
 			"#define XmlGetAttributeOrBreak(file, attributeName, element)",
 			"#define XmlGetAttributeR32OrBreak(file, element, attributeName)",
-			"#define XmlGetChildOrBreak(file, type, parent, index)",
 			"#define XmlGetOneChildOrBreak(file, type, parent)",
 			"Circle NewCircle(r32 x, r32 y, r32 radius)",
 			"Circle NewCircleV(v2 center, r32 radius)",
@@ -546,6 +553,7 @@
 			"Str8 XmlGetAttributeOrDefault(XmlFile* file, XmlElement* element, Str8 attributeName, Str8 defaultValue)",
 			"Str8Pair NewStr8Pair(Str8 left, Str8 right)",
 			"XmlElement* XmlGetChild(XmlFile* file, XmlElement* parent, Str8 type, u64 index)",
+			"XmlElement* XmlGetNextChild(XmlFile* file, XmlElement* parent, Str8 type, XmlElement* prevChild)",
 			"XmlElement* XmlGetOneChild(XmlFile* file, XmlElement* parent, Str8 type)",
 			"XmlParserResult XmlCreateError(XmlParser* parser, bool isWarning, const char* formatString, ...)",
 			"XmlParserResult XmlParseStep(XmlParser* parser)",
@@ -625,6 +633,7 @@
 			"void FreeVarArray(VarArray* array)",
 			"void FreeXmlParser(XmlParser* parser)",
 			"void InitXmlParser(Arena* arena, Str8 xmlData, bool copyXmlData, u64 numSrlInfos, const SrlInfo* srlInfos, u64 maxStackSize, XmlParser* parserOut)",
+			"void OpenOsmMap(Str8 filePath)",
 			"void VarArrayClear(VarArray* array)",
 			"void VarArrayClearEx(VarArray* array, bool deallocate)",
 			"void VarArrayRemove_(uxx itemSize, uxx itemAlignment, VarArray* array, const void* itemToRemove)",
