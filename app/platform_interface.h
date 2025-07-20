@@ -7,15 +7,15 @@ Date:   02\25\2025
 #ifndef _PLATFORM_INTERFACE_H
 #define _PLATFORM_INTERFACE_H
 
-typedef struct PlatformInfo PlatformInfo;
-struct PlatformInfo
+typedef plex PlatformInfo PlatformInfo;
+plex PlatformInfo
 {
 	Arena* platformStdHeap;
 	Arena* platformStdHeapAllowFreeWithoutSize;
 };
 
-typedef struct AppInput AppInput;
-struct AppInput
+typedef plex AppInput AppInput;
+plex AppInput
 {
 	u64 programTime; //num ms since start of program
 	u64 frameIndex;
@@ -66,8 +66,8 @@ typedef SET_WINDOW_ICON_DEF(SetWindowIcon_f);
 #define SET_WINDOW_TOPMOST_DEF(functionName) void functionName(bool topmost)
 typedef SET_WINDOW_TOPMOST_DEF(SetWindowTopmost_f);
 
-typedef struct PlatformApi PlatformApi;
-struct PlatformApi
+typedef plex PlatformApi PlatformApi;
+plex PlatformApi
 {
 	GetNativeWindowHandle_f* GetNativeWindowHandle;
 	RequestQuit_f* RequestQuit;
@@ -91,8 +91,8 @@ typedef APP_UPDATE_DEF(AppUpdate_f);
 #define APP_CLOSING_DEF(functionName) void functionName(PlatformInfo* inPlatformInfo, PlatformApi* inPlatformApi, void* memoryPntr)
 typedef APP_CLOSING_DEF(AppClosing_f);
 
-typedef struct AppApi AppApi;
-struct AppApi
+typedef plex AppApi AppApi;
+plex AppApi
 {
 	AppInit_f* AppInit;
 	AppUpdate_f* AppUpdate;

@@ -7,8 +7,8 @@ Date:   02\25\2025
 #ifndef _APP_MAIN_H
 #define _APP_MAIN_H
 
-typedef struct AppData AppData;
-struct AppData
+typedef plex AppData AppData;
+plex AppData
 {
 	bool initialized;
 	RandomSeries random;

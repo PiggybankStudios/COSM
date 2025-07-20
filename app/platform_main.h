@@ -7,8 +7,8 @@ Date:   02\25\2025
 #ifndef _PLATFORM_MAIN_H
 #define _PLATFORM_MAIN_H
 
-typedef struct PlatformData PlatformData;
-struct PlatformData
+typedef plex PlatformData PlatformData;
+plex PlatformData
 {
 	Arena stdHeap;
 	Arena stdHeapAllowFreeWithoutSize;

@@ -62,8 +62,8 @@ static inline void PrintUsage()
 	WriteLine_E("Usage: " TOOL_EXE_NAME " [build_config_path] [is_msvc_compiler_initialized]");
 }
 
-typedef struct BundleResourcesContext BundleResourcesContext;
-struct BundleResourcesContext
+typedef plex BundleResourcesContext BundleResourcesContext;
+plex BundleResourcesContext
 {
 	mz_zip_archive zip;
 	Str8 relativePath;

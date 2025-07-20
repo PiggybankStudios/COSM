@@ -9,23 +9,23 @@ Date:   07\07\2025
 
 #define XML_MAX_DEPTH 16
 
-typedef struct XmlAttribute XmlAttribute;
-struct XmlAttribute
+typedef plex XmlAttribute XmlAttribute;
+plex XmlAttribute
 {
 	Str8 key;
 	Str8 value;
 };
 
-typedef struct XmlElement XmlElement;
-struct XmlElement
+typedef plex XmlElement XmlElement;
+plex XmlElement
 {
 	Str8 type;
 	VarArray attributes; //XmlAttribute
 	VarArray children; //XmlElement
 };
 
-typedef struct XmlFile XmlFile;
-struct XmlFile
+typedef plex XmlFile XmlFile;
+plex XmlFile
 {
 	Arena* arena;
 	u64 numElements;

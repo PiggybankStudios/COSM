@@ -8,16 +8,16 @@ Date:   07\06\2025
 #define _OSM_MAP_H
 
 // <tag k="highway" v="secondary"/>
-typedef struct OsmTag OsmTag;
-struct OsmTag
+typedef plex OsmTag OsmTag;
+plex OsmTag
 {
 	Str8 key;
 	Str8 value;
 };
 
 // <node id="30139418" visible="true" version="5" changeset="50213102" timestamp="2017-07-11T21:17:35Z" user="Natfoot" uid="567792" lat="47.7801029" lon="-122.1907513"/>
-typedef struct OsmNode OsmNode;
-struct OsmNode
+typedef plex OsmNode OsmNode;
+plex OsmNode
 {
 	u64 id;
 	bool visible;
@@ -30,16 +30,16 @@ struct OsmNode
 	VarArray tags; //OsmTag
 };
 
-typedef struct OsmNodeRef OsmNodeRef;
-struct OsmNodeRef
+typedef plex OsmNodeRef OsmNodeRef;
+plex OsmNodeRef
 {
 	u64 id;
 	OsmNode* pntr;
 };
 
 // <way id="428033729" visible="true" version="5" changeset="81153531" timestamp="2020-02-18T06:41:24Z" user="thadekam" uid="10455646">
-typedef struct OsmWay OsmWay;
-struct OsmWay
+typedef plex OsmWay OsmWay;
+plex OsmWay
 {
 	u64 id;
 	bool visible;
@@ -52,8 +52,8 @@ struct OsmWay
 	VarArray tags; //OsmTag
 };
 
-typedef struct OsmMap OsmMap;
-struct OsmMap
+typedef plex OsmMap OsmMap;
+plex OsmMap
 {
 	Arena* arena;
 	recd bounds;

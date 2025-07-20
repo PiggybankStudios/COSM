@@ -11,8 +11,8 @@ Date:   07\06\2025
 #include "resources_zip.h"
 #endif
 
-typedef struct AppResources AppResources;
-struct AppResources
+typedef plex AppResources AppResources;
+plex AppResources
 {
 	bool isLoadingFromDisk;
 	#if USE_BUNDLED_RESOURCES
