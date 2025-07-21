@@ -36,13 +36,13 @@ Description:
 #define BUILD_SHADERS 0
 
 
-// Builds third_party/tracy/TracyClient.cpp in C++ mode into tracy.obj which will be linked into pig_core.dll
-#define BUILD_TRACY_DLL 0
-
 // Compiles piggen/main.c
 #define BUILD_PIGGEN   0
 // Generates code using piggen.exe (you can turn this off if you're not making changes to generated code and you've already generated it once)
 #define RUN_PIGGEN    0
+
+// Builds third_party/tracy/TracyClient.cpp in C++ mode into tracy.obj which will be linked into pig_core.dll
+#define BUILD_TRACY_DLL 0
 
 // Builds dll_main.c into pig_core.dll and pig_core.lib
 #define BUILD_PIG_CORE_DLL            1

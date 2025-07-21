@@ -167,6 +167,11 @@ int main(int argc, char* argv[])
 		WriteLine_E("BUILD_WINDOWS does not working when building on non-Windows platforms");
 		BUILD_WINDOWS = false;
 	}
+	if (BUILD_OSX && !BUILDING_ON_OSX)
+	{
+		PrintLine_E("BUILD_OSX does not working when building on non-OSX platforms");
+		BUILD_OSX = false;
+	}
 	if (BUILD_INTO_SINGLE_UNIT && BUILD_APP_DLL && !BUILD_APP_EXE)
 	{
 		WriteLine_E("BUILD_INTO_SINGLE_UNIT works with BUILD_APP_EXE but only BUILD_APP_DLL is enabled. Assuming we want BUILD_APP_EXE instead");
@@ -285,6 +290,11 @@ int main(int argc, char* argv[])
 		AddArgNt(&cmd, CLI_QUOTED_ARG, "..");
 		AddArgNt(&cmd, PIGGEN_OUTPUT_FOLDER, FOLDERNAME_GENERATED_CODE "/");
 		
+		AddArgNt(&cmd, PIGGEN_EXCLUDE_FOLDER, "[ROOT]/_build/");
+		AddArgNt(&cmd, PIGGEN_EXCLUDE_FOLDER, "[ROOT]/_data/");
+		AddArgNt(&cmd, PIGGEN_EXCLUDE_FOLDER, "[ROOT]/_traces/");
+		AddArgNt(&cmd, PIGGEN_EXCLUDE_FOLDER, "[ROOT]/_media/");
+		
 		AddArgNt(&cmd, PIGGEN_EXCLUDE_FOLDER, "[ROOT]/core/.git/");
 		AddArgNt(&cmd, PIGGEN_EXCLUDE_FOLDER, "[ROOT]/core/_build/");
 		AddArgNt(&cmd, PIGGEN_EXCLUDE_FOLDER, "[ROOT]/core/_data/");
@@ -314,7 +324,7 @@ int main(int argc, char* argv[])
 	{
 		if (BUILD_WINDOWS)
 		{
-			InitializeMsvcIf(StrLit(".."), &isMsvcInitialized);
+			InitializeMsvcIf(StrLit("../core"), &isMsvcInitialized);
 			PrintLine("[Building %s for Windows...]", FILENAME_TRACY_DLL);
 			
 			CliArgList cmd = ZEROED;

@@ -549,7 +549,7 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 						Clay__CloseElement();
 					} Clay__CloseElement();
 					
-					CLAY({ .layout = { .sizing = { .width=CLAY_SIZING_GROW(0) } } }) {}
+					// CLAY({ .layout = { .sizing = { .width=CLAY_SIZING_GROW(0) } } }) {}
 					
 					#if 0
 					CLAY({ .id = CLAY_ID("ViewPosDisplay") })
