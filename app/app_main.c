@@ -141,6 +141,7 @@ EXPORT_FUNC APP_INIT_DEF(AppInit)
 	InitCompiledShader(&app->mainShader, stdHeap, main2d);
 	
 	app->uiFontSize = DEFAULT_UI_FONT_SIZE;
+	app->largeFontSize = DEFAULT_LARGE_FONT_SIZE;
 	app->uiScale = 1.0f;
 	bool fontBakeSuccess = AppCreateFonts();
 	Assert(fontBakeSuccess);
@@ -148,10 +149,13 @@ EXPORT_FUNC APP_INIT_DEF(AppInit)
 	
 	InitClayUIRenderer(stdHeap, V2_Zero, &app->clay);
 	app->clayUiFontId = AddClayUIRendererFont(&app->clay, &app->uiFont, UI_FONT_STYLE);
+	app->clayLargeFontId = AddClayUIRendererFont(&app->clay, &app->largeFont, LARGE_FONT_STYLE);
 	
 	app->mapRec = NewRec(0, 0, 1000, 500);
 	app->viewPos = NewV2(app->mapRec.X + app->mapRec.Width/2.0f, app->mapRec.Y + app->mapRec.Height/2.0f);
 	app->viewZoom = 0.0f; //this will get set to something reasonable after our first UI layout
+	
+	InitUiTextbox(stdHeap, StrLit("testTextbox"), StrLit("Hello!"), &app->testTextbox);
 	
 	#if 0
 	Str8 testFileContents = Str8_Empty;
@@ -271,7 +275,7 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 	// v2 screenCenter = Div(screenSize, 2.0f);
 	v2 mousePos = appIn->mouse.position;
 	
-	TracyCZoneN(_Update, "Update", true);
+	TracyCZoneN(Zone_Update, "Update", true);
 	// +==============================+
 	// |            Update            |
 	// +==============================+
@@ -370,15 +374,15 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 			app->viewPos.X += viewSpeed / app->viewZoom;
 		}
 	}
-	TracyCZoneEnd(_Update);
+	TracyCZoneEnd(Zone_Update);
 	
 	// +==============================+
 	// |          Rendering           |
 	// +==============================+
-	TracyCZoneN(_BeginFrame, "BeginFrame", true);
+	TracyCZoneN(Zone_BeginFrame, "BeginFrame", true);
 	BeginFrame(platform->GetSokolSwapchain(), screenSizei, BACKGROUND_BLACK, 1.0f);
-	TracyCZoneEnd(_BeginFrame);
-	TracyCZoneN(_Render, "Render", true);
+	TracyCZoneEnd(Zone_BeginFrame);
+	TracyCZoneN(Zone_Render, "Render", true);
 	{
 		BindShader(&app->mainShader);
 		ClearDepthBuffer(1.0f);
@@ -547,6 +551,7 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 					
 					CLAY({ .layout = { .sizing = { .width=CLAY_SIZING_GROW(0) } } }) {}
 					
+					#if 0
 					CLAY({ .id = CLAY_ID("ViewPosDisplay") })
 					{
 						CLAY_TEXT(
@@ -561,6 +566,14 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 							})
 						);
 					}
+					#endif
+					
+					DoUiTextbox(&app->testTextbox,
+						&app->clay, uiArena,
+						&appIn->keyboard, &appIn->mouse,
+						&app->isTestTextboxFocused,
+						&app->largeFont, LARGE_FONT_STYLE, app->largeFontSize, app->uiScale);
+					
 					CLAY({ .layout={ .sizing={ .width=CLAY_SIZING_FIXED(UI_R32(4)) } } }) {}
 				}
 				
@@ -585,10 +598,10 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 		ArenaResetToMark(uiArena, uiArenaMark);
 		uiArena = nullptr;
 	}
-	TracyCZoneEnd(_Render);
-	TracyCZoneN(_EndFrame, "EndFrame", true);
+	TracyCZoneEnd(Zone_Render);
+	TracyCZoneN(Zone_EndFrame, "EndFrame", true);
 	EndFrame();
-	TracyCZoneEnd(_EndFrame);
+	TracyCZoneEnd(Zone_EndFrame);
 	
 	ScratchEnd(scratch);
 	ScratchEnd(scratch2);

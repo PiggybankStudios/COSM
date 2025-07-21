@@ -66,8 +66,34 @@ bool AppCreateFonts()
 		RemoveAttachedTtfFile(&newUiFont);
 	}
 	
+	PigFont newLargeFont = ZEROED;
+	{
+		newLargeFont = InitFont(stdHeap, StrLit("largeFont"));
+		Result attachResult = AttachOsTtfFileToFont(&newLargeFont, StrLit(LARGE_FONT_NAME), app->largeFontSize, LARGE_FONT_STYLE);
+		Assert(attachResult == Result_Success);
+		UNUSED(attachResult);
+		Result bakeResult = BakeFontAtlas(&newLargeFont, app->largeFontSize, LARGE_FONT_STYLE, NewV2i(256, 256), ArrayCount(fontCharRanges), &fontCharRanges[0]);
+		if (bakeResult != Result_Success)
+		{
+			bakeResult = BakeFontAtlas(&newLargeFont, app->largeFontSize, LARGE_FONT_STYLE, NewV2i(512, 512), ArrayCount(fontCharRanges), &fontCharRanges[0]);
+			if (bakeResult != Result_Success)
+			{
+				RemoveAttachedTtfFile(&newLargeFont);
+				FreeFont(&newLargeFont);
+				FreeFont(&newUiFont);
+				return false;
+			}
+		}
+		Assert(bakeResult == Result_Success);
+		FillFontKerningTable(&newLargeFont);
+		RemoveAttachedTtfFile(&newLargeFont);
+	}
+	
 	if (app->uiFont.arena != nullptr) { FreeFont(&app->uiFont); }
+	if (app->largeFont.arena != nullptr) { FreeFont(&app->largeFont); }
 	app->uiFont = newUiFont;
+	app->largeFont = newLargeFont;
+	
 	return true;
 }
 
@@ -77,10 +103,12 @@ bool AppChangeFontSize(bool increase)
 	{
 		app->uiFontSize += 1;
 		app->uiScale = app->uiFontSize / (r32)DEFAULT_UI_FONT_SIZE;
+		app->largeFontSize = RoundR32(DEFAULT_LARGE_FONT_SIZE * app->uiScale);
 		if (!AppCreateFonts())
 		{
 			app->uiFontSize -= 1;
 			app->uiScale = app->uiFontSize / (r32)DEFAULT_UI_FONT_SIZE;
+			app->largeFontSize = RoundR32(DEFAULT_LARGE_FONT_SIZE * app->uiScale);
 		}
 		return true;
 	}
@@ -88,6 +116,7 @@ bool AppChangeFontSize(bool increase)
 	{
 		app->uiFontSize -= 1;
 		app->uiScale = app->uiFontSize / (r32)DEFAULT_UI_FONT_SIZE;
+		app->largeFontSize = RoundR32(DEFAULT_LARGE_FONT_SIZE * app->uiScale);
 		AppCreateFonts();
 		return true;
 	}

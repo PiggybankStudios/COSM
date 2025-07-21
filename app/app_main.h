@@ -16,15 +16,21 @@ plex AppData
 	
 	Shader mainShader;
 	PigFont uiFont;
+	PigFont largeFont;
 	
 	ClayUIRenderer clay;
 	r32 uiScale;
 	r32 uiFontSize;
+	r32 largeFontSize;
 	u16 clayUiFontId;
+	u16 clayLargeFontId;
 	bool isFileMenuOpen;
 	bool keepFileMenuOpenUntilMouseOver;
 	bool isViewMenuOpen;
 	bool keepViewMenuOpenUntilMouseOver;
+	
+	bool isTestTextboxFocused;
+	UiTextbox testTextbox;
 	
 	OsmMap map;
 	rec mapRec;

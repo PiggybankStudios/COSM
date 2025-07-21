@@ -12,6 +12,11 @@ Date:   02\25\2025
 #define MIN_UI_FONT_SIZE       9
 #define DEFAULT_UI_FONT_SIZE   14
 
+#define LARGE_FONT_NAME  "Consolas"
+#define LARGE_FONT_STYLE FontStyleFlag_Bold
+#define MIN_LARGE_FONT_SIZE       9
+#define DEFAULT_LARGE_FONT_SIZE   36
+
 #define TOPBAR_ICONS_SIZE  16 //px
 #define TOPBAR_ICONS_PADDING  8 //px
 

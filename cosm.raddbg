@@ -1,6 +1,9 @@
 // raddbg 0.9.20 project file
 
+recent_file: path: "core/ui/ui_clay_textbox.h"
 recent_file: path: "app/app_main.c"
+recent_file: path: "app/app_helpers.c"
+recent_file: path: "core/gfx/gfx_clay_renderer.h"
 recent_file: path: "app/parse_xml.c"
 recent_file: path: "third_party/hoxml/hoxml.h"
 recent_file: path: "app/platform_main.c"
@@ -11,4 +14,9 @@ target:
   working_directory: _data
   label: COSM
   enabled: 1
+}
+type_view:
+{
+  type: Str8
+  expr: "rows(array($.chars, $.length), $.length)"
 }
