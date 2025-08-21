@@ -157,6 +157,11 @@ EXPORT_FUNC APP_INIT_DEF(AppInit)
 	
 	InitUiTextbox(stdHeap, StrLit("testTextbox"), StrLit("Hello!"), &app->testTextbox);
 	
+	InitBktArray(v2, &app->array, stdHeap, 4);
+	v2* newVec = BktArrayAdd(v2, &app->array);
+	*newVec = NewV2(1,2);
+	BktArrayAddValue(v2, &app->array, NewV2(4,5));
+	
 	#if 0
 	Str8 testFileContents = Str8_Empty;
 	bool foundTestFile = OsReadTextFile(FilePathLit(TEST_OSM_FILE), scratch, &testFileContents);
@@ -257,6 +262,30 @@ EXPORT_FUNC APP_INIT_DEF(AppInit)
 	return (void*)app;
 }
 
+void PrintArray(BktArray* array)
+{
+	PrintLine_D("BktArray: %llu buckets, %llu/%llu items (first=%p, last=%p)", array->numBuckets, array->length, array->allocLength, array->firstBucket, array->lastBucket);
+	BktArrayBkt* bucket = array->firstBucket;
+	uxx bIndex = 0;
+	uxx index = 0;
+	while (bucket != nullptr)
+	{
+		PrintLine_D("Bucket[%llu] %p: %llu/%llu", bIndex, bucket, bucket->length, bucket->allocLength);
+		for (uxx iIndex = 0; iIndex < bucket->length; iIndex++)
+		{
+			v2* itemPntr = BktArrayGet(v2, array, index + iIndex);
+			NotNull(itemPntr);
+			PrintLine_D("\t[%llu]: (%g, %g)", index + iIndex, itemPntr->X, itemPntr->Y);
+		}
+		
+		index += bucket->length;
+		bIndex++;
+		bucket = bucket->next;
+	}
+	Assert(index == array->length);
+	Assert(bIndex == array->numBuckets);
+}
+
 // +==============================+
 // |          AppUpdate           |
 // +==============================+
@@ -280,10 +309,50 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 	// |            Update            |
 	// +==============================+
 	{
+		if (IsKeyboardKeyPressed(&appIn->keyboard, Key_K, true))
+		{
+			if (IsKeyboardKeyDown(&appIn->keyboard, Key_Shift))
+			{
+				v2 values[] = { NewV2((r32)app->array.length+0, 0), NewV2((r32)app->array.length+1, 1), NewV2((r32)app->array.length+2, 2), NewV2((r32)app->array.length+3, 3), NewV2((r32)app->array.length+4, 4), NewV2((r32)app->array.length+5, 5), NewV2((r32)app->array.length+6, 6), NewV2((r32)app->array.length+7, 7) };
+				BktArrayAddValues(v2, &app->array, ArrayCount(values), values);
+			}
+			else
+			{
+				BktArrayAddValue(v2, &app->array, FillV2((r32)app->array.length));
+			}
+			PrintArray(&app->array);
+		}
+		if (IsKeyboardKeyPressed(&appIn->keyboard, Key_J, true))
+		{
+			BktArrayClear(&app->array, IsKeyboardKeyDown(&appIn->keyboard, Key_Shift));
+			PrintArray(&app->array);
+		}
+		if (IsKeyboardKeyPressed(&appIn->keyboard, Key_R, true))
+		{
+			if (app->array.length > 0)
+			{
+				uxx randomIndex = GetRandU64Range(&app->random, 0, app->array.length);
+				v2* randomItemPntr = BktArrayGet(v2, &app->array, randomIndex);
+				if (IsKeyboardKeyDown(&appIn->keyboard, Key_Shift))
+				{
+					PrintLine_W("Removing Item[%llu]: (%g, %g)", randomIndex, randomItemPntr->X, randomItemPntr->Y);
+					BktArrayRemoveAt(v2, &app->array, randomIndex);
+					PrintArray(&app->array);
+				}
+				else
+				{
+					PrintLine_D("Item[%llu]: (%g, %g)", randomIndex, randomItemPntr->X, randomItemPntr->Y);
+					uxx index = BktArrayGetIndexOf(v2, &app->array, randomItemPntr);
+					Assert(index == randomIndex);
+					Assert(BktArrayContains(v2, &app->array, randomItemPntr));
+				}
+			}
+		}
+		
 		// +==============================+
 		// |       Test XML Parsers       |
 		// +==============================+
-		if (IsKeyboardKeyPressed(&appIn->keyboard, Key_Enter))
+		if (IsKeyboardKeyPressed(&appIn->keyboard, Key_Enter, false))
 		{
 			TracyCZoneN(_TestXML, "TestXML", true);
 			TracyCMessageL("Enter Pressed");
@@ -412,18 +481,18 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 			
 			DrawRectangleOutlineEx(mapRec, 4.0f, MonokaiPurple, false);
 			
-			#if 0
-			v2 prevPos = V2_Zero;
+			#if 1
+			// v2 prevPos = V2_Zero;
 			VarArrayLoop(&app->map.nodes, nIndex)
 			{
 				VarArrayLoopGet(OsmNode, node, &app->map.nodes, nIndex);
 				v2 nodePos = ProjectMercator(node->location, mapRec);
-				// DrawCircle(NewCircleV(nodePos, 1.0f), GetMonokaiColorByIndex(nIndex));
-				if (nIndex > 0)
-				{
-					DrawLine(prevPos, nodePos, 1.0f, GetMonokaiColorByIndex(nIndex));
-				}
-				prevPos = nodePos;
+				DrawCircle(NewCircleV(nodePos, 5.0f), GetMonokaiColorByIndex(nIndex));
+				// if (nIndex > 0)
+				// {
+				// 	DrawLine(prevPos, nodePos, 1.0f, GetMonokaiColorByIndex(nIndex));
+				// }
+				// prevPos = nodePos;
 			}
 			#endif
 			
@@ -568,11 +637,13 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 					}
 					#endif
 					
+					#if 0
 					DoUiTextbox(&app->testTextbox,
 						&app->clay, uiArena,
 						&appIn->keyboard, &appIn->mouse,
 						&app->isTestTextboxFocused,
 						&app->largeFont, LARGE_FONT_STYLE, app->largeFontSize, app->uiScale);
+					#endif
 					
 					CLAY({ .layout={ .sizing={ .width=CLAY_SIZING_FIXED(UI_R32(4)) } } }) {}
 				}
