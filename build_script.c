@@ -132,18 +132,21 @@ int main(int argc, char* argv[])
 	
 	// Str8 PROJECT_READABLE_NAME = ExtractStrDefine(buildConfigContents, StrLit("PROJECT_READABLE_NAME"));
 	// Str8 PROJECT_FOLDER_NAME = ExtractStrDefine(buildConfigContents, StrLit("PROJECT_FOLDER_NAME"));
-	Str8 PROJECT_DLL_NAME = ExtractStrDefine(buildConfigContents, StrLit("PROJECT_DLL_NAME"));
-	Str8 PROJECT_EXE_NAME = ExtractStrDefine(buildConfigContents, StrLit("PROJECT_EXE_NAME"));
-	Str8 filenameAppDll   = JoinStrings2(PROJECT_DLL_NAME, StrLit(".dll"), true);
-	Str8 filenameAppSo    = JoinStrings2(PROJECT_DLL_NAME, StrLit(".so"), true);
-	Str8 filenameAppExe   = JoinStrings2(PROJECT_EXE_NAME, StrLit(".exe"), true);
-	Str8 filenameApp      = JoinStrings2(PROJECT_EXE_NAME, StrLit(""), true);
+	Str8 PROJECT_DLL_NAME  = ExtractStrDefine(buildConfigContents, StrLit("PROJECT_DLL_NAME"));
+	Str8 PROJECT_EXE_NAME  = ExtractStrDefine(buildConfigContents, StrLit("PROJECT_EXE_NAME"));
+	Str8 filenameAppDll    = JoinStrings2(PROJECT_DLL_NAME, StrLit(".dll"), true);
+	Str8 filenameAppDllAsm = JoinStrings2(PROJECT_DLL_NAME, StrLit(".asm"), true);
+	Str8 filenameAppSo     = JoinStrings2(PROJECT_DLL_NAME, StrLit(".so"), true);
+	Str8 filenameAppExe    = JoinStrings2(PROJECT_EXE_NAME, StrLit(".exe"), true);
+	Str8 filenameAppAsm    = JoinStrings2(PROJECT_EXE_NAME, StrLit(".asm"), true);
+	Str8 filenameApp       = JoinStrings2(PROJECT_EXE_NAME, StrLit(""), true);
 	
 	bool DEBUG_BUILD              = ExtractBoolDefine(buildConfigContents, StrLit("DEBUG_BUILD"));
 	bool BUILD_INTO_SINGLE_UNIT   = ExtractBoolDefine(buildConfigContents, StrLit("BUILD_INTO_SINGLE_UNIT"));
 	bool USE_BUNDLED_RESOURCES    = ExtractBoolDefine(buildConfigContents, StrLit("USE_BUNDLED_RESOURCES"));
 	bool BUILD_WINDOWS            = ExtractBoolDefine(buildConfigContents, StrLit("BUILD_WINDOWS"));
 	bool BUILD_LINUX              = ExtractBoolDefine(buildConfigContents, StrLit("BUILD_LINUX"));
+	bool BUILD_OSX                = ExtractBoolDefine(buildConfigContents, StrLit("BUILD_OSX"));
 	bool BUILD_TRACY_DLL          = ExtractBoolDefine(buildConfigContents, StrLit("BUILD_TRACY_DLL"));
 	bool PROFILING_ENABLED        = ExtractBoolDefine(buildConfigContents, StrLit("PROFILING_ENABLED"));
 	bool BUILD_SHADERS            = ExtractBoolDefine(buildConfigContents, StrLit("BUILD_SHADERS"));
@@ -156,6 +159,18 @@ int main(int argc, char* argv[])
 	bool RUN_APP                  = ExtractBoolDefine(buildConfigContents, StrLit("RUN_APP"));
 	bool COPY_TO_DATA_DIRECTORY   = ExtractBoolDefine(buildConfigContents, StrLit("COPY_TO_DATA_DIRECTORY"));
 	bool DUMP_PREPROCESSOR        = ExtractBoolDefine(buildConfigContents, StrLit("DUMP_PREPROCESSOR"));
+	bool DUMP_ASSEMBLY            = ExtractBoolDefine(buildConfigContents, StrLit("DUMP_ASSEMBLY"));
+	
+	//Expected to be constant
+	bool BUILD_WITH_SOKOL_APP     = ExtractBoolDefine(buildConfigContents, StrLit("BUILD_WITH_SOKOL_APP"));
+	bool BUILD_WITH_SOKOL_GFX     = ExtractBoolDefine(buildConfigContents, StrLit("BUILD_WITH_SOKOL_GFX"));
+	bool BUILD_WITH_RAYLIB        = ExtractBoolDefine(buildConfigContents, StrLit("BUILD_WITH_RAYLIB"));
+	bool BUILD_WITH_BOX2D         = ExtractBoolDefine(buildConfigContents, StrLit("BUILD_WITH_BOX2D"));
+	bool BUILD_WITH_SDL           = ExtractBoolDefine(buildConfigContents, StrLit("BUILD_WITH_SDL"));
+	bool BUILD_WITH_OPENVR        = ExtractBoolDefine(buildConfigContents, StrLit("BUILD_WITH_OPENVR"));
+	bool BUILD_WITH_IMGUI         = ExtractBoolDefine(buildConfigContents, StrLit("BUILD_WITH_IMGUI"));
+	bool BUILD_WITH_PHYSX         = ExtractBoolDefine(buildConfigContents, StrLit("BUILD_WITH_PHYSX"));
+	bool BUILD_WITH_HTTP          = ExtractBoolDefine(buildConfigContents, StrLit("BUILD_WITH_HTTP"));
 	
 	free(buildConfigContents.chars);
 	
@@ -192,28 +207,22 @@ int main(int argc, char* argv[])
 	// +==============================+
 	// |       Fill CliArgLists       |
 	// +==============================+
-	bool BUILD_WITH_SOKOL_APP = true;
-	bool BUILD_WITH_SOKOL_GFX = true;
-	bool BUILD_WITH_RAYLIB    = false;
-	bool BUILD_WITH_BOX2D     = false;
-	bool BUILD_WITH_SDL       = false;
-	bool BUILD_WITH_OPENVR    = false;
-	bool BUILD_WITH_IMGUI     = false;
-	bool BUILD_WITH_PHYSX     = false;
-	CliArgList cl_CommonFlags             = ZEROED; Fill_cl_CommonFlags(&cl_CommonFlags, DEBUG_BUILD, DUMP_PREPROCESSOR);
+	CliArgList cl_CommonFlags             = ZEROED; Fill_cl_CommonFlags(&cl_CommonFlags, DEBUG_BUILD, DUMP_PREPROCESSOR, DUMP_ASSEMBLY);
 	CliArgList cl_LangCFlags              = ZEROED; Fill_cl_LangCFlags(&cl_LangCFlags);
 	CliArgList cl_LangCppFlags            = ZEROED; Fill_cl_LangCppFlags(&cl_LangCppFlags);
 	CliArgList clang_CommonFlags          = ZEROED; Fill_clang_CommonFlags(&clang_CommonFlags, DEBUG_BUILD, DUMP_PREPROCESSOR);
 	CliArgList clang_LinuxFlags           = ZEROED; Fill_clang_LinuxFlags(&clang_LinuxFlags, DEBUG_BUILD);
 	CliArgList cl_CommonLinkerFlags       = ZEROED; Fill_cl_CommonLinkerFlags(&cl_CommonLinkerFlags, DEBUG_BUILD);
 	CliArgList clang_LinuxCommonLibraries = ZEROED; Fill_clang_LinuxCommonLibraries(&clang_LinuxCommonLibraries, BUILD_WITH_SOKOL_APP);
-	CliArgList cl_PigCoreLibraries        = ZEROED; Fill_cl_PigCoreLibraries(&cl_PigCoreLibraries, BUILD_WITH_RAYLIB, BUILD_WITH_BOX2D, BUILD_WITH_SDL, BUILD_WITH_OPENVR, BUILD_WITH_IMGUI, BUILD_WITH_PHYSX);
+	CliArgList cl_PigCoreLibraries        = ZEROED; Fill_cl_PigCoreLibraries(&cl_PigCoreLibraries, BUILD_WITH_RAYLIB, BUILD_WITH_BOX2D, BUILD_WITH_SDL, BUILD_WITH_OPENVR, BUILD_WITH_IMGUI, BUILD_WITH_PHYSX, BUILD_WITH_HTTP);
 	CliArgList clang_PigCoreLibraries     = ZEROED; Fill_clang_PigCoreLibraries(&clang_PigCoreLibraries, BUILD_WITH_BOX2D, BUILD_WITH_SOKOL_GFX, !BUILDING_ON_OSX);
 	
 	AddArgNt(&cl_CommonFlags, CL_INCLUDE_DIR, "[ROOT]/app");
 	AddArgNt(&cl_CommonFlags, CL_INCLUDE_DIR, "[ROOT]/core");
-	AddArgNt(&clang_LinuxFlags, CLANG_INCLUDE_DIR, "[ROOT]/app");
-	AddArgNt(&clang_LinuxFlags, CLANG_INCLUDE_DIR, "[ROOT]/core");
+	AddArgNt(&cl_CommonLinkerFlags, LINK_LIBRARY_DIR, DEBUG_BUILD ? "[ROOT]/core/third_party/_lib_debug" : "[ROOT]/core/third_party/_lib_release");
+	AddArgNt(&clang_CommonFlags, CLANG_INCLUDE_DIR, "[ROOT]/app");
+	AddArgNt(&clang_CommonFlags, CLANG_INCLUDE_DIR, "[ROOT]/core");
+	AddArgNt(&clang_CommonFlags, CLANG_LIBRARY_DIR, DEBUG_BUILD ? "[ROOT]/core/third_party/_lib_debug" : "[ROOT]/core/third_party/_lib_release");
 	
 	// +--------------------------------------------------------------+
 	// |                       Build piggen.exe                       |
@@ -236,6 +245,7 @@ int main(int argc, char* argv[])
 			AddArgNt(&cmd, CL_BINARY_FILE, FILENAME_PIGGEN_EXE);
 			AddArgList(&cmd, &cl_CommonFlags);
 			AddArgList(&cmd, &cl_LangCFlags);
+			if (DUMP_ASSEMBLY) { AddArgNt(&cmd, CL_ASSEMB_LISTING_FILE, "piggen.asm"); }
 			AddArg(&cmd, CL_LINK);
 			AddArgList(&cmd, &cl_CommonLinkerFlags);
 			AddArgNt(&cmd, CLI_QUOTED_ARG, "Shlwapi.lib"); //Needed for PathFileExistsA
@@ -338,6 +348,7 @@ int main(int argc, char* argv[])
 			AddArgNt(&cmd, CL_CONFIGURE_EXCEPTION_HANDLING, "c"); //extern "C" functions don't through exceptions
 			AddArgList(&cmd, &cl_CommonFlags);
 			AddArgList(&cmd, &cl_LangCppFlags);
+			if (DUMP_ASSEMBLY) { AddArgNt(&cmd, CL_ASSEMB_LISTING_FILE, "tracy.asm"); }
 			AddArg(&cmd, CL_LINK);
 			AddArg(&cmd, LINK_BUILD_DLL);
 			AddArgList(&cmd, &cl_CommonLinkerFlags);
@@ -560,6 +571,7 @@ int main(int argc, char* argv[])
 				AddArg(&cmd, CL_COMPILE);
 				AddArgStr(&cmd, CLI_QUOTED_ARG, sourcePath);
 				AddArgStr(&cmd, CL_OBJ_FILE, objPath);
+				AddArgNt(&cmd, CL_INCLUDE_DIR, "[ROOT]/app");
 				AddArgStr(&cmd, CL_INCLUDE_DIR, headerDirectory);
 				AddArgList(&cmd, &cl_CommonFlags);
 				AddArgList(&cmd, &cl_LangCFlags);
@@ -581,6 +593,7 @@ int main(int argc, char* argv[])
 				AddArg(&cmd, CLANG_COMPILE);
 				AddArgStr(&cmd, CLI_QUOTED_ARG, sourcePath);
 				AddArgStr(&cmd, CLANG_OUTPUT_FILE, oPath);
+				AddArgNt(&cmd, CLANG_INCLUDE_DIR, "[ROOT]/app");
 				AddArgStr(&cmd, CLANG_INCLUDE_DIR, headerDirectory);
 				AddArgNt(&cmd, CLANG_DISABLE_WARNING, "unused-command-line-argument"); //Clang likes to warn about _lib_debug/_lib_release library folder being unused
 				AddArgList(&cmd, &clang_CommonFlags);
@@ -629,6 +642,7 @@ int main(int argc, char* argv[])
 			AddArgNt(&cmd, CL_DEFINE, "PIG_CORE_DLL_INCLUDE_GFX_SYSTEM_GLOBAL=1");
 			AddArgList(&cmd, &cl_CommonFlags);
 			AddArgList(&cmd, &cl_LangCFlags);
+			if (DUMP_ASSEMBLY) { AddArgNt(&cmd, CL_ASSEMB_LISTING_FILE, "pig_core.asm"); }
 			AddArg(&cmd, CL_LINK);
 			AddArg(&cmd, LINK_BUILD_DLL);
 			AddArgList(&cmd, &cl_CommonLinkerFlags);
@@ -690,6 +704,7 @@ int main(int argc, char* argv[])
 			AddArgStr(&cmd, CL_BINARY_FILE, filenameAppExe);
 			AddArgList(&cmd, &cl_CommonFlags);
 			AddArgList(&cmd, &cl_LangCFlags);
+			if (DUMP_ASSEMBLY) { AddArgStr(&cmd, CL_ASSEMB_LISTING_FILE, filenameAppAsm); }
 			AddArg(&cmd, CL_LINK);
 			AddArgList(&cmd, &cl_CommonLinkerFlags);
 			if (!BUILD_INTO_SINGLE_UNIT) { AddArgNt(&cmd, CLI_QUOTED_ARG, FILENAME_PIG_CORE_LIB); }
@@ -757,6 +772,7 @@ int main(int argc, char* argv[])
 			AddArgStr(&cmd, CL_BINARY_FILE, filenameAppDll);
 			AddArgList(&cmd, &cl_CommonFlags);
 			AddArgList(&cmd, &cl_LangCFlags);
+			if (DUMP_ASSEMBLY) { AddArgStr(&cmd, CL_ASSEMB_LISTING_FILE, filenameAppDllAsm); }
 			AddArg(&cmd, CL_LINK);
 			AddArg(&cmd, LINK_BUILD_DLL);
 			AddArgList(&cmd, &cl_CommonLinkerFlags);

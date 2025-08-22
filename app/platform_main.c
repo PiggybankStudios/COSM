@@ -314,9 +314,11 @@ sapp_desc sokol_main(int argc, char* argv[])
 	UNUSED(argc);
 	UNUSED(argv);
 	
+	#if PROFILING_ENABLED
 	TracyCSetThreadName("main");
 	Str8 projectName = StrLit(PROJECT_READABLE_NAME_STR);
 	TracyCAppInfo(projectName.chars, projectName.length);
+	#endif
 	
 	return (sapp_desc){
 		.init_cb = PlatSappInit,

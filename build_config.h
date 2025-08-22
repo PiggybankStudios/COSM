@@ -25,13 +25,15 @@ Description:
 // The .exe will use the resources_zip.h/c file instead of loading resources from disk
 #define USE_BUNDLED_RESOURCES   0
 // Enables linking with tracy.lib to enable profiling through Tracy
-#define PROFILING_ENABLED       1
+#define PROFILING_ENABLED       0
 
 
 // Build .exe binaries for Windows platform
 #define BUILD_WINDOWS 1
 // Build binaries for Linux platform(s)
 #define BUILD_LINUX   0
+// Build binaries for OSX platform
+#define BUILD_OSX     0
 // Runs the sokol-shdc.exe on all .glsl files in the source directory to produce .glsl.h and .glsl.c files and then compiles the .glsl.c files to .obj
 #define BUILD_SHADERS 0
 
@@ -65,14 +67,10 @@ Description:
 
 // Rather than compiling the project(s) it will simply output the
 // result of the preprocessor's pass over the code to the build folder
-#define DUMP_PREPROCESSOR 0
+#define DUMP_PREPROCESSOR   0
+// Generates assembly listing files for all compilation units
+#define DUMP_ASSEMBLY       0
 
-// Enables using sokol_gfx.h header files (and on non-windows OS' adds required libraries for Sokol to work)
-#define BUILD_WITH_SOKOL_GFX  1
-// Enables using sokol_app.h header files (and on non-windows OS' adds required libraries for Sokol to work)
-#define BUILD_WITH_SOKOL_APP  1
-// Enables using Clay header files
-#define BUILD_WITH_CLAY       1
 // Tells the sokol_gfx.h include to use OpenGL instead of D3D11 on Windows (NOTE: Smooth resizing only works in OpenGL mode right now!)
 #define PREFER_OPENGL_OVER_D3D11 1
 
@@ -92,11 +90,16 @@ Description:
 #define PROJECT_DLL_NAME_STR       STRINGIFY_DEFINE(PROJECT_DLL_NAME)
 #define PROJECT_EXE_NAME_STR       STRINGIFY_DEFINE(PROJECT_EXE_NAME)
 
+//These are all expected to be constant for the duration of the project
+#define BUILD_WITH_SOKOL_GFX  1
+#define BUILD_WITH_SOKOL_APP  1
+#define BUILD_WITH_CLAY       1
 #define BUILD_WITH_RAYLIB     0
 #define BUILD_WITH_BOX2D      0
 #define BUILD_WITH_SDL        0
 #define BUILD_WITH_OPENVR     0
 #define BUILD_WITH_IMGUI      0
 #define BUILD_WITH_PHYSX      0
+#define BUILD_WITH_HTTP       1
 
 #endif //  _BUILD_CONFIG_H
