@@ -435,21 +435,6 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 			DrawRectangleOutlineEx(mapRec, 4.0f, MonokaiPurple, false);
 			
 			#if 1
-			// v2 prevPos = V2_Zero;
-			VarArrayLoop(&app->map.nodes, nIndex)
-			{
-				VarArrayLoopGet(OsmNode, node, &app->map.nodes, nIndex);
-				v2 nodePos = ProjectMercator(node->location, mapRec);
-				DrawCircle(NewCircleV(nodePos, 5.0f), GetMonokaiColorByIndex(nIndex));
-				// if (nIndex > 0)
-				// {
-				// 	DrawLine(prevPos, nodePos, 1.0f, GetMonokaiColorByIndex(nIndex));
-				// }
-				// prevPos = nodePos;
-			}
-			#endif
-			
-			#if 1
 			{
 				VarArrayLoop(&app->map.ways, wIndex)
 				{
@@ -461,7 +446,8 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 						v2 nodePos = ProjectMercator(nodeRef->pntr->location, mapRec);
 						if (nIndex > 0)
 						{
-							DrawLine(prevPos, nodePos, 1.0f, GetMonokaiColorByIndex(wIndex+nIndex));
+							// DrawLine(prevPos, nodePos, 1.0f, GetMonokaiColorByIndex(wIndex+nIndex));
+							DrawLine(prevPos, nodePos, 1.0f, MonokaiLightGray);
 						}
 						prevPos = nodePos;
 					}
@@ -475,6 +461,23 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 				// DrawCircle(NewCircleV(Add(boundsRec.TopLeft, boundsRec.Size), 5), MonokaiOrange);
 			}
 			#endif
+			
+			#if 1
+			// v2 prevPos = V2_Zero;
+			VarArrayLoop(&app->map.nodes, nIndex)
+			{
+				VarArrayLoopGet(OsmNode, node, &app->map.nodes, nIndex);
+				v2 nodePos = ProjectMercator(node->location, mapRec);
+				// DrawCircle(NewCircleV(nodePos, 5.0f), GetMonokaiColorByIndex(nIndex));
+				DrawCircle(NewCircleV(nodePos, 2.0f), MonokaiWhite);
+				// if (nIndex > 0)
+				// {
+				// 	DrawLine(prevPos, nodePos, 1.0f, GetMonokaiColorByIndex(nIndex));
+				// }
+				// prevPos = nodePos;
+			}
+			#endif
+			
 		}
 		
 		// +==============================+
