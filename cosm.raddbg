@@ -1,8 +1,8 @@
-// raddbg 0.9.21 project file
+// raddbg 0.9.20 project file
 
 recent_file: path: "core/struct/struct_bkt_array.h"
-recent_file: path: "../Crest/core/struct/struct_bkt_array.h"
 recent_file: path: "app/app_main.c"
+recent_file: path: "../Crest/core/struct/struct_bkt_array.h"
 recent_file: path: "app/osm_map.c"
 recent_file: path: "app/parse_xml.c"
 recent_file: path: "core/ui/ui_clay_textbox.h"
@@ -22,9 +22,4 @@ type_view:
 {
   type: Str8
   expr: "rows(array($.chars, $.length), $.length)"
-}
-breakpoint:
-{
-  source_location: "core/struct/struct_bkt_array.h:451:1"
-  hit_count: 0
 }

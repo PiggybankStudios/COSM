@@ -157,7 +157,7 @@ EXPORT_FUNC APP_INIT_DEF(AppInit)
 	
 	InitUiTextbox(stdHeap, StrLit("testTextbox"), StrLit("Hello!"), &app->testTextbox);
 	
-	InitBktArray(v2, &app->array, stdHeap, 16);
+	InitBktArray(v2, &app->array, stdHeap, 4);
 	v2* newVec = BktArrayAdd(v2, &app->array);
 	*newVec = NewV2(1,2);
 	BktArrayAddValue(v2, &app->array, NewV2(4,5));
@@ -311,10 +311,15 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 	{
 		if (IsKeyboardKeyPressed(&appIn->keyboard, Key_K, true))
 		{
-			if (IsKeyboardKeyDown(&appIn->keyboard, Key_Control))
+			if (IsKeyboardKeyDown(&appIn->keyboard, Key_Control) && IsKeyboardKeyDown(&appIn->keyboard, Key_Shift))
+			{
+				WriteLine_D("Inserting Item at [0]");
+				BktArrayInsertValue(v2, &app->array, 0, FillV2(3.14159f));
+			}
+			else if (IsKeyboardKeyDown(&appIn->keyboard, Key_Control))
 			{
 				uxx randomIndex = GetRandU64Range(&app->random, 0, app->array.length+1);
-				PrintLine_W("Inserting Item at [%llu]", randomIndex);
+				PrintLine_D("Inserting Item at [%llu]", randomIndex);
 				BktArrayInsertValue(v2, &app->array, randomIndex, FillV2((r32)randomIndex));
 			}
 			else if (IsKeyboardKeyDown(&appIn->keyboard, Key_Shift))
@@ -324,7 +329,7 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 			}
 			else
 			{
-				BktArrayAddValue(v2, &app->array, FillV2((r32)app->array.length));
+				BktArrayAddValueSomewhere(v2, &app->array, FillV2((r32)app->array.length));
 			}
 			PrintArray(&app->array);
 		}
@@ -336,6 +341,18 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 		if (IsKeyboardKeyPressed(&appIn->keyboard, Key_U, true))
 		{
 			BktArrayAddArray(v2, &app->array, &app->array);
+			PrintArray(&app->array);
+		}
+		if (IsKeyboardKeyPressed(&appIn->keyboard, Key_C, true))
+		{
+			if (IsKeyboardKeyDown(&appIn->keyboard, Key_Shift))
+			{
+				BktArrayDropEmptyBuckets(&app->array);
+			}
+			else
+			{
+				BktArrayCondense(&app->array);
+			}
 			PrintArray(&app->array);
 		}
 		if (IsKeyboardKeyPressed(&appIn->keyboard, Key_R, true))
