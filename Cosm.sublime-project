@@ -16,6 +16,10 @@
 			],
 		},
 		{
+			"name": "Maps",
+			"path": "./_data/resources/map",
+		},
+		{
 			"name": "PigCore",
 			"path": "core",
 			"folder_exclude_patterns": [

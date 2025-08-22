@@ -29,15 +29,10 @@ plex AppData
 	bool isViewMenuOpen;
 	bool keepViewMenuOpenUntilMouseOver;
 	
-	bool isTestTextboxFocused;
-	UiTextbox testTextbox;
-	
 	OsmMap map;
 	rec mapRec;
 	v2 viewPos;
 	r32 viewZoom;
-	
-	BktArray array; //v2
 };
 
 #endif //  _APP_MAIN_H

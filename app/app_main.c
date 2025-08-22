@@ -155,13 +155,6 @@ EXPORT_FUNC APP_INIT_DEF(AppInit)
 	app->viewPos = NewV2(app->mapRec.X + app->mapRec.Width/2.0f, app->mapRec.Y + app->mapRec.Height/2.0f);
 	app->viewZoom = 0.0f; //this will get set to something reasonable after our first UI layout
 	
-	InitUiTextbox(stdHeap, StrLit("testTextbox"), StrLit("Hello!"), &app->testTextbox);
-	
-	InitBktArray(v2, &app->array, stdHeap, 4);
-	v2* newVec = BktArrayAdd(v2, &app->array);
-	*newVec = NewV2(1,2);
-	BktArrayAddValue(v2, &app->array, NewV2(4,5));
-	
 	#if 0
 	Str8 testFileContents = Str8_Empty;
 	bool foundTestFile = OsReadTextFile(FilePathLit(TEST_OSM_FILE), scratch, &testFileContents);
@@ -309,75 +302,6 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 	// |            Update            |
 	// +==============================+
 	{
-		if (IsKeyboardKeyPressed(&appIn->keyboard, Key_K, true))
-		{
-			if (IsKeyboardKeyDown(&appIn->keyboard, Key_Control) && IsKeyboardKeyDown(&appIn->keyboard, Key_Shift))
-			{
-				WriteLine_D("Inserting Item at [0]");
-				BktArrayInsertValue(v2, &app->array, 0, FillV2(3.14159f));
-			}
-			else if (IsKeyboardKeyDown(&appIn->keyboard, Key_Control))
-			{
-				uxx randomIndex = GetRandU64Range(&app->random, 0, app->array.length+1);
-				PrintLine_D("Inserting Item at [%llu]", randomIndex);
-				BktArrayInsertValue(v2, &app->array, randomIndex, FillV2((r32)randomIndex));
-			}
-			else if (IsKeyboardKeyDown(&appIn->keyboard, Key_Shift))
-			{
-				v2 values[] = { NewV2((r32)app->array.length+0, 0), NewV2((r32)app->array.length+1, 1), NewV2((r32)app->array.length+2, 2), NewV2((r32)app->array.length+3, 3), NewV2((r32)app->array.length+4, 4), NewV2((r32)app->array.length+5, 5), NewV2((r32)app->array.length+6, 6), NewV2((r32)app->array.length+7, 7) };
-				BktArrayAddValues(v2, &app->array, ArrayCount(values), values);
-			}
-			else
-			{
-				BktArrayAddValueSomewhere(v2, &app->array, FillV2((r32)app->array.length));
-			}
-			PrintArray(&app->array);
-		}
-		if (IsKeyboardKeyPressed(&appIn->keyboard, Key_J, true))
-		{
-			BktArrayClear(&app->array, IsKeyboardKeyDown(&appIn->keyboard, Key_Shift));
-			PrintArray(&app->array);
-		}
-		if (IsKeyboardKeyPressed(&appIn->keyboard, Key_U, true))
-		{
-			BktArrayAddArray(v2, &app->array, &app->array);
-			PrintArray(&app->array);
-		}
-		if (IsKeyboardKeyPressed(&appIn->keyboard, Key_C, true))
-		{
-			if (IsKeyboardKeyDown(&appIn->keyboard, Key_Shift))
-			{
-				BktArrayDropEmptyBuckets(&app->array);
-			}
-			else
-			{
-				BktArrayCondense(&app->array);
-			}
-			PrintArray(&app->array);
-		}
-		if (IsKeyboardKeyPressed(&appIn->keyboard, Key_R, true))
-		{
-			if (app->array.length > 0)
-			{
-				uxx randomIndex = GetRandU64Range(&app->random, 0, app->array.length);
-				v2* randomItemPntr = BktArrayGet(v2, &app->array, randomIndex);
-				if (IsKeyboardKeyDown(&appIn->keyboard, Key_Shift))
-				{
-					PrintLine_W("Removing Item[%llu]: (%g, %g)", randomIndex, randomItemPntr->X, randomItemPntr->Y);
-					// BktArrayRemoveAt(v2, &app->array, randomIndex);
-					BktArrayRemove(v2, &app->array, randomItemPntr);
-					PrintArray(&app->array);
-				}
-				else
-				{
-					PrintLine_D("Item[%llu]: (%g, %g)", randomIndex, randomItemPntr->X, randomItemPntr->Y);
-					uxx index = BktArrayGetIndexOf(v2, &app->array, randomItemPntr);
-					Assert(index == randomIndex);
-					Assert(BktArrayContains(v2, &app->array, randomItemPntr));
-				}
-			}
-		}
-		
 		// +==============================+
 		// |       Test XML Parsers       |
 		// +==============================+
@@ -664,14 +588,6 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 							})
 						);
 					}
-					#endif
-					
-					#if 0
-					DoUiTextbox(&app->testTextbox,
-						&app->clay, uiArena,
-						&appIn->keyboard, &appIn->mouse,
-						&app->isTestTextboxFocused,
-						&app->largeFont, LARGE_FONT_STYLE, app->largeFontSize, app->uiScale);
 					#endif
 					
 					CLAY({ .layout={ .sizing={ .width=CLAY_SIZING_FIXED(UI_R32(4)) } } }) {}
