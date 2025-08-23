@@ -378,7 +378,7 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 		// +==============================+
 		// |       WASD Moves View        |
 		// +==============================+
-		const r32 viewSpeed = 1.0f;
+		r32 viewSpeed = IsKeyboardKeyDown(&appIn->keyboard, Key_Shift) ? 10.0f : 2.5f;
 		if (IsKeyboardKeyDown(&appIn->keyboard, Key_W) && app->viewZoom != 0.0f)
 		{
 			app->viewPos.Y -= viewSpeed / app->viewZoom;
@@ -434,11 +434,20 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 			
 			DrawRectangleOutlineEx(mapRec, 4.0f, MonokaiPurple, false);
 			
+			// +==============================+
+			// |         Render Ways          |
+			// +==============================+
 			#if 1
 			{
 				VarArrayLoop(&app->map.ways, wIndex)
 				{
 					VarArrayLoopGet(OsmWay, way, &app->map.ways, wIndex);
+					r32 thickness = 1.0f;
+					Str8 thicknessStr = GetOsmWayTagValue(way, StrLit("thickness"), Str8_Empty);
+					if (!IsEmptyStr(thicknessStr)) { TryParseR32(thicknessStr, &thickness, nullptr); }
+					Color32 color = MonokaiLightGray;
+					Str8 colorStr = GetOsmWayTagValue(way, StrLit("color"), Str8_Empty);
+					if (!IsEmptyStr(colorStr)) { TryParseColor(colorStr, &color, nullptr); }
 					v2 prevPos = V2_Zero;
 					VarArrayLoop(&way->nodes, nIndex)
 					{
@@ -447,7 +456,7 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 						if (nIndex > 0)
 						{
 							// DrawLine(prevPos, nodePos, 1.0f, GetMonokaiColorByIndex(wIndex+nIndex));
-							DrawLine(prevPos, nodePos, 1.0f, MonokaiLightGray);
+							DrawLine(prevPos, nodePos, thickness, color);
 						}
 						prevPos = nodePos;
 					}
@@ -462,19 +471,30 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 			}
 			#endif
 			
+			// +==============================+
+			// |         Render Nodes         |
+			// +==============================+
 			#if 1
 			// v2 prevPos = V2_Zero;
 			VarArrayLoop(&app->map.nodes, nIndex)
 			{
 				VarArrayLoopGet(OsmNode, node, &app->map.nodes, nIndex);
-				v2 nodePos = ProjectMercator(node->location, mapRec);
-				// DrawCircle(NewCircleV(nodePos, 5.0f), GetMonokaiColorByIndex(nIndex));
-				DrawCircle(NewCircleV(nodePos, 2.0f), MonokaiWhite);
-				// if (nIndex > 0)
-				// {
-				// 	DrawLine(prevPos, nodePos, 1.0f, GetMonokaiColorByIndex(nIndex));
-				// }
-				// prevPos = nodePos;
+				Str8 radiusStr = GetOsmNodeTagValue(node, StrLit("radius"), Str8_Empty);
+				r32 radius = 0.0f;
+				if (!IsEmptyStr(radiusStr) && TryParseR32(radiusStr, &radius, nullptr))
+				{
+					Color32 color = MonokaiWhite;
+					Str8 colorStr = GetOsmNodeTagValue(node, StrLit("color"), Str8_Empty);
+					if (!IsEmptyStr(colorStr)) { TryParseColor(colorStr, &color, nullptr); }
+					v2 nodePos = ProjectMercator(node->location, mapRec);
+					// DrawCircle(NewCircleV(nodePos, 5.0f), GetMonokaiColorByIndex(nIndex));
+					DrawCircle(NewCircleV(nodePos, radius), color);
+					// if (nIndex > 0)
+					// {
+					// 	DrawLine(prevPos, nodePos, 1.0f, GetMonokaiColorByIndex(nIndex));
+					// }
+					// prevPos = nodePos;
+				}
 			}
 			#endif
 			

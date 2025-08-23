@@ -184,6 +184,18 @@ Result TryParseOsmMap(Arena* arena, Str8 xmlFileContents, OsmMap* mapOut)
 			// TODO: Parse "timestamp" attribute
 			// TODO: Parse "user" attribute
 			// TODO: Parse "uid" attribute
+			XmlElement* xmlTag = nullptr;
+			while ((xmlTag = XmlGetNextChild(&xml, xmlNode, StrLit("tag"), xmlTag)) != nullptr)
+			{
+				Str8 keyStr = XmlGetAttributeOrBreak(&xml, xmlTag, StrLit("k"));
+				Str8 valueStr = XmlGetAttributeOrBreak(&xml, xmlTag, StrLit("v"));
+				OsmTag* newTag = VarArrayAdd(OsmTag, &newNode->tags);
+				NotNull(newTag);
+				ClearPointer(newTag);
+				newTag->key = AllocStr8(arena, keyStr);
+				newTag->value = AllocStr8(arena, valueStr);
+			}
+			if (xml.error != Result_None) { break; }
 		}
 		if (xml.error != Result_None) { break; }
 		
@@ -220,8 +232,20 @@ Result TryParseOsmMap(Arena* arena, Str8 xmlFileContents, OsmMap* mapOut)
 			// TODO: Parse "uid" attribute
 			OsmWay* newWay = AddOsmWay(mapOut, id, numNodesInWay, nodeIds);
 			NotNull(newWay);
-			UNUSED(newWay);
-			//TODO: Parse the <tag> elements under the <way>
+			
+			XmlElement* xmlTag = nullptr;
+			while ((xmlTag = XmlGetNextChild(&xml, xmlWay, StrLit("tag"), xmlTag)) != nullptr)
+			{
+				Str8 keyStr = XmlGetAttributeOrBreak(&xml, xmlTag, StrLit("k"));
+				Str8 valueStr = XmlGetAttributeOrBreak(&xml, xmlTag, StrLit("v"));
+				OsmTag* newTag = VarArrayAdd(OsmTag, &newWay->tags);
+				NotNull(newTag);
+				ClearPointer(newTag);
+				newTag->key = AllocStr8(arena, keyStr);
+				newTag->value = AllocStr8(arena, valueStr);
+			}
+			if (xml.error != Result_None) { break; }
+			
 			ArenaResetToMark(scratch, mark);
 		}
 		if (xml.error != Result_None) { break; }
@@ -236,4 +260,25 @@ Result TryParseOsmMap(Arena* arena, Str8 xmlFileContents, OsmMap* mapOut)
 	ScratchEnd(scratch);
 	TracyCZoneEnd(funcZone);
 	return (xml.error == Result_None) ? Result_Success : xml.error;
+}
+
+Str8 GetOsmNodeTagValue(OsmNode* node, Str8 tagKey, Str8 defaultValue)
+{
+	if (node == nullptr) { return defaultValue; }
+	VarArrayLoop(&node->tags, tIndex)
+	{
+		VarArrayLoopGet(OsmTag, tag, &node->tags, tIndex);
+		if (StrAnyCaseEquals(tag->key, tagKey)) { return tag->value; }
+	}
+	return defaultValue;
+}
+Str8 GetOsmWayTagValue(OsmWay* way, Str8 tagKey, Str8 defaultValue)
+{
+	if (way == nullptr) { return defaultValue; }
+	VarArrayLoop(&way->tags, tIndex)
+	{
+		VarArrayLoopGet(OsmTag, tag, &way->tags, tIndex);
+		if (StrAnyCaseEquals(tag->key, tagKey)) { return tag->value; }
+	}
+	return defaultValue;
 }
