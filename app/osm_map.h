@@ -48,8 +48,15 @@ plex OsmWay
 	Str8 timestampStr;
 	Str8 user;
 	u64 uid;
+	
 	VarArray nodes; //OsmNodeRef
 	VarArray tags; //OsmTag
+	recd nodeBounds;
+	
+	bool isClosedLoop;
+	uxx numTriVertices;
+	v2d* triVertices; //lat/lon
+	VertBuffer triVertBuffer; //these vertices are normalized within bounds
 };
 
 typedef plex OsmMap OsmMap;

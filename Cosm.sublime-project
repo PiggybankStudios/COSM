@@ -586,6 +586,8 @@
 			"bool FindNextWhitespaceInStr(Str8 target, uxx startIndex)",
 			"bool IsBufferNullTerminated(uxx bufferSize, const void* bufferPntr)",
 			"bool IsPointerInRemap(const PointerRemap* remap, const void* pointer)",
+			"bool IsPolygonClockwise(u64 numVertices, v2* vertices)",
+			"bool IsPolygonClockwiseR64(uxx numVertices, v2d* vertices)",
 			"bool IsSizedPointerInRemap(const PointerRemap* remap, const void* pointer, size_t size)",
 			"bool IsVarArrayInit(const VarArray* array)",
 			"bool OsCopyFile(FilePath fromPath, FilePath toPath)",

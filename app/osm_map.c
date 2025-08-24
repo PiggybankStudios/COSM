@@ -43,6 +43,8 @@ void FreeOsmWay(Arena* arena, OsmWay* way)
 		FreeOsmTag(arena, tag);
 	}
 	FreeVarArray(&way->tags);
+	if (way->triVertices != nullptr) { FreeArray(v2d, arena, way->numTriVertices, way->triVertices); }
+	FreeVertBuffer(&way->triVertBuffer);
 	ClearPointer(way);
 }
 
@@ -131,7 +133,10 @@ OsmWay* AddOsmWay(OsmMap* map, u64 id, u64 numNodes, u64* nodeIds)
 		newRef->id = nodeIds[nIndex];
 		newRef->pntr = FindOsmNode(map, newRef->id);
 		NotNull(newRef->pntr);
+		if (nIndex == 0) { result->nodeBounds = NewRecd(newRef->pntr->location.Lon, newRef->pntr->location.Lat, 0, 0); }
+		else { result->nodeBounds = BothRecd(result->nodeBounds, NewRecdV(newRef->pntr->location, V2d_Zero)); }
 	}
+	result->isClosedLoop = (numNodes >= 3 && nodeIds[0] == nodeIds[numNodes-1]);
 	InitVarArray(OsmTag, &result->tags, map->arena);
 	TracyCZoneEnd(funcZone);
 	return result;

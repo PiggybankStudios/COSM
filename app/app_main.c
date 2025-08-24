@@ -492,74 +492,92 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 			// |         Render Ways          |
 			// +==============================+
 			#if 1
+			//Draw loops
+			VarArrayLoop(&app->map.ways, wIndex)
+			{
+				VarArrayLoopGet(OsmWay, way, &app->map.ways, wIndex);
+				Color32 color = Black;
+				
+				if (way->isClosedLoop)
+				{
+					color = Transparent;
+					Str8 landuseStr = GetOsmWayTagValue(way, StrLit("landuse"), Str8_Empty);
+					if (StrAnyCaseEquals(landuseStr, StrLit("retail"))) { color = CartoFillRetail; }
+					else if (StrAnyCaseEquals(landuseStr, StrLit("residential"))) { color = CartoFillResidential; }
+					else if (StrAnyCaseEquals(landuseStr, StrLit("forest"))) { color = CartoFillForest; }
+					else if (StrAnyCaseEquals(landuseStr, StrLit("railway")) || StrAnyCaseEquals(landuseStr, StrLit("industrial"))) { color = CartoFillIndustrial; }
+					else
+					{
+						Str8 leisureStr = GetOsmWayTagValue(way, StrLit("leisure"), Str8_Empty);
+						if (StrAnyCaseEquals(leisureStr, StrLit("park"))) { color = CartoFillPark; }
+						else if (StrAnyCaseEquals(leisureStr, StrLit("playground"))) { color = CartoFillPlayground; }
+						else if (StrAnyCaseEquals(leisureStr, StrLit("pitch"))) { color = CartoFillSports; }
+						else if (StrAnyCaseEquals(leisureStr, StrLit("marina"))) { color = CartoFillWater; }
+						else
+						{
+							Str8 buildingStr = GetOsmWayTagValue(way, StrLit("building"), Str8_Empty);
+							if (StrAnyCaseEquals(buildingStr, StrLit("yes"))) { color = CartoFillBuilding; }
+							else
+							{
+								Str8 amenityStr = GetOsmWayTagValue(way, StrLit("amenity"), Str8_Empty);
+								if (StrAnyCaseEquals(amenityStr, StrLit("school"))) { color = CartoFillSchool; }
+								else
+								{
+									Str8 waterStr = GetOsmWayTagValue(way, StrLit("water"), Str8_Empty);
+									Str8 waterwayStr = GetOsmWayTagValue(way, StrLit("waterway"), Str8_Empty);
+									if (StrAnyCaseEquals(waterStr, StrLit("lake"))) { color = CartoFillWater; }
+									else if (StrAnyCaseEquals(waterwayStr, StrLit("stream"))) { color = CartoFillWater; }
+								}
+							}
+						}
+					}
+				
+					Str8 colorStr = GetOsmWayTagValue(way, StrLit("color"), Str8_Empty);
+					if (!IsEmptyStr(colorStr)) { TryParseColor(colorStr, &color, nullptr); }
+				
+					if (color.a > 0)
+					{
+						v2 boundsTopLeft = ToV2Fromd(MapProject(app->view.projection, way->nodeBounds.TopLeft, mapRec));
+						v2 boundsBottomRight = ToV2Fromd(MapProject(app->view.projection, AddV2d(way->nodeBounds.TopLeft, way->nodeBounds.Size), mapRec));
+						rec boundsRec = NewRecBetweenV(boundsTopLeft, boundsBottomRight);
+						DrawRectangle(boundsRec, color);
+					}
+				}
+			}
+			
+			//Draw non-loops
 			VarArrayLoop(&app->map.ways, wIndex)
 			{
 				VarArrayLoopGet(OsmWay, way, &app->map.ways, wIndex);
 				r32 thickness = 2.0f;
 				Color32 color = Black;
 				
-				bool isLoop = (way->nodes.length >= 3 && VarArrayGetFirst(OsmNodeRef, &way->nodes)->pntr == VarArrayGetLast(OsmNodeRef, &way->nodes)->pntr);
-				
-				if (isLoop)
-				{
-					color = Transparent; thickness = 1.0f;
-					Str8 landuseStr = GetOsmWayTagValue(way, StrLit("landuse"), Str8_Empty);
-					if (StrAnyCaseEquals(landuseStr, StrLit("retail"))) { color = CartoFillRetail; thickness = 5.0f; }
-					else if (StrAnyCaseEquals(landuseStr, StrLit("residential"))) { color = CartoFillResidential; thickness = 5.0f; }
-					else if (StrAnyCaseEquals(landuseStr, StrLit("forest"))) { color = CartoFillForest; thickness = 5.0f; }
-					else if (StrAnyCaseEquals(landuseStr, StrLit("railway")) || StrAnyCaseEquals(landuseStr, StrLit("industrial"))) { color = CartoFillIndustrial; thickness = 5.0f; }
-					else
-					{
-						Str8 leisureStr = GetOsmWayTagValue(way, StrLit("leisure"), Str8_Empty);
-						if (StrAnyCaseEquals(leisureStr, StrLit("park"))) { color = CartoFillPark; thickness = 3.0f; }
-						else if (StrAnyCaseEquals(leisureStr, StrLit("playground"))) { color = CartoFillPlayground; thickness = 3.0f; }
-						else if (StrAnyCaseEquals(leisureStr, StrLit("pitch"))) { color = CartoFillSports; thickness = 3.0f; }
-						else if (StrAnyCaseEquals(leisureStr, StrLit("marina"))) { color = CartoFillWater; thickness = 3.0f; }
-						else
-						{
-							Str8 buildingStr = GetOsmWayTagValue(way, StrLit("building"), Str8_Empty);
-							if (StrAnyCaseEquals(buildingStr, StrLit("yes"))) { color = CartoFillBuilding; thickness = 1.0f; }
-							else
-							{
-								Str8 amenityStr = GetOsmWayTagValue(way, StrLit("amenity"), Str8_Empty);
-								if (StrAnyCaseEquals(amenityStr, StrLit("school"))) { color = CartoFillSchool; thickness = 5.0f; }
-								else
-								{
-									Str8 waterStr = GetOsmWayTagValue(way, StrLit("water"), Str8_Empty);
-									Str8 waterwayStr = GetOsmWayTagValue(way, StrLit("waterway"), Str8_Empty);
-									if (StrAnyCaseEquals(waterStr, StrLit("lake"))) { color = CartoFillWater; thickness = 5.0f; }
-									else if (StrAnyCaseEquals(waterwayStr, StrLit("stream"))) { color = CartoFillWater; thickness = 5.0f; }
-								}
-							}
-						}
-					}
-				}
-				else
+				if (!way->isClosedLoop)
 				{
 					color = Black; thickness = 1.0f;
 					Str8 highwayStr = GetOsmWayTagValue(way, StrLit("highway"), Str8_Empty);
 					if (StrAnyCaseEquals(highwayStr, StrLit("trunk"))) { color = CartoStrokeTrunk; thickness = 5.0f; }
 					else if (StrAnyCaseEquals(highwayStr, StrLit("residential"))) { color = CartoStrokeResidential; thickness = 2.0f; }
 					else if (StrAnyCaseEquals(highwayStr, StrLit("secondary"))) { color = CartoStrokeSecondary; thickness = 3.0f; }
-				}
-				
-				Str8 thicknessStr = GetOsmWayTagValue(way, StrLit("thickness"), Str8_Empty);
-				if (!IsEmptyStr(thicknessStr)) { TryParseR32(thicknessStr, &thickness, nullptr); }
-				Str8 colorStr = GetOsmWayTagValue(way, StrLit("color"), Str8_Empty);
-				if (!IsEmptyStr(colorStr)) { TryParseColor(colorStr, &color, nullptr); }
-				
-				if (color.a > 0 && thickness > 0)
-				{
-					v2d prevPos = V2d_Zero;
-					VarArrayLoop(&way->nodes, nIndex)
+					
+					Str8 thicknessStr = GetOsmWayTagValue(way, StrLit("thickness"), Str8_Empty);
+					if (!IsEmptyStr(thicknessStr)) { TryParseR32(thicknessStr, &thickness, nullptr); }
+					Str8 colorStr = GetOsmWayTagValue(way, StrLit("color"), Str8_Empty);
+					if (!IsEmptyStr(colorStr)) { TryParseColor(colorStr, &color, nullptr); }
+					
+					if (color.a > 0 && thickness > 0)
 					{
-						VarArrayLoopGet(OsmNodeRef, nodeRef, &way->nodes, nIndex);
-						v2d nodePos = MapProject(app->view.projection, nodeRef->pntr->location, mapRec);
-						if (nIndex > 0)
+						v2d prevPos = V2d_Zero;
+						VarArrayLoop(&way->nodes, nIndex)
 						{
-							DrawLine(ToV2Fromd(prevPos), ToV2Fromd(nodePos), thickness, color);
+							VarArrayLoopGet(OsmNodeRef, nodeRef, &way->nodes, nIndex);
+							v2d nodePos = MapProject(app->view.projection, nodeRef->pntr->location, mapRec);
+							if (nIndex > 0)
+							{
+								DrawLine(ToV2Fromd(prevPos), ToV2Fromd(nodePos), thickness, color);
+							}
+							prevPos = nodePos;
 						}
-						prevPos = nodePos;
 					}
 				}
 			}
