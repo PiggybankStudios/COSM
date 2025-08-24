@@ -5,3 +5,4 @@ The tempoary name COSM is based on [JOSM](https://josm.openstreetmap.de/) (a Jav
 
 # Screenshots
 ![Screenshot of Bräcke](/_media/screenshot3.png)
+![Railways Near Mt. Fuji](/_media/screenshot4.png)

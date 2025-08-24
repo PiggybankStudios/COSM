@@ -71,6 +71,7 @@ static Arena* stdHeap = nullptr;
 #include "osm_map.c"
 #include "app_clay_helpers.c"
 #include "app_helpers.c"
+#include "map_view.c"
 #include "app_clay.c"
 
 // +==============================+
@@ -151,9 +152,10 @@ EXPORT_FUNC APP_INIT_DEF(AppInit)
 	app->clayUiFontId = AddClayUIRendererFont(&app->clay, &app->uiFont, UI_FONT_STYLE);
 	app->clayLargeFontId = AddClayUIRendererFont(&app->clay, &app->largeFont, LARGE_FONT_STYLE);
 	
-	app->mapRec = NewRec(0, 0, 1000, 500);
-	app->viewPos = NewV2(app->mapRec.X + app->mapRec.Width/2.0f, app->mapRec.Y + app->mapRec.Height/2.0f);
-	app->viewZoom = 0.0f; //this will get set to something reasonable after our first UI layout
+	app->projection = MapProjection_Mercator;
+	app->mapRec = NewRecd(0, 0, MERCATOR_MAP_ASPECT_RATIO, 1.0);
+	app->viewPos = NewV2d(app->mapRec.X + app->mapRec.Width/2.0, app->mapRec.Y + app->mapRec.Height/2.0);
+	app->viewZoom = 0.0; //this will get set to something reasonable after our first UI layout
 	
 	#if 0
 	Str8 testFileContents = Str8_Empty;
@@ -410,28 +412,30 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 		// +==============================+
 		// |  Scroll Wheel Zooms In/Out   |
 		// +==============================+
-		if (appIn->mouse.scrollDelta.Y != 0 && app->viewZoom != 0.0f)
+		if (appIn->mouse.scrollDelta.Y != 0 && app->viewZoom != 0.0)
 		{
-			app->viewZoom *= 1.0f + (appIn->mouse.scrollDelta.Y * 0.1f);
+			app->viewZoom *= 1.0 + (appIn->mouse.scrollDelta.Y * 0.1);
+			if (IsInfiniteOrNanR64(app->viewZoom)) { app->viewZoom = app->minZoom; }
+			app->viewZoom = ClampR64(app->viewZoom, app->minZoom, MAP_MAX_ZOOM);
 		}
 		
 		// +==============================+
 		// |       WASD Moves View        |
 		// +==============================+
-		r32 viewSpeed = IsKeyboardKeyDown(&appIn->keyboard, Key_Shift) ? 10.0f : 2.5f;
-		if (IsKeyboardKeyDown(&appIn->keyboard, Key_W) && app->viewZoom != 0.0f)
+		r64 viewSpeed = IsKeyboardKeyDown(&appIn->keyboard, Key_Shift) ? 20.0 : 8.0;
+		if (IsKeyboardKeyDown(&appIn->keyboard, Key_W) && app->viewZoom != 0.0)
 		{
 			app->viewPos.Y -= viewSpeed / app->viewZoom;
 		}
-		if (IsKeyboardKeyDown(&appIn->keyboard, Key_A) && app->viewZoom != 0.0f)
+		if (IsKeyboardKeyDown(&appIn->keyboard, Key_A) && app->viewZoom != 0.0)
 		{
 			app->viewPos.X -= viewSpeed / app->viewZoom;
 		}
-		if (IsKeyboardKeyDown(&appIn->keyboard, Key_S) && app->viewZoom != 0.0f)
+		if (IsKeyboardKeyDown(&appIn->keyboard, Key_S) && app->viewZoom != 0.0)
 		{
 			app->viewPos.Y += viewSpeed / app->viewZoom;
 		}
-		if (IsKeyboardKeyDown(&appIn->keyboard, Key_D) && app->viewZoom != 0.0f)
+		if (IsKeyboardKeyDown(&appIn->keyboard, Key_D) && app->viewZoom != 0.0)
 		{
 			app->viewPos.X += viewSpeed / app->viewZoom;
 		}
@@ -466,13 +470,27 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 		rec mainViewportRec = GetClayElementDrawRecNt("MainViewport");
 		if (mainViewportRec.Width > 0 && mainViewportRec.Height > 0)
 		{
-			if (app->viewZoom == 0.0f) { app->viewZoom = MinR32(mainViewportRec.Width / app->mapRec.Width, mainViewportRec.Height / app->mapRec.Height); }
-			rec mapRec = app->mapRec;
-			mapRec.TopLeft = Sub(mapRec.TopLeft, app->viewPos);
-			mapRec = Mul(mapRec, app->viewZoom);
-			mapRec.TopLeft = Add(mapRec.TopLeft, Add(mainViewportRec.TopLeft, Div(mainViewportRec.Size, 2.0f)));
+			app->minZoom = MinR64(mainViewportRec.Width / app->mapRec.Width, mainViewportRec.Height / app->mapRec.Height);
+			if (app->viewZoom == 0.0) { app->viewZoom = app->minZoom; }
+			recd mapRec = app->mapRec;
+			mapRec.TopLeft = SubV2d(mapRec.TopLeft, app->viewPos);
+			mapRec = ScaleRecd(mapRec, app->viewZoom);
+			mapRec.TopLeft = AddV2d(mapRec.TopLeft, AddV2d(ToV2dFromf(mainViewportRec.TopLeft), ToV2dFromf(ShrinkV2(mainViewportRec.Size, 2.0f))));
 			
-			DrawRectangleOutlineEx(mapRec, 4.0f, MonokaiOrange, false);
+			DrawRectangleOutlineEx(ToRecFromd(mapRec), 4.0f, MonokaiPurple, false);
+			
+			#if 0
+			if (app->kanjiFont.arena != nullptr)
+			{
+				FontAtlas* atlas = GetFontAtlas(&app->kanjiFont, KANJI_FONT_SIZE, KANJI_FONT_STYLE);
+				if (atlas != nullptr)
+				{
+					rec atlasRec = NewRec(10, 100, (r32)atlas->texture.Width, (r32)atlas->texture.Height);
+					DrawTexturedRectangle(atlasRec, White, &atlas->texture);
+					DrawRectangleOutline(atlasRec, 1.0f, MonokaiYellow);
+				}
+			}
+			#endif
 			
 			// +==============================+
 			// |         Render Ways          |
@@ -488,22 +506,22 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 					Color32 color = MonokaiLightGray;
 					Str8 colorStr = GetOsmWayTagValue(way, StrLit("color"), Str8_Empty);
 					if (!IsEmptyStr(colorStr)) { TryParseColor(colorStr, &color, nullptr); }
-					v2 prevPos = V2_Zero;
+					v2d prevPos = V2d_Zero;
 					VarArrayLoop(&way->nodes, nIndex)
 					{
 						VarArrayLoopGet(OsmNodeRef, nodeRef, &way->nodes, nIndex);
-						v2 nodePos = ProjectMercator(nodeRef->pntr->location, mapRec);
+						v2d nodePos = MapProject(app->projection, nodeRef->pntr->location, mapRec);
 						if (nIndex > 0)
 						{
 							// DrawLine(prevPos, nodePos, 1.0f, GetMonokaiColorByIndex(wIndex+nIndex));
-							DrawLine(prevPos, nodePos, thickness, color);
+							DrawLine(ToV2Fromd(prevPos), ToV2Fromd(nodePos), thickness, color);
 						}
 						prevPos = nodePos;
 					}
 				}
 				
-				v2 boundsTopLeft = ProjectMercator(app->map.bounds.TopLeft, mapRec);
-				v2 boundsBottomRight = ProjectMercator(AddV2d(app->map.bounds.TopLeft, app->map.bounds.Size), mapRec);
+				v2 boundsTopLeft = ToV2Fromd(MapProject(app->projection, app->map.bounds.TopLeft, mapRec));
+				v2 boundsBottomRight = ToV2Fromd(MapProject(app->projection, AddV2d(app->map.bounds.TopLeft, app->map.bounds.Size), mapRec));
 				rec boundsRec = NewRecBetweenV(boundsTopLeft, boundsBottomRight);
 				DrawRectangleOutline(boundsRec, 2.0f, MonokaiRed);
 				// DrawCircle(NewCircleV(boundsRec.TopLeft, 5), MonokaiRed);
@@ -519,16 +537,45 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 			VarArrayLoop(&app->map.nodes, nIndex)
 			{
 				VarArrayLoopGet(OsmNode, node, &app->map.nodes, nIndex);
+				Str8 japaneseNameStr = GetOsmNodeTagValue(node, StrLit("name:ja"), Str8_Empty);
+				if (IsEmptyStr(japaneseNameStr)) { japaneseNameStr = GetOsmNodeTagValue(node, StrLit("name"), Str8_Empty); }
+				Str8 englishNameStr = GetOsmNodeTagValue(node, StrLit("name:en"), Str8_Empty);
 				Str8 radiusStr = GetOsmNodeTagValue(node, StrLit("radius"), Str8_Empty);
-				r32 radius = 0.0f;
-				if (!IsEmptyStr(radiusStr) && TryParseR32(radiusStr, &radius, nullptr))
+				r32 radius = (!IsEmptyStr(englishNameStr) || !IsEmptyStr(japaneseNameStr)) ? 1.0f : 0.0f;
+				TryParseR32(radiusStr, &radius, nullptr);
+				if (radius > 0.0f)
 				{
-					Color32 color = MonokaiWhite;
+					Color32 nodeColor = MonokaiWhite;
 					Str8 colorStr = GetOsmNodeTagValue(node, StrLit("color"), Str8_Empty);
-					if (!IsEmptyStr(colorStr)) { TryParseColor(colorStr, &color, nullptr); }
-					v2 nodePos = ProjectMercator(node->location, mapRec);
+					if (!IsEmptyStr(colorStr)) { TryParseColor(colorStr, &nodeColor, nullptr); }
+					v2d nodePos = MapProject(app->projection, node->location, mapRec);
 					// DrawCircle(NewCircleV(nodePos, 5.0f), GetMonokaiColorByIndex(nIndex));
-					DrawCircle(NewCircleV(nodePos, radius), color);
+					DrawCircle(NewCircleV(ToV2Fromd(nodePos), radius), nodeColor);
+					
+					v2 namePos = AddV2(ToV2Fromd(nodePos), NewV2(0, -(radius + 5)));
+					if (!IsEmptyStr(japaneseNameStr))
+					{
+						bool nameContainsKanji = false;
+						for (uxx cIndex = 0; cIndex < japaneseNameStr.length; cIndex++)
+						{
+							u8 codepointSize = GetCodepointForUtf8Str(japaneseNameStr, cIndex, nullptr);
+							if (codepointSize > 1) { nameContainsKanji = true; break; }
+						}
+						PigFont* font = nameContainsKanji ? &app->kanjiFont : &app->uiFont;
+						r32 fontSize = nameContainsKanji ? KANJI_FONT_SIZE : app->uiFontSize;
+						u8 fontStyle = nameContainsKanji ? KANJI_FONT_STYLE : UI_FONT_STYLE;
+						TextMeasure nameMeasure = MeasureTextEx(font, fontSize, fontStyle, false, 0.0f, japaneseNameStr);
+						BindFontEx(font, fontSize, fontStyle);
+						DrawText(japaneseNameStr, AddV2(namePos, NewV2(-nameMeasure.Width/2, 0)), ColorWithAlpha(nodeColor, 0.75f));
+						namePos.Y -= nameMeasure.Height + 5;
+					}
+					if (!IsEmptyStr(englishNameStr))
+					{
+						TextMeasure nameMeasure = MeasureTextEx(&app->uiFont, app->uiFontSize, UI_FONT_STYLE, false, 0.0f, englishNameStr);
+						BindFontEx(&app->uiFont, app->uiFontSize, UI_FONT_STYLE);
+						DrawText(englishNameStr, AddV2(namePos, NewV2(-nameMeasure.Width/2, 0)), nodeColor);
+						namePos.Y -= nameMeasure.Height + 5;
+					}
 					// if (nIndex > 0)
 					// {
 					// 	DrawLine(prevPos, nodePos, 1.0f, GetMonokaiColorByIndex(nIndex));
@@ -634,7 +681,39 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 						Clay__CloseElement();
 					} Clay__CloseElement();
 					
-					// CLAY({ .layout = { .sizing = { .width=CLAY_SIZING_GROW(0) } } }) {}
+					CLAY({ .layout = { .sizing = { .width=CLAY_SIZING_GROW(0) } } }) {}
+					
+					CLAY({ .id = CLAY_ID("FileNameDisplay") })
+					{
+						if (!IsEmptyStr(app->loadedFilePath))
+						{
+							CLAY_TEXT(
+								GetFileNamePart(app->loadedFilePath, true),
+								CLAY_TEXT_CONFIG({
+									.fontId = app->clayUiFontId,
+									.fontSize = (u16)app->uiFontSize,
+									.textColor = TEXT_WHITE,
+									.wrapMode = CLAY_TEXT_WRAP_NONE,
+									.textAlignment = CLAY_TEXT_ALIGN_SHRINK,
+									.userData = { .contraction = TextContraction_ClipRight },
+								})
+							);
+						}
+						else
+						{
+							CLAY_TEXT(
+								StrLit("No file loaded..."),
+								CLAY_TEXT_CONFIG({
+									.fontId = app->clayUiFontId,
+									.fontSize = (u16)app->uiFontSize,
+									.textColor = TEXT_WHITE,
+									.wrapMode = CLAY_TEXT_WRAP_NONE,
+									.textAlignment = CLAY_TEXT_ALIGN_SHRINK,
+									.userData = { .contraction = TextContraction_ClipRight },
+								})
+							);
+						}
+					}
 					
 					#if 0
 					CLAY({ .id = CLAY_ID("ViewPosDisplay") })

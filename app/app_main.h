@@ -17,6 +17,7 @@ plex AppData
 	Shader mainShader;
 	PigFont uiFont;
 	PigFont largeFont;
+	PigFont kanjiFont;
 	
 	ClayUIRenderer clay;
 	r32 uiScale;
@@ -30,9 +31,13 @@ plex AppData
 	bool keepViewMenuOpenUntilMouseOver;
 	
 	OsmMap map;
-	rec mapRec;
-	v2 viewPos;
-	r32 viewZoom;
+	MapProjection projection;
+	recd mapRec;
+	v2d viewPos;
+	r64 minZoom;
+	r64 viewZoom;
+	
+	Str8 loadedFilePath;
 };
 
 #endif //  _APP_MAIN_H

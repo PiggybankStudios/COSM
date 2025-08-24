@@ -123,6 +123,63 @@ bool AppChangeFontSize(bool increase)
 	else { return false; }
 }
 
+void FillKanjiWithNamesFromMap(OsmMap* map, PigFont* kanjiFont)
+{
+	ScratchBegin1(scratch, kanjiFont->arena);
+	VarArray nameCharacters;
+	InitVarArray(u32, &nameCharacters, scratch);
+	VarArrayLoop(&app->map.nodes, nIndex)
+	{
+		VarArrayLoopGet(OsmNode, node, &app->map.nodes, nIndex);
+		Str8 nameStr = GetOsmNodeTagValue(node, StrLit("name:ja"), Str8_Empty);
+		if (IsEmptyStr(nameStr)) { nameStr = GetOsmNodeTagValue(node, StrLit("name"), Str8_Empty); }
+		for (uxx bIndex = 0; bIndex < nameStr.length; bIndex++)
+		{
+			u32 codepoint = 0;
+			u8 codepointSize = GetCodepointForUtf8Str(nameStr, bIndex, &codepoint);
+			if (codepointSize == 0) { continue; }
+			if (codepointSize > 1)
+			{
+				bool alreadyFound = false;
+				VarArrayLoop(&nameCharacters, cIndex)
+				{
+					VarArrayLoopGetValue(u32, knownCodepoint, &nameCharacters, cIndex);
+					if (knownCodepoint == codepoint) { alreadyFound = true; break; }
+				}
+				if (!alreadyFound)
+				{
+					VarArrayAddValue(u32, &nameCharacters, codepoint);
+				}
+			}
+			if (codepointSize > 1) { bIndex += codepointSize-1; }
+		}
+	}
+	
+	PrintLine_D("There are %llu unique characters in the japanese names in this file", nameCharacters.length);
+	if (nameCharacters.length > 0)
+	{
+		uxx numCharRanges = nameCharacters.length;
+		FontCharRange* charRanges = AllocArray(FontCharRange, scratch, numCharRanges);
+		NotNull(charRanges);
+		VarArrayLoop(&nameCharacters, cIndex)
+		{
+			VarArrayLoopGetValue(u32, codepoint, &nameCharacters, cIndex);
+			charRanges[cIndex] = NewFontCharRangeSingle(codepoint);
+		}
+		FreeFont(&app->kanjiFont);
+		app->kanjiFont = InitFont(stdHeap, StrLit("kanjiFont"));
+		Result attachResult = AttachOsTtfFileToFont(&app->kanjiFont, StrLit(KANJI_FONT_NAME), KANJI_FONT_SIZE, KANJI_FONT_STYLE);
+		Assert(attachResult == Result_Success);
+		UNUSED(attachResult);
+		Result bakeResult = BakeFontAtlas(&app->kanjiFont, KANJI_FONT_SIZE, KANJI_FONT_STYLE, NewV2i(512, 512), numCharRanges, charRanges);
+		Assert(bakeResult == Result_Success); //TODO: Handle this failure gracefully
+		FillFontKerningTable(&app->kanjiFont);
+		RemoveAttachedTtfFile(&app->kanjiFont);
+	}
+	
+	ScratchEnd(scratch);
+}
+
 void OpenOsmMap(FilePath filePath)
 {
 	TracyCZoneN(funcZone, "OpenOsmMap", true);
@@ -138,6 +195,7 @@ void OpenOsmMap(FilePath filePath)
 		Result parseResult = TryParseOsmMap(stdHeap, fileContents, &newMap);
 		if (parseResult == Result_Success)
 		{
+			FreeStr8(stdHeap, &app->loadedFilePath);
 			FreeOsmMap(&app->map);
 			MyMemCopy(&app->map, &newMap, sizeof(OsmMap));
 			PrintLine_I("Parsed map! %llu node%s, %llu way%s",
@@ -146,11 +204,14 @@ void OpenOsmMap(FilePath filePath)
 			);
 			
 			v2d targetLocation = AddV2d(app->map.bounds.TopLeft, ShrinkV2d(app->map.bounds.Size, 2.0));
-			app->viewPos = ProjectMercator(targetLocation, NewRecV(V2_Zero, app->mapRec.Size));
-			app->viewZoom = (r32)MinR64(
+			app->viewPos = MapProject(app->projection, targetLocation, NewRecdV(V2d_Zero, app->mapRec.Size));
+			app->viewZoom = MinR64(
 				1.0 / (app->map.bounds.SizeLon / 360.0),
 				1.0 / (app->map.bounds.SizeLat / 180.0)
 			);
+			
+			app->loadedFilePath = AllocStr8(stdHeap, filePath);
+			FillKanjiWithNamesFromMap(&app->map, &app->kanjiFont);
 		}
 		else { PrintLine_E("Failed to parse as OpenStreetMaps XML data! Error: %s", GetResultStr(parseResult)); }
 	}
