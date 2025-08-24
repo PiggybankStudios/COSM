@@ -280,6 +280,46 @@ void PrintArray(BktArray* array)
 }
 
 // +==============================+
+// |       AppBeforeReload        |
+// +==============================+
+// bool AppBeforeReload(PlatformInfo* inPlatformInfo, PlatformApi* inPlatformApi, void* memoryPntr)
+EXPORT_FUNC APP_BEFORE_RELOAD_DEF(AppBeforeReload)
+{
+	bool shouldReload = true;
+	ScratchBegin(scratch);
+	ScratchBegin1(scratch2, scratch);
+	ScratchBegin2(scratch3, scratch, scratch2);
+	UpdateDllGlobals(inPlatformInfo, inPlatformApi, memoryPntr, nullptr);
+	
+	WriteLine_W("App is preparing for DLL reload...");
+	//TODO: Anything that needs to be saved before the DLL reload should be done here
+	
+	ScratchEnd(scratch);
+	ScratchEnd(scratch2);
+	ScratchEnd(scratch3);
+	return shouldReload;
+}
+
+// +==============================+
+// |        AppAfterReload        |
+// +==============================+
+// void AppAfterReload(PlatformInfo* inPlatformInfo, PlatformApi* inPlatformApi, void* memoryPntr)
+EXPORT_FUNC APP_AFTER_RELOAD_DEF(AppAfterReload)
+{
+	ScratchBegin(scratch);
+	ScratchBegin1(scratch2, scratch);
+	ScratchBegin2(scratch3, scratch, scratch2);
+	UpdateDllGlobals(inPlatformInfo, inPlatformApi, memoryPntr, nullptr);
+	
+	WriteLine_I("New app DLL was loaded!");
+	//TODO: Anything that needs fixup after DLL reload should be done here
+	
+	ScratchEnd(scratch);
+	ScratchEnd(scratch2);
+	ScratchEnd(scratch3);
+}
+
+// +==============================+
 // |          AppUpdate           |
 // +==============================+
 // bool AppUpdate(PlatformInfo* inPlatformInfo, PlatformApi* inPlatformApi, void* memoryPntr, AppInput* appInput)
@@ -432,7 +472,7 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 			mapRec = Mul(mapRec, app->viewZoom);
 			mapRec.TopLeft = Add(mapRec.TopLeft, Add(mainViewportRec.TopLeft, Div(mainViewportRec.Size, 2.0f)));
 			
-			DrawRectangleOutlineEx(mapRec, 4.0f, MonokaiPurple, false);
+			DrawRectangleOutlineEx(mapRec, 4.0f, MonokaiOrange, false);
 			
 			// +==============================+
 			// |         Render Ways          |
@@ -681,5 +721,7 @@ EXPORT_FUNC APP_GET_API_DEF(AppGetApi)
 	result.AppInit = AppInit;
 	result.AppUpdate = AppUpdate;
 	result.AppClosing = AppClosing;
+	result.AppBeforeReload = AppBeforeReload;
+	result.AppAfterReload = AppAfterReload;
 	return result;
 }

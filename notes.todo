@@ -1,0 +1,16 @@
+# TODO List
+	[ ] Render english city names
+	[ ] Fix panning/zooming interaction (r64)
+	[ ] Load multiple .osm files and display layers
+	[ ] Find a way to download LOD versions of coastline?
+	[?] Optimize renderer to draw a large number of ways
+	[ ] Add selection interaction
+	[ ] Display information about selected nodes/ways
+	[ ] Re-serialize the OSM data to .osm file
+	[ ] Add support for choosing color/thickness/radius of selected items
+	[ ] Render names on ways (or collections of ways?)
+	[ ] Add support for rendering kanji characters
+	[ ] Display both english and Japanese names (toggle?)
+	[ ] Allow hiding and deletion of selected elements
+	[ ] Layer management panel (create, destroy, duplicate, move between layers, etc.)
+	[ ] 
