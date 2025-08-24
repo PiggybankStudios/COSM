@@ -39,9 +39,12 @@ bool AppCreateFonts()
 {
 	FontCharRange fontCharRanges[] = {
 		FontCharRange_ASCII,
-		FontCharRange_LatinExt,
 		NewFontCharRangeSingle(UNICODE_ELLIPSIS_CODEPOINT),
 		NewFontCharRangeSingle(UNICODE_RIGHT_ARROW_CODEPOINT),
+	};
+	FontCharRange fontExtendedCharRanges[] = {
+		FontCharRange_LatinSupplementAccent,
+		FontCharRange_LatinExtA,
 	};
 	
 	PigFont newUiFont = ZEROED;
@@ -49,19 +52,22 @@ bool AppCreateFonts()
 		newUiFont = InitFont(stdHeap, StrLit("uiFont"));
 		Result attachResult = AttachOsTtfFileToFont(&newUiFont, StrLit(UI_FONT_NAME), app->uiFontSize, UI_FONT_STYLE);
 		Assert(attachResult == Result_Success);
-		UNUSED(attachResult);
-		Result bakeResult = BakeFontAtlas(&newUiFont, app->uiFontSize, UI_FONT_STYLE, NewV2i(256, 256), ArrayCount(fontCharRanges), &fontCharRanges[0]);
-		if (bakeResult != Result_Success)
+		
+		bool bakedSuccessfully = false;
+		i32 atlasSize = MIN_FONT_ATLAS_SIZE;
+		while (atlasSize <= MAX_FONT_ATLAS_SIZE)
 		{
-			bakeResult = BakeFontAtlas(&newUiFont, app->uiFontSize, UI_FONT_STYLE, NewV2i(512, 512), ArrayCount(fontCharRanges), &fontCharRanges[0]);
-			if (bakeResult != Result_Success)
-			{
-				RemoveAttachedTtfFile(&newUiFont);
-				FreeFont(&newUiFont);
-				return false;
-			}
+			Result bakeResult = BakeFontAtlas(&newUiFont, app->uiFontSize, UI_FONT_STYLE, NewV2i(atlasSize, atlasSize), ArrayCount(fontCharRanges), &fontCharRanges[0]);
+			if (bakeResult == Result_Success) { bakedSuccessfully = true; break; }
+			atlasSize *= 2;
 		}
-		Assert(bakeResult == Result_Success);
+		if (!bakedSuccessfully)
+		{
+			RemoveAttachedTtfFile(&newUiFont);
+			FreeFont(&newUiFont);
+			return false;
+		}
+		
 		FillFontKerningTable(&newUiFont);
 		RemoveAttachedTtfFile(&newUiFont);
 	}
@@ -71,28 +77,99 @@ bool AppCreateFonts()
 		newLargeFont = InitFont(stdHeap, StrLit("largeFont"));
 		Result attachResult = AttachOsTtfFileToFont(&newLargeFont, StrLit(LARGE_FONT_NAME), app->largeFontSize, LARGE_FONT_STYLE);
 		Assert(attachResult == Result_Success);
-		UNUSED(attachResult);
-		Result bakeResult = BakeFontAtlas(&newLargeFont, app->largeFontSize, LARGE_FONT_STYLE, NewV2i(256, 256), ArrayCount(fontCharRanges), &fontCharRanges[0]);
-		if (bakeResult != Result_Success)
+		
+		bool bakedSuccessfully = false;
+		i32 atlasSize = MIN_FONT_ATLAS_SIZE;
+		while (atlasSize <= MAX_FONT_ATLAS_SIZE)
 		{
-			bakeResult = BakeFontAtlas(&newLargeFont, app->largeFontSize, LARGE_FONT_STYLE, NewV2i(512, 512), ArrayCount(fontCharRanges), &fontCharRanges[0]);
-			if (bakeResult != Result_Success)
-			{
-				RemoveAttachedTtfFile(&newLargeFont);
-				FreeFont(&newLargeFont);
-				FreeFont(&newUiFont);
-				return false;
-			}
+			Result bakeResult = BakeFontAtlas(&newLargeFont, app->largeFontSize, LARGE_FONT_STYLE, NewV2i(atlasSize, atlasSize), ArrayCount(fontCharRanges), &fontCharRanges[0]);
+			if (bakeResult == Result_Success) { bakedSuccessfully = true; break; }
+			atlasSize *= 2;
 		}
-		Assert(bakeResult == Result_Success);
+		if (!bakedSuccessfully)
+		{
+			RemoveAttachedTtfFile(&newLargeFont);
+			FreeFont(&newLargeFont);
+			FreeFont(&newUiFont);
+			return false;
+		}
+		
 		FillFontKerningTable(&newLargeFont);
 		RemoveAttachedTtfFile(&newLargeFont);
 	}
 	
+	PigFont newMapFont = ZEROED;
+	{
+		newMapFont = InitFont(stdHeap, StrLit("mapFont"));
+		Result attachResult = AttachOsTtfFileToFont(&newMapFont, StrLit(MAP_FONT_NAME), app->mapFontSize, MAP_FONT_STYLE);
+		Assert(attachResult == Result_Success);
+		
+		bool bakedBasicSuccessfully = false;
+		bool bakedExtendedSuccessfully = false;
+		i32 atlasSize = MIN_FONT_ATLAS_SIZE;
+		while (atlasSize <= MAX_FONT_ATLAS_SIZE)
+		{
+			if (!bakedBasicSuccessfully)
+			{
+				Result bakeResult = BakeFontAtlas(&newMapFont, app->mapFontSize, MAP_FONT_STYLE, NewV2i(atlasSize, atlasSize), ArrayCount(fontCharRanges), &fontCharRanges[0]);
+				if (bakeResult == Result_Success) { bakedBasicSuccessfully = true; }
+			}
+			if (!bakedExtendedSuccessfully)
+			{
+				Result bakeResult = BakeFontAtlas(&newMapFont, app->mapFontSize, MAP_FONT_STYLE, NewV2i(atlasSize, atlasSize), ArrayCount(fontExtendedCharRanges), &fontExtendedCharRanges[0]);
+				if (bakeResult == Result_Success) { bakedExtendedSuccessfully = true; }
+			}
+			if (bakedBasicSuccessfully && bakedExtendedSuccessfully) { break; }
+			atlasSize *= 2;
+		}
+		
+		FillFontKerningTable(&newMapFont);
+		RemoveAttachedTtfFile(&newMapFont);
+		
+		bool bakedKanjiSuccessfully = true;
+		if (app->kanjiCodepoints.length > 0 && bakedBasicSuccessfully && bakedExtendedSuccessfully)
+		{
+			ScratchBegin(scratch);
+			attachResult = AttachOsTtfFileToFont(&newMapFont, StrLit(MAP_ASIAN_FONT_NAME), app->mapFontSize, MAP_FONT_STYLE);
+			Assert(attachResult == Result_Success);
+			
+			uxx numRanges = app->kanjiCodepoints.length;
+			FontCharRange* ranges = AllocArray(FontCharRange, scratch, numRanges);
+			NotNull(ranges);
+			VarArrayLoop(&app->kanjiCodepoints, cIndex)
+			{
+				VarArrayLoopGetValue(u32, codepoint, &app->kanjiCodepoints, cIndex);
+				ranges[cIndex] = NewFontCharRangeSingle(codepoint);
+			}
+			
+			bakedKanjiSuccessfully = false;
+			atlasSize = MIN_FONT_ATLAS_SIZE;
+			while (atlasSize <= MAX_FONT_ATLAS_SIZE)
+			{
+				Result bakeResult = BakeFontAtlas(&newMapFont, app->mapFontSize, MAP_FONT_STYLE, NewV2i(atlasSize, atlasSize), numRanges, ranges);
+				if (bakeResult == Result_Success) { bakedKanjiSuccessfully = true; break; }
+				atlasSize *= 2;
+			}
+			
+			RemoveAttachedTtfFile(&newMapFont);
+			ScratchEnd(scratch);
+		}
+		
+		if (!bakedBasicSuccessfully || !bakedExtendedSuccessfully || !bakedKanjiSuccessfully)
+		{
+			FreeFont(&newMapFont);
+			FreeFont(&newLargeFont);
+			FreeFont(&newUiFont);
+			return false;
+		}
+	}
+	
 	if (app->uiFont.arena != nullptr) { FreeFont(&app->uiFont); }
 	if (app->largeFont.arena != nullptr) { FreeFont(&app->largeFont); }
+	if (app->mapFont.arena != nullptr) { FreeFont(&app->mapFont); }
 	app->uiFont = newUiFont;
 	app->largeFont = newLargeFont;
+	app->mapFont = newMapFont;
 	
 	return true;
 }
@@ -104,11 +181,13 @@ bool AppChangeFontSize(bool increase)
 		app->uiFontSize += 1;
 		app->uiScale = app->uiFontSize / (r32)DEFAULT_UI_FONT_SIZE;
 		app->largeFontSize = RoundR32(DEFAULT_LARGE_FONT_SIZE * app->uiScale);
+		app->mapFontSize = RoundR32(DEFAULT_MAP_FONT_SIZE * app->uiScale);
 		if (!AppCreateFonts())
 		{
 			app->uiFontSize -= 1;
 			app->uiScale = app->uiFontSize / (r32)DEFAULT_UI_FONT_SIZE;
 			app->largeFontSize = RoundR32(DEFAULT_LARGE_FONT_SIZE * app->uiScale);
+			app->mapFontSize = RoundR32(DEFAULT_MAP_FONT_SIZE * app->uiScale);
 		}
 		return true;
 	}
@@ -117,17 +196,16 @@ bool AppChangeFontSize(bool increase)
 		app->uiFontSize -= 1;
 		app->uiScale = app->uiFontSize / (r32)DEFAULT_UI_FONT_SIZE;
 		app->largeFontSize = RoundR32(DEFAULT_LARGE_FONT_SIZE * app->uiScale);
+		app->mapFontSize = RoundR32(DEFAULT_MAP_FONT_SIZE * app->uiScale);
 		AppCreateFonts();
 		return true;
 	}
 	else { return false; }
 }
 
-void FillKanjiWithNamesFromMap(OsmMap* map, PigFont* kanjiFont)
+void FindInternationalCodepointsInMapNames(OsmMap* map, VarArray* codepointsOut)
 {
-	ScratchBegin1(scratch, kanjiFont->arena);
-	VarArray nameCharacters;
-	InitVarArray(u32, &nameCharacters, scratch);
+	VarArrayClear(codepointsOut);
 	VarArrayLoop(&app->map.nodes, nIndex)
 	{
 		VarArrayLoopGet(OsmNode, node, &app->map.nodes, nIndex);
@@ -141,43 +219,19 @@ void FillKanjiWithNamesFromMap(OsmMap* map, PigFont* kanjiFont)
 			if (codepointSize > 1)
 			{
 				bool alreadyFound = false;
-				VarArrayLoop(&nameCharacters, cIndex)
+				VarArrayLoop(codepointsOut, cIndex)
 				{
-					VarArrayLoopGetValue(u32, knownCodepoint, &nameCharacters, cIndex);
+					VarArrayLoopGetValue(u32, knownCodepoint, codepointsOut, cIndex);
 					if (knownCodepoint == codepoint) { alreadyFound = true; break; }
 				}
 				if (!alreadyFound)
 				{
-					VarArrayAddValue(u32, &nameCharacters, codepoint);
+					VarArrayAddValue(u32, codepointsOut, codepoint);
 				}
 			}
 			if (codepointSize > 1) { bIndex += codepointSize-1; }
 		}
 	}
-	
-	PrintLine_D("There are %llu unique characters in the japanese names in this file", nameCharacters.length);
-	if (nameCharacters.length > 0)
-	{
-		uxx numCharRanges = nameCharacters.length;
-		FontCharRange* charRanges = AllocArray(FontCharRange, scratch, numCharRanges);
-		NotNull(charRanges);
-		VarArrayLoop(&nameCharacters, cIndex)
-		{
-			VarArrayLoopGetValue(u32, codepoint, &nameCharacters, cIndex);
-			charRanges[cIndex] = NewFontCharRangeSingle(codepoint);
-		}
-		FreeFont(&app->kanjiFont);
-		app->kanjiFont = InitFont(stdHeap, StrLit("kanjiFont"));
-		Result attachResult = AttachOsTtfFileToFont(&app->kanjiFont, StrLit(KANJI_FONT_NAME), KANJI_FONT_SIZE, KANJI_FONT_STYLE);
-		Assert(attachResult == Result_Success);
-		UNUSED(attachResult);
-		Result bakeResult = BakeFontAtlas(&app->kanjiFont, KANJI_FONT_SIZE, KANJI_FONT_STYLE, NewV2i(512, 512), numCharRanges, charRanges);
-		Assert(bakeResult == Result_Success); //TODO: Handle this failure gracefully
-		FillFontKerningTable(&app->kanjiFont);
-		RemoveAttachedTtfFile(&app->kanjiFont);
-	}
-	
-	ScratchEnd(scratch);
 }
 
 void OpenOsmMap(FilePath filePath)
@@ -204,14 +258,16 @@ void OpenOsmMap(FilePath filePath)
 			);
 			
 			v2d targetLocation = AddV2d(app->map.bounds.TopLeft, ShrinkV2d(app->map.bounds.Size, 2.0));
-			app->viewPos = MapProject(app->projection, targetLocation, NewRecdV(V2d_Zero, app->mapRec.Size));
-			app->viewZoom = MinR64(
+			app->view.position = MapProject(app->view.projection, targetLocation, NewRecdV(V2d_Zero, app->view.mapRec.Size));
+			app->view.zoom = MinR64(
 				1.0 / (app->map.bounds.SizeLon / 360.0),
 				1.0 / (app->map.bounds.SizeLat / 180.0)
 			);
 			
 			app->loadedFilePath = AllocStr8(stdHeap, filePath);
-			FillKanjiWithNamesFromMap(&app->map, &app->kanjiFont);
+			FindInternationalCodepointsInMapNames(&app->map, &app->kanjiCodepoints);
+			bool fontBakeSuccess = AppCreateFonts();
+			Assert(fontBakeSuccess);
 		}
 		else { PrintLine_E("Failed to parse as OpenStreetMaps XML data! Error: %s", GetResultStr(parseResult)); }
 	}

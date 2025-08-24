@@ -1,8 +1,8 @@
 // raddbg 0.9.21 project file
 
+recent_file: path: "app/osm_map.c"
 recent_file: path: "core/third_party/stb/stb_truetype.h"
 recent_file: path: "app/app_main.c"
-recent_file: path: "app/osm_map.c"
 recent_file: path: "app/platform_main.c"
 recent_file: path: "core/struct/struct_var_array.h"
 recent_file: path: "app/parse_xml.c"

@@ -7,20 +7,24 @@ Date:   02\25\2025
 #ifndef _DEFINES_H
 #define _DEFINES_H
 
-#define KANJI_FONT_NAME  "Yu Mincho"
-// #define KANJI_FONT_NAME  "Yu Gothic" //TODO: This breaks stb_truetype?
-// #define KANJI_FONT_NAME  "Meiryo" //TODO: This breaks stb_truetype?
-#define KANJI_FONT_SIZE  18
-#define KANJI_FONT_STYLE  FontStyleFlag_Bold
+#define MIN_FONT_ATLAS_SIZE 256 //px
+#define MAX_FONT_ATLAS_SIZE 1024 //px
 
 #define UI_FONT_NAME  "Consolas"
 #define UI_FONT_STYLE FontStyleFlag_None
 #define MIN_UI_FONT_SIZE       9
 #define DEFAULT_UI_FONT_SIZE   14
 
+// #define MAP_FONT_NAME  "Arial"
+#define MAP_FONT_NAME  "Helvetica"
+#define MAP_ASIAN_FONT_NAME  "Yu Mincho"
+// #define MAP_ASIAN_FONT_NAME  "Yu Gothic" //TODO: This breaks stb_truetype?
+// #define MAP_ASIAN_FONT_NAME  "Meiryo" //TODO: This breaks stb_truetype?
+#define MAP_FONT_STYLE FontStyleFlag_Bold
+#define DEFAULT_MAP_FONT_SIZE   20
+
 #define LARGE_FONT_NAME  "Consolas"
 #define LARGE_FONT_STYLE FontStyleFlag_Bold
-#define MIN_LARGE_FONT_SIZE       9
 #define DEFAULT_LARGE_FONT_SIZE   36
 
 #define TOPBAR_ICONS_SIZE  16 //px
@@ -43,6 +47,6 @@ Date:   02\25\2025
 #define TEST_OSM_FILE "bracke.osm" //download a portion of OSM from https://www.openstreetmap.org/export and put it in the _data folder
 
 #define MERCATOR_MAP_ASPECT_RATIO   (2.0/1.0) //2:1 aspect ratio for Mercator projection maps
-#define MAP_MAX_ZOOM                1000000 //multiplier TODO: Change to a unit of measurement that isn't dependent on screen size and mapRec size!
+#define MAP_MAX_ZOOM                Million(100) //multiplier TODO: Change to a unit of measurement that isn't dependent on screen size and mapRec size!
 
 #endif //  _DEFINES_H

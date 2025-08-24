@@ -7,6 +7,16 @@ Date:   02\25\2025
 #ifndef _APP_MAIN_H
 #define _APP_MAIN_H
 
+typedef plex MapView MapView;
+plex MapView
+{
+	MapProjection projection;
+	recd mapRec;
+	v2d position; //this is relative to mapRec
+	r64 minZoom;
+	r64 zoom;
+};
+
 typedef plex AppData AppData;
 plex AppData
 {
@@ -16,13 +26,15 @@ plex AppData
 	
 	Shader mainShader;
 	PigFont uiFont;
+	VarArray kanjiCodepoints; //u32
+	PigFont mapFont;
 	PigFont largeFont;
-	PigFont kanjiFont;
 	
 	ClayUIRenderer clay;
 	r32 uiScale;
 	r32 uiFontSize;
 	r32 largeFontSize;
+	r32 mapFontSize;
 	u16 clayUiFontId;
 	u16 clayLargeFontId;
 	bool isFileMenuOpen;
@@ -31,11 +43,7 @@ plex AppData
 	bool keepViewMenuOpenUntilMouseOver;
 	
 	OsmMap map;
-	MapProjection projection;
-	recd mapRec;
-	v2d viewPos;
-	r64 minZoom;
-	r64 viewZoom;
+	MapView view;
 	
 	Str8 loadedFilePath;
 };
