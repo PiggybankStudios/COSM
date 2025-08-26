@@ -43,7 +43,7 @@ void FreeOsmWay(Arena* arena, OsmWay* way)
 		FreeOsmTag(arena, tag);
 	}
 	FreeVarArray(&way->tags);
-	if (way->triVertices != nullptr) { FreeArray(v2d, arena, way->numTriVertices, way->triVertices); }
+	if (way->triIndices != nullptr) { FreeArray(uxx, arena, way->numTriIndices, way->triIndices); }
 	FreeVertBuffer(&way->triVertBuffer);
 	ClearPointer(way);
 }

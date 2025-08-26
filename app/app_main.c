@@ -531,16 +531,60 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 							}
 						}
 					}
-				
+					
 					Str8 colorStr = GetOsmWayTagValue(way, StrLit("color"), Str8_Empty);
 					if (!IsEmptyStr(colorStr)) { TryParseColor(colorStr, &color, nullptr); }
-				
+					
 					if (color.a > 0)
 					{
+						#if 0
 						v2 boundsTopLeft = ToV2Fromd(MapProject(app->view.projection, way->nodeBounds.TopLeft, mapRec));
 						v2 boundsBottomRight = ToV2Fromd(MapProject(app->view.projection, AddV2d(way->nodeBounds.TopLeft, way->nodeBounds.Size), mapRec));
 						rec boundsRec = NewRecBetweenV(boundsTopLeft, boundsBottomRight);
 						DrawRectangle(boundsRec, color);
+						#else
+						
+						v2 boundsTopLeft = ToV2Fromd(MapProject(app->view.projection, way->nodeBounds.TopLeft, mapRec));
+						v2 boundsBottomRight = ToV2Fromd(MapProject(app->view.projection, AddV2d(way->nodeBounds.TopLeft, way->nodeBounds.Size), mapRec));
+						rec boundsRec = NewRecBetweenV(boundsTopLeft, boundsBottomRight);
+						if (boundsRec.X + boundsRec.Width >= 0 && boundsRec.Y + boundsRec.Height >= 0 &&
+							boundsRec.X <= screenSize.Width && boundsRec.Y <= screenSize.Height)
+						{
+							if (boundsRec.Width * boundsRec.Height < 50)
+							{
+								r32 radius = LengthV2(boundsRec.Size) / 2.0f;
+								DrawCircle(NewCircleV(AddV2(boundsRec.TopLeft, ShrinkV2(boundsRec.Size, 2)), radius), color);
+							}
+							else if (way->triIndices == nullptr)
+							{
+								uxx scratchMark = ArenaGetMark(scratch);
+								uxx numPolygonVerts = way->nodes.length;
+								v2d* polygonVerts = AllocArray(v2d, scratch, numPolygonVerts);
+								VarArrayLoop(&way->nodes, nIndex)
+								{
+									VarArrayLoopGet(OsmNodeRef, nodeRef, &way->nodes, nIndex);
+									polygonVerts[nIndex] = nodeRef->pntr->location;
+								}
+								way->triIndices = Triangulate2DEarClipR64(app->map.arena, numPolygonVerts, polygonVerts, &way->numTriIndices);
+								ArenaResetToMark(scratch, scratchMark);
+							}
+							if (way->numTriIndices > 0 && way->triIndices != nullptr)
+							{
+								for (uxx iIndex = 0; iIndex < way->numTriIndices; iIndex += 3)
+								{
+									OsmNodeRef* node0 = VarArrayGet(OsmNodeRef, &way->nodes, way->triIndices[iIndex+0]);
+									OsmNodeRef* node1 = VarArrayGet(OsmNodeRef, &way->nodes, way->triIndices[iIndex+1]);
+									OsmNodeRef* node2 = VarArrayGet(OsmNodeRef, &way->nodes, way->triIndices[iIndex+2]);
+									v2 vert0 = ToV2Fromd(MapProject(app->view.projection, node0->pntr->location, mapRec));
+									v2 vert1 = ToV2Fromd(MapProject(app->view.projection, node1->pntr->location, mapRec));
+									v2 vert2 = ToV2Fromd(MapProject(app->view.projection, node2->pntr->location, mapRec));
+									DrawLine(vert0, vert1, 2.0f, color);
+									DrawLine(vert1, vert2, 2.0f, color);
+									DrawLine(vert2, vert0, 2.0f, color);
+								}
+							}
+						}
+						#endif
 					}
 				}
 			}

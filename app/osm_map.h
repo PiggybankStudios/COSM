@@ -54,8 +54,8 @@ plex OsmWay
 	recd nodeBounds;
 	
 	bool isClosedLoop;
-	uxx numTriVertices;
-	v2d* triVertices; //lat/lon
+	uxx numTriIndices;
+	uxx* triIndices;
 	VertBuffer triVertBuffer; //these vertices are normalized within bounds
 };
 
