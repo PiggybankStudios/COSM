@@ -1,6 +1,8 @@
-// raddbg 0.9.20 project file
+// raddbg 0.9.21 project file
 
+recent_file: path: "core/third_party/protobuf_c/protobuf-c/protobuf-c.c"
 recent_file: path: "app/osm_map.c"
+recent_file: path: "app/osm_pbf.pb-c.c"
 recent_file: path: "core/third_party/stb/stb_truetype.h"
 recent_file: path: "app/app_main.c"
 recent_file: path: "app/platform_main.c"
@@ -25,3 +27,4 @@ type_view:
   type: Str8
   expr: "rows($, $.chars, $.length)"
 }
+theme: Naysayer

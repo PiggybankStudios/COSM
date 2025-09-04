@@ -21,7 +21,7 @@ plex OsmNode
 {
 	u64 id;
 	bool visible;
-	u8 version;
+	i32 version;
 	u64 changeset;
 	Str8 timestampStr;
 	Str8 user;
@@ -43,7 +43,7 @@ plex OsmWay
 {
 	u64 id;
 	bool visible;
-	u8 version;
+	i32 version;
 	u64 changeset;
 	Str8 timestampStr;
 	Str8 user;

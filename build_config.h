@@ -65,6 +65,8 @@ Description:
 // Our debugger projects usually run the exe from the _build folder but with working directory set to the _data folder
 #define COPY_TO_DATA_DIRECTORY 1
 
+// Runs protoc --c_out (which uses protoc-gen-c plugin) to generate pb-c.h and pb-c.c files from all .proto files
+#define GENERATE_PROTOBUF 0
 // Rather than compiling the project(s) it will simply output the
 // result of the preprocessor's pass over the code to the build folder
 #define DUMP_PREPROCESSOR   0
@@ -101,5 +103,6 @@ Description:
 #define BUILD_WITH_IMGUI      0
 #define BUILD_WITH_PHYSX      0
 #define BUILD_WITH_HTTP       1
+#define BUILD_WITH_PROTOBUF   1
 
 #endif //  _BUILD_CONFIG_H

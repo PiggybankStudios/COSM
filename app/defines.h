@@ -44,7 +44,8 @@ Date:   02\25\2025
 #define OSM_API_URL "https://api.openstreetmap.org/api"
 #define OHM_API_URL "https://api.openhistoricalmap.org/api"
 
-#define TEST_OSM_FILE "bracke.osm" //download a portion of OSM from https://www.openstreetmap.org/export and put it in the _data folder
+// #define TEST_OSM_FILE "bracke.osm" //download a portion of OSM from https://www.openstreetmap.org/export and put it in the _data folder
+#define TEST_OSM_FILE "Q:/downtown_seattle.osm.pbf"
 
 #define MERCATOR_MAP_ASPECT_RATIO   (2.0/1.0) //2:1 aspect ratio for Mercator projection maps
 #define MAP_MAX_ZOOM                Million(100) //multiplier TODO: Change to a unit of measurement that isn't dependent on screen size and mapRec size!

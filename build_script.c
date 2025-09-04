@@ -158,6 +158,7 @@ int main(int argc, char* argv[])
 	bool BUILD_APP_DLL            = ExtractBoolDefine(buildConfigContents, StrLit("BUILD_APP_DLL"));
 	bool RUN_APP                  = ExtractBoolDefine(buildConfigContents, StrLit("RUN_APP"));
 	bool COPY_TO_DATA_DIRECTORY   = ExtractBoolDefine(buildConfigContents, StrLit("COPY_TO_DATA_DIRECTORY"));
+	bool GENERATE_PROTOBUF        = ExtractBoolDefine(buildConfigContents, StrLit("GENERATE_PROTOBUF"));
 	bool DUMP_PREPROCESSOR        = ExtractBoolDefine(buildConfigContents, StrLit("DUMP_PREPROCESSOR"));
 	bool DUMP_ASSEMBLY            = ExtractBoolDefine(buildConfigContents, StrLit("DUMP_ASSEMBLY"));
 	
@@ -171,6 +172,7 @@ int main(int argc, char* argv[])
 	bool BUILD_WITH_IMGUI         = ExtractBoolDefine(buildConfigContents, StrLit("BUILD_WITH_IMGUI"));
 	bool BUILD_WITH_PHYSX         = ExtractBoolDefine(buildConfigContents, StrLit("BUILD_WITH_PHYSX"));
 	bool BUILD_WITH_HTTP          = ExtractBoolDefine(buildConfigContents, StrLit("BUILD_WITH_HTTP"));
+	bool BUILD_WITH_PROTOBUF      = ExtractBoolDefine(buildConfigContents, StrLit("BUILD_WITH_PROTOBUF"));
 	
 	free(buildConfigContents.chars);
 	
@@ -223,6 +225,50 @@ int main(int argc, char* argv[])
 	AddArgNt(&clang_CommonFlags, CLANG_INCLUDE_DIR, "[ROOT]/app");
 	AddArgNt(&clang_CommonFlags, CLANG_INCLUDE_DIR, "[ROOT]/core");
 	AddArgNt(&clang_CommonFlags, CLANG_LIBRARY_DIR, DEBUG_BUILD ? "[ROOT]/core/third_party/_lib_debug" : "[ROOT]/core/third_party/_lib_release");
+	
+	if (BUILD_WITH_PROTOBUF)
+	{
+		AddArgNt(&cl_CommonFlags, CL_INCLUDE_DIR, "[ROOT]/core/third_party/protobuf_c");
+		AddArgNt(&clang_CommonFlags, CLANG_INCLUDE_DIR, "[ROOT]/core/third_party/protobuf_c");
+	}
+	
+	// +--------------------------------------------------------------+
+	// |                   Generate Protobuf Files                    |
+	// +--------------------------------------------------------------+
+	if (GENERATE_PROTOBUF)
+	{
+		WriteLine("\n[Generating Protobuf...]");
+		
+		#define PROTOC_C_OUT_PATH "--c_out=\"[VAL]\""
+		#define PROTOC_PLUGIN_EXE_PATH "--plugin=\"[VAL]\""
+		#define PROTOC_PROTO_PATH "--proto_path=\"[VAL]\""
+		#define PROTOC_ERROR_FORMAT "--error_format=[VAL]"
+		
+		#if BUILDING_ON_WINDOWS
+		Str8 protocExe = StrLit("wsl protoc");
+		#else
+		Str8 protocExe = StrLit("protoc");
+		#endif
+		
+		CliArgList proto_CommonFlags = ZEROED;
+		AddArgNt(&proto_CommonFlags, PROTOC_PLUGIN_EXE_PATH, "[ROOT]/core/third_party/_tools/linux/protoc-gen-c");
+		AddArgNt(&proto_CommonFlags, PROTOC_ERROR_FORMAT, "msvs");
+		AddArgNt(&proto_CommonFlags, PROTOC_PROTO_PATH, "[ROOT]/core");
+		
+		//NOTE: For some reason when [ROOT] folder is given as the first proto_path it likes to make a folder next to the .proto file with the name of the folder it resides in (like making "parse" folder next to "parse/parse_proto_google_types.proto")
+		//      To counteract this, we add the primary folder proto_path first THEN add proto_CommonFlags which includes [ROOT] as a place to look for import resolves
+		
+		//TODO: Rather than manually running on a specific set of .proto files, we should resursively search the folders and find all .proto files
+		{
+			CliArgList cmd = ZEROED;
+			cmd.pathSepChar = '/';
+			AddArgNt(&cmd, PROTOC_PROTO_PATH, "[ROOT]/app");
+			AddArgList(&cmd, &proto_CommonFlags);
+			AddArgNt(&cmd, PROTOC_C_OUT_PATH, "[ROOT]/app");
+			AddArgNt(&cmd, CLI_QUOTED_ARG, "[ROOT]/app/osm_pbf.proto");
+			RunCliProgramAndExitOnFailure(protocExe, &cmd, StrLit("protoc Failed on osm_pbf.proto!"));
+		}
+	}
 	
 	// +--------------------------------------------------------------+
 	// |                       Build piggen.exe                       |

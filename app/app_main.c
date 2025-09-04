@@ -26,6 +26,7 @@ Description:
 #include "gfx/gfx_all.h"
 #include "gfx/gfx_system_global.h"
 #include "phys/phys_all.h"
+#include "parse/parse_all.h"
 
 #if HOXML_ENABLED
 #if COMPILER_IS_MSVC
@@ -42,6 +43,7 @@ Description:
 // +--------------------------------------------------------------+
 // |                         Header Files                         |
 // +--------------------------------------------------------------+
+#include "osm_pbf.pb-c.h"
 #include "parse_xml.h"
 #include "platform_interface.h"
 #include "app_resources.h"
@@ -66,6 +68,7 @@ static Arena* stdHeap = nullptr;
 // +--------------------------------------------------------------+
 // |                         Source Files                         |
 // +--------------------------------------------------------------+
+#include "osm_pbf.pb-c.c"
 #include "parse_xml.c"
 #include "main2d_shader.glsl.h"
 #include "app_resources.c"
@@ -156,6 +159,7 @@ EXPORT_FUNC APP_INIT_DEF(AppInit)
 	app->clayLargeFontId = AddClayUIRendererFont(&app->clay, &app->largeFont, LARGE_FONT_STYLE);
 	
 	InitMapView(&app->view, MapProjection_Mercator);
+	OpenOsmMap(StrLit(TEST_OSM_FILE));
 	
 	#if 0
 	Str8 testFileContents = Str8_Empty;
@@ -432,6 +436,14 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 			AppChangeFontSize(appIn->mouse.scrollDelta.Y > 0);
 		}
 		
+		// +==================================+
+		// | Ctrl+Shift+O Open TEST_OSM_FILE  |
+		// +==================================+
+		if (IsKeyboardKeyDown(&appIn->keyboard, Key_Control) && IsKeyboardKeyDown(&appIn->keyboard, Key_Shift) && IsKeyboardKeyPressed(&appIn->keyboard, Key_O, false))
+		{
+			OpenOsmMap(StrLit(TEST_OSM_FILE));
+		}
+		
 		UpdateMapView(&app->view, &appIn->mouse, &appIn->keyboard);
 	}
 	TracyCZoneEnd(Zone_Update);
@@ -638,7 +650,8 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 				Str8 populationStr = GetOsmNodeTagValue(node, StrLit("population"), Str8_Empty);
 				u64 population = 0; TryParseU64(populationStr, &population, nullptr);
 				r32 populationLerp = InverseLerpClampR32(Thousand(50), Thousand(500), (r32)population);
-				r32 radius = (!IsEmptyStr(populationStr)) ? LerpR32(1.0, 10.0f, populationLerp)  : 0.0f;
+				r32 radius = (!IsEmptyStr(populationStr)) ? LerpR32(1.0, 10.0f, populationLerp) : 0.0f;
+				if (app->map.ways.length == 0 && radius == 0.0f) { radius = 1.0f; } //Show all nodes when now ways were found
 				
 				Str8 radiusStr = GetOsmNodeTagValue(node, StrLit("radius"), Str8_Empty);
 				if (!IsEmptyStr(radiusStr)) { TryParseR32(radiusStr, &radius, nullptr); }
@@ -649,6 +662,7 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 					Str8 colorStr = GetOsmNodeTagValue(node, StrLit("color"), Str8_Empty);
 					if (!IsEmptyStr(colorStr)) { TryParseColor(colorStr, &nodeColor, nullptr); }
 					v2d nodePos = MapProject(app->view.projection, node->location, mapRec);
+					AlignV2d(&nodePos);
 					DrawCircle(NewCircleV(ToV2Fromd(nodePos), radius), nodeColor);
 					
 					Str8 japaneseNameStr = GetOsmNodeTagValue(node, StrLit("name:ja"), Str8_Empty);
@@ -678,7 +692,7 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 			v2 boundsTopLeft = ToV2Fromd(MapProject(app->view.projection, app->map.bounds.TopLeft, mapRec));
 			v2 boundsBottomRight = ToV2Fromd(MapProject(app->view.projection, AddV2d(app->map.bounds.TopLeft, app->map.bounds.Size), mapRec));
 			rec boundsRec = NewRecBetweenV(boundsTopLeft, boundsBottomRight);
-			// DrawRectangleOutline(boundsRec, 2.0f, MonokaiRed);
+			DrawRectangleOutline(boundsRec, 2.0f, MonokaiRed);
 			// DrawCircle(NewCircleV(boundsRec.TopLeft, 5), MonokaiRed);
 			// DrawCircle(NewCircleV(Add(boundsRec.TopLeft, boundsRec.Size), 5), MonokaiOrange);
 		}

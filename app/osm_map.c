@@ -103,6 +103,7 @@ OsmNode* AddOsmNode(OsmMap* map, v2d location, u64 id)
 	NotNull(map);
 	NotNull(map->arena);
 	OsmNode* result = VarArrayAdd(OsmNode, &map->nodes);
+	NotNull(result);
 	ClearPointer(result);
 	result->id = (id == 0) ? map->nextNodeId : id;
 	if (id == 0) { map->nextNodeId++; }
@@ -265,6 +266,424 @@ Result TryParseOsmMap(Arena* arena, Str8 xmlFileContents, OsmMap* mapOut)
 	ScratchEnd(scratch);
 	TracyCZoneEnd(funcZone);
 	return (xml.error == Result_None) ? Result_Success : xml.error;
+}
+
+#define BinReadU8(slice, readIndexPntr, errorCode)  (((*(readIndexPntr) + sizeof(u8))  <= (slice).length) ?  *(u8*)(&(slice).bytes[*(readIndexPntr)]) : 0); if ((*(readIndexPntr) +  sizeof(u8)) > (slice).length) { errorCode; } else { *(readIndexPntr) +=  sizeof(u8); } do {} while(0)
+#define BinReadU16(slice, readIndexPntr, errorCode) (((*(readIndexPntr) + sizeof(u16)) <= (slice).length) ? *(u16*)(&(slice).bytes[*(readIndexPntr)]) : 0); if ((*(readIndexPntr) + sizeof(u16)) > (slice).length) { errorCode; } else { *(readIndexPntr) += sizeof(u16); } do {} while(0)
+#define BinReadU32(slice, readIndexPntr, errorCode) (((*(readIndexPntr) + sizeof(u32)) <= (slice).length) ? *(u32*)(&(slice).bytes[*(readIndexPntr)]) : 0); if ((*(readIndexPntr) + sizeof(u32)) > (slice).length) { errorCode; } else { *(readIndexPntr) += sizeof(u32); } do {} while(0)
+#define BinReadU64(slice, readIndexPntr, errorCode) (((*(readIndexPntr) + sizeof(u64)) <= (slice).length) ? *(u64*)(&(slice).bytes[*(readIndexPntr)]) : 0); if ((*(readIndexPntr) + sizeof(u64)) > (slice).length) { errorCode; } else { *(readIndexPntr) += sizeof(u64); } do {} while(0)
+#define BinReadI8(slice, readIndexPntr, errorCode)  (((*(readIndexPntr) + sizeof(i8))  <= (slice).length) ?  *(i8*)(&(slice).bytes[*(readIndexPntr)]) : 0); if ((*(readIndexPntr) +  sizeof(i8)) > (slice).length) { errorCode; } else { *(readIndexPntr) +=  sizeof(i8); } do {} while(0)
+#define BinReadI16(slice, readIndexPntr, errorCode) (((*(readIndexPntr) + sizeof(i16)) <= (slice).length) ? *(i16*)(&(slice).bytes[*(readIndexPntr)]) : 0); if ((*(readIndexPntr) + sizeof(i16)) > (slice).length) { errorCode; } else { *(readIndexPntr) += sizeof(i16); } do {} while(0)
+#define BinReadI32(slice, readIndexPntr, errorCode) (((*(readIndexPntr) + sizeof(i32)) <= (slice).length) ? *(i32*)(&(slice).bytes[*(readIndexPntr)]) : 0); if ((*(readIndexPntr) + sizeof(i32)) > (slice).length) { errorCode; } else { *(readIndexPntr) += sizeof(i32); } do {} while(0)
+#define BinReadI64(slice, readIndexPntr, errorCode) (((*(readIndexPntr) + sizeof(i64)) <= (slice).length) ? *(i64*)(&(slice).bytes[*(readIndexPntr)]) : 0); if ((*(readIndexPntr) + sizeof(i64)) > (slice).length) { errorCode; } else { *(readIndexPntr) += sizeof(i64); } do {} while(0)
+#define BinReadR32(slice, readIndexPntr, errorCode) (((*(readIndexPntr) + sizeof(r32)) <= (slice).length) ? *(r32*)(&(slice).bytes[*(readIndexPntr)]) : 0); if ((*(readIndexPntr) + sizeof(r32)) > (slice).length) { errorCode; } else { *(readIndexPntr) += sizeof(r32); } do {} while(0)
+#define BinReadR64(slice, readIndexPntr, errorCode) (((*(readIndexPntr) + sizeof(r64)) <= (slice).length) ? *(r64*)(&(slice).bytes[*(readIndexPntr)]) : 0); if ((*(readIndexPntr) + sizeof(r64)) > (slice).length) { errorCode; } else { *(readIndexPntr) += sizeof(r64); } do {} while(0)
+
+char GetPbfBlobTypeChar(u8 blobType)
+{
+	switch (blobType)
+	{
+		case 0: return 'V';
+		case 1: return 'D';
+		case 2: return 'S';
+		case 5: return 'I';
+		default: return '?';
+	}
+}
+
+#define NANODEGREE_DIVISOR Billion(1)
+
+#define GetPbfString(stringTablePntr, stringId)                                            \
+(                                                                                          \
+	((stringId) > 0 && (size_t)(stringId) < (stringTablePntr)->n_s)                        \
+	? NewStr8((stringTablePntr)->s[(stringId)].len, (stringTablePntr)->s[(stringId)].data) \
+	: Str8_Empty                                                                           \
+)
+
+Result TryParsePbfMap(Arena* arena, Slice protobufFileContents, OsmMap* mapOut)
+{
+	TracyCZoneN(Zone_Func, "TryParsePbfMap", true);
+	ScratchBegin1(scratch, arena);
+	ProtobufCAllocator scratchAllocator = ProtobufAllocatorFromArena(scratch);
+	Result result = Result_None;
+	uxx readIndex = 0;
+	uxx blobIndex = 0;
+	bool foundOsmHeader = false;
+	bool foundOsmData = false;
+	bool foundUnkownBlobTypes = false;
+	
+	while (readIndex < protobufFileContents.length && result == Result_None)
+	{
+		uxx scratchMark1 = ArenaGetMark(scratch);
+		u32 headerLength = BinReadU32(protobufFileContents, &readIndex, result = ((blobIndex == 0) ? Result_MissingFileHeader : Result_UnexpectedEof); break);
+		FlipEndianU32(headerLength);
+		if (headerLength == 0) { result = Result_ValueTooLow; break; }
+		if (readIndex + headerLength > protobufFileContents.length || headerLength > Kilobytes(64)) { result = Result_ValueTooHigh; break; }
+		// PrintLine_D("headerLength=%u", headerLength);
+		
+		TracyCZoneN(Zone_BlobHeader, "BlobHeader", true);
+		OSMPBF__BlobHeader* blobHeader = osmpbf__blob_header__unpack(&scratchAllocator, headerLength, &protobufFileContents.bytes[readIndex]); readIndex += headerLength;
+		TracyCZoneEnd(Zone_BlobHeader);
+		if (blobHeader == nullptr) { result = Result_ParsingFailure; break; }
+		// PrintLine_I("Parsed %u byte BlobHeader: %d byte \"%s\"", headerLength, blobHeader->datasize, blobHeader->type);
+		// if (blobHeader->has_indexdata) { PrintLine_D("\tindexdata=%zu bytes %p", blobHeader->indexdata.len, blobHeader->indexdata.data); }
+		if (blobHeader->datasize == 0) { result = Result_ValueTooLow; break; }
+		if (readIndex + blobHeader->datasize > protobufFileContents.length || headerLength > Megabytes(32)) { result = Result_ValueTooHigh; break; }
+		Str8 blobTypeStr = StrLit(blobHeader->type);
+		
+		TracyCZoneN(Zone_Blob, "Blob", true);
+		OSMPBF__Blob* blob = osmpbf__blob__unpack(&scratchAllocator, blobHeader->datasize, &protobufFileContents.bytes[readIndex]); readIndex += blobHeader->datasize;
+		TracyCZoneEnd(Zone_Blob);
+		if (blob == nullptr) { result = Result_ParsingFailure; break; }
+		// PrintLine_I("\tParsed %d byte Blob!", blobHeader->datasize);
+		// PrintLine_D("\t\traw_size=%d%s", blob->raw_size, blob->has_raw_size ? "" : " (Not Found)");
+		const char* compressionTypeStr = "UNKNOWN";
+		ProtobufCBinaryData* dataPntr = nullptr;
+		switch (blob->data_case)
+		{
+			case OSMPBF__BLOB__DATA__NOT_SET:            compressionTypeStr = "_NOT_SET";                                              break;
+			case OSMPBF__BLOB__DATA_RAW:                 compressionTypeStr = "RAW";            dataPntr = &blob->obsolete_bzip2_data; break;
+			case OSMPBF__BLOB__DATA_ZLIB_DATA:           compressionTypeStr = "ZLIB";           dataPntr = &blob->lz4_data;            break;
+			case OSMPBF__BLOB__DATA_LZMA_DATA:           compressionTypeStr = "LZMA";           dataPntr = &blob->lzma_data;           break;
+			case OSMPBF__BLOB__DATA_OBSOLETE_BZIP2_DATA: compressionTypeStr = "OBSOLETE_BZIP2"; dataPntr = &blob->raw;                 break;
+			case OSMPBF__BLOB__DATA_LZ4_DATA:            compressionTypeStr = "LZ4";            dataPntr = &blob->zlib_data;           break;
+			case OSMPBF__BLOB__DATA_ZSTD_DATA:           compressionTypeStr = "ZSTD";           dataPntr = &blob->zstd_data;           break;
+		}
+		// PrintLineAt((dataPntr == nullptr ? DbgLevel_Error: DbgLevel_Info),
+		// 	"Found Blob[%llu]: \"%s\" (%s %d->%d bytes)",
+		// 	blobIndex,
+		// 	blobHeader->type,
+		// 	compressionTypeStr,
+		// 	(dataPntr != nullptr) ? dataPntr->len : 0,
+		// 	blob->raw_size
+		// );
+		
+		Slice decompressedBuffer = Slice_Empty;
+		if (blob->data_case == OSMPBF__BLOB__DATA_RAW)
+		{
+			decompressedBuffer = NewStr8((uxx)dataPntr->len, dataPntr->data);
+		}
+		else if (blob->data_case == OSMPBF__BLOB__DATA_ZLIB_DATA && blob->raw_size > 0)
+		{
+			TracyCZoneN(Zone_ZlibDecompress, "ZlibDecompress", true);
+			decompressedBuffer = ZlibDecompressIntoArena(scratch, NewStr8((uxx)dataPntr->len, dataPntr->data), (uxx)blob->raw_size);
+			TracyCZoneEnd(Zone_ZlibDecompress);
+			if (decompressedBuffer.bytes == nullptr)
+			{
+				PrintLine_E("Failed to decompress blob[%llu] ZLIB %llu->%llu", blobIndex, (uxx)dataPntr->len, (uxx)blob->raw_size);
+				result = Result_DecompressError;
+				break;
+			}
+			// PrintLine_I("Decompressed ZLIB_DATA successfully: %llu bytes (%02X %02X %02X %02X)", decompressedBuffer.length, decompressedBuffer.bytes[0], decompressedBuffer.bytes[1], decompressedBuffer.bytes[2], decompressedBuffer.bytes[3]);
+		}
+		else if (blob->data_case != OSMPBF__BLOB__DATA__NOT_SET)
+		{
+			PrintLine_E("Unsupported compression %s on blob[%llu]", compressionTypeStr, blobIndex);
+			result = Result_UnsupportedCompression;
+			break;
+		}
+		
+		// +==============================+
+		// |        OSMHeader Blob        |
+		// +==============================+
+		if (StrExactEquals(blobTypeStr, StrLit("OSMHeader")))
+		{
+			if (foundOsmHeader) { PrintLine_E("Blob[%llu] was a second OSMHeader!", blobIndex); result = Result_Duplicate; break; }
+			
+			TracyCZoneN(Zone_OsmHeaderBlock, "OsmHeaderBlock", true);
+			OSMPBF__HeaderBlock* headerBlock = osmpbf__header_block__unpack(&scratchAllocator, decompressedBuffer.length, decompressedBuffer.bytes);
+			TracyCZoneEnd(Zone_OsmHeaderBlock);
+			if (headerBlock == nullptr) { PrintLine_E("Failed to parse OSMPBF::HeaderBlock in blob[%llu]!", blobIndex); result = Result_ParsingFailure; break; }
+			#if 0
+			PrintLine_D("\tbbox: (%lf, %lf, %lf, %lf)",
+				(r64)headerBlock->bbox->left / (r64)NANODEGREE_DIVISOR,
+				(r64)headerBlock->bbox->top / (r64)NANODEGREE_DIVISOR,
+				(r64)headerBlock->bbox->right / (r64)NANODEGREE_DIVISOR,
+				(r64)headerBlock->bbox->bottom / (r64)NANODEGREE_DIVISOR
+			);
+			PrintLine_D("\tn_required_features: %zu", headerBlock->n_required_features);
+			for (size_t fIndex = 0; fIndex < headerBlock->n_required_features; fIndex++) { PrintLine_D("\t\trequired_feature[%zu]: \"%s\"", fIndex, headerBlock->required_features[fIndex]); }
+			PrintLine_D("\tn_optional_features: %zu", headerBlock->n_optional_features);
+			for (size_t fIndex = 0; fIndex < headerBlock->n_optional_features; fIndex++) { PrintLine_D("\t\toptional_feature[%zu]: \"%s\"", fIndex, headerBlock->optional_features[fIndex]); }
+			PrintLine_D("\twritingprogram: \"%s\"", headerBlock->writingprogram); //ex. "osmconvert 0.8.10"
+			PrintLine_D("\tsource: \"%s\"", headerBlock->source); //ex. "http://www.openstreetmap.org/api/0.6"
+			if (headerBlock->has_osmosis_replication_timestamp) { PrintLine_D("\tosmosis_replication_timestamp: %lld", headerBlock->osmosis_replication_timestamp); }
+			if (headerBlock->has_osmosis_replication_sequence_number) { PrintLine_D("\tosmosis_replication_sequence_number: %lld", headerBlock->osmosis_replication_sequence_number); }
+			if (headerBlock->osmosis_replication_base_url != nullptr) { PrintLine_D("\tosmosis_replication_base_url: \"%s\"", headerBlock->osmosis_replication_base_url); }
+			#endif
+			
+			foundOsmHeader = true;
+			InitOsmMap(arena, mapOut, 0, 0);
+			mapOut->bounds.X = (r64)headerBlock->bbox->left / (r64)NANODEGREE_DIVISOR;
+			mapOut->bounds.Y = (r64)headerBlock->bbox->top / (r64)NANODEGREE_DIVISOR;
+			mapOut->bounds.Width = ((r64)headerBlock->bbox->right / (r64)NANODEGREE_DIVISOR) - mapOut->bounds.X;
+			mapOut->bounds.Height = ((r64)headerBlock->bbox->bottom / (r64)NANODEGREE_DIVISOR) - mapOut->bounds.Y;
+			//TODO: Ensure that all the "required_features" are things we expect to handle
+			//      "OsmSchema-V0.6", "DenseNodes", "Sort.Type_then_ID", "LocationsOnWays", "HistoricalInformation", etc.
+		}
+		// +==============================+
+		// |         OSMData Blob         |
+		// +==============================+
+		else if (StrExactEquals(blobTypeStr, StrLit("OSMData")))
+		{
+			if (!foundOsmHeader) { PrintLine_E("Blob[%llu] was OSMData BEFORE we found OSMHeader blob!", blobIndex); result = Result_MissingHeader; break; }
+			
+			TracyCZoneN(Zone_OsmHeaderBlock, "OsmPrimitiveBlock", true);
+			OSMPBF__PrimitiveBlock* primitiveBlock = osmpbf__primitive_block__unpack(&scratchAllocator, decompressedBuffer.length, decompressedBuffer.bytes);
+			TracyCZoneEnd(Zone_OsmHeaderBlock);
+			if (primitiveBlock == nullptr) { PrintLine_E("Failed to parse OSMPBF::PrimitiveBlock in blob[%llu]!", blobIndex); result = Result_ParsingFailure; break; }
+			#if 0
+			PrintLine_D("\tstrings: %zu", primitiveBlock->stringtable->n_s);
+			// PrintLine_D("\tstrings at %p relative to %p or %d", primitiveBlock->stringtable->s, decompressedBuffer.bytes, (u8*)primitiveBlock->stringtable->s - decompressedBuffer.bytes);
+			PrintLine_D("\tn_primitivegroup: %zu", primitiveBlock->n_primitivegroup);
+			for (size_t gIndex = 0; gIndex < primitiveBlock->n_primitivegroup; gIndex++)
+			{
+				OSMPBF__PrimitiveGroup* primitiveGroup = primitiveBlock->primitivegroup[gIndex];
+				PrintLine_D("\t\tgroup[%zu]: %zu nodes (%zu dense) - %zu ways - %zu relations - %zu changesets",
+					gIndex,
+					primitiveGroup->n_nodes,
+					(primitiveGroup->dense != nullptr) ? MaxU64(MaxU64((u64)primitiveGroup->dense->n_id, (u64)primitiveGroup->dense->n_lat), (u64)primitiveGroup->dense->n_lon) : (size_t)0,
+					primitiveGroup->n_ways,
+					primitiveGroup->n_relations,
+					primitiveGroup->n_changesets
+				);
+				if (primitiveGroup->dense != nullptr)
+				{
+					NotNull(primitiveGroup->dense->denseinfo);
+					PrintLine_D("\t\t\tDenseNodes: %zu IDs, %zu lats, %zu lons, %zu kvps", primitiveGroup->dense->n_id, primitiveGroup->dense->n_lat, primitiveGroup->dense->n_lon, primitiveGroup->dense->n_keys_vals);
+					PrintLine_D("\t\t\t Info: %zu versions, %zu timestamps, %zu changesets, %zu uids, %zu user_sids, %zu visibles", primitiveGroup->dense->denseinfo->n_version, primitiveGroup->dense->denseinfo->n_timestamp, primitiveGroup->dense->denseinfo->n_changeset, primitiveGroup->dense->denseinfo->n_uid, primitiveGroup->dense->denseinfo->n_user_sid, primitiveGroup->dense->denseinfo->n_visible);
+				}
+			}
+			if (primitiveBlock->has_granularity) { PrintLine_D("\tgranularity: %d", primitiveBlock->granularity); }
+			else { WriteLine_D("\tgranularity: default"); }
+			if (primitiveBlock->has_lat_offset) { PrintLine_D("\tlat_offset: %lld", primitiveBlock->lat_offset); }
+			else { WriteLine_D("\tlat_offset: default"); }
+			if (primitiveBlock->has_lon_offset) { PrintLine_D("\tlon_offset: %lld", primitiveBlock->lon_offset); }
+			else { WriteLine_D("\tlon_offset: default"); }
+			if (primitiveBlock->has_date_granularity) { PrintLine_D("\tdate_granularity: %d", primitiveBlock->date_granularity); }
+			else { WriteLine_D("\tdate_granularity: default"); }
+			#endif
+			
+			r64 granularityMult = (r64)(primitiveBlock->has_granularity ? primitiveBlock->granularity : 1) * (r64)Billionth(100);
+			v2d nodeOffset = NewV2d(
+				(r64)(primitiveBlock->has_lon_offset ? primitiveBlock->lon_offset * granularityMult : 0),
+				(r64)(primitiveBlock->has_lat_offset ? primitiveBlock->lat_offset * granularityMult : 0)
+			);
+			
+			for (size_t gIndex = 0; gIndex < primitiveBlock->n_primitivegroup; gIndex++)
+			{
+				OSMPBF__PrimitiveGroup* primitiveGroup = primitiveBlock->primitivegroup[gIndex];
+				// +==============================+
+				// |          PBF Nodes           |
+				// +==============================+
+				TracyCZoneN(Zone_OsmNodes, "OsmNodes", true);
+				for (size_t nIndex = 0; nIndex < primitiveGroup->n_nodes; nIndex++)
+				{
+					OSMPBF__Node* node = primitiveGroup->nodes[nIndex];
+					UNUSED(node); //TODO: Implement me!
+				}
+				TracyCZoneEnd(Zone_OsmNodes);
+				if (result != Result_None) { break; }
+				
+				// +==============================+
+				// |       PBF Dense Nodes        |
+				// +==============================+
+				if (primitiveGroup->dense != nullptr)
+				{
+					TracyCZoneN(Zone_OsmDenseNodes, "OsmDenseNodes", true);
+					OSMPBF__DenseNodes* denseNodes = primitiveGroup->dense;
+					NotNull(denseNodes->denseinfo);
+					if (denseNodes->n_id != denseNodes->n_lat) { PrintLine_E("DenseNode in blob[%llu] ID count %zu doesn't match Lat count %zu", blobIndex, denseNodes->n_id, denseNodes->n_lat); result = Result_Mismatch; TracyCZoneEnd(Zone_OsmDenseNodes); break; }
+					if (denseNodes->n_id != denseNodes->n_lon) { PrintLine_E("DenseNode in blob[%llu] ID count %zu doesn't match Lon count %zu", blobIndex, denseNodes->n_id, denseNodes->n_lon); result = Result_Mismatch; TracyCZoneEnd(Zone_OsmDenseNodes); break; }
+					bool haveVersions   = (denseNodes->denseinfo->n_version   != 0);
+					bool haveTimestamps = (denseNodes->denseinfo->n_timestamp != 0);
+					bool haveChangesets = (denseNodes->denseinfo->n_changeset != 0);
+					bool haveUids       = (denseNodes->denseinfo->n_uid       != 0);
+					bool haveUserSids   = (denseNodes->denseinfo->n_user_sid  != 0);
+					bool haveVisibles   = (denseNodes->denseinfo->n_visible   != 0);
+					if (haveVersions   && denseNodes->n_id != denseNodes->denseinfo->n_version)   { PrintLine_E("DenseNode in blob[%llu] ID count %zu doesn't match info->version count %zu",   blobIndex, denseNodes->n_id, denseNodes->denseinfo->n_version);   result = Result_Mismatch; TracyCZoneEnd(Zone_OsmDenseNodes); break; }
+					if (haveTimestamps && denseNodes->n_id != denseNodes->denseinfo->n_timestamp) { PrintLine_E("DenseNode in blob[%llu] ID count %zu doesn't match info->timestamp count %zu", blobIndex, denseNodes->n_id, denseNodes->denseinfo->n_timestamp); result = Result_Mismatch; TracyCZoneEnd(Zone_OsmDenseNodes); break; }
+					if (haveChangesets && denseNodes->n_id != denseNodes->denseinfo->n_changeset) { PrintLine_E("DenseNode in blob[%llu] ID count %zu doesn't match info->changeset count %zu", blobIndex, denseNodes->n_id, denseNodes->denseinfo->n_changeset); result = Result_Mismatch; TracyCZoneEnd(Zone_OsmDenseNodes); break; }
+					if (haveUids       && denseNodes->n_id != denseNodes->denseinfo->n_uid)       { PrintLine_E("DenseNode in blob[%llu] ID count %zu doesn't match info->uid count %zu",       blobIndex, denseNodes->n_id, denseNodes->denseinfo->n_uid);       result = Result_Mismatch; TracyCZoneEnd(Zone_OsmDenseNodes); break; }
+					if (haveUserSids   && denseNodes->n_id != denseNodes->denseinfo->n_user_sid)  { PrintLine_E("DenseNode in blob[%llu] ID count %zu doesn't match info->user_sid count %zu",  blobIndex, denseNodes->n_id, denseNodes->denseinfo->n_user_sid);  result = Result_Mismatch; TracyCZoneEnd(Zone_OsmDenseNodes); break; }
+					if (haveVisibles   && denseNodes->n_id != denseNodes->denseinfo->n_visible)   { PrintLine_E("DenseNode in blob[%llu] ID count %zu doesn't match info->visible count %zu",   blobIndex, denseNodes->n_id, denseNodes->denseinfo->n_visible);   result = Result_Mismatch; TracyCZoneEnd(Zone_OsmDenseNodes); break; }
+					
+					VarArrayExpand(&mapOut->nodes, mapOut->nodes.length + (uxx)denseNodes->n_id);
+					
+					size_t currentKeyValIndex = 0;
+					
+					i64 prevNodeId = 0;
+					i64 prevNodeLat = 0;
+					i64 prevNodeLon = 0;
+					i32 prevNodeVersion = 0;
+					i64 prevNodeTimestamp = 0;
+					i64 prevNodeChangeset = 0;
+					i32 prevNodeUid = 0;
+					i32 prevNodeUserSid = 0;
+					for (size_t nIndex = 0; nIndex < denseNodes->n_id; nIndex++)
+					{
+						i64 nodeId = prevNodeId + denseNodes->id[nIndex];
+						i64 nodeLat = prevNodeLat + denseNodes->lat[nIndex];
+						i64 nodeLon = prevNodeLon + denseNodes->lon[nIndex];
+						i32 nodeVersion   = (haveVersions   ? prevNodeVersion   + denseNodes->denseinfo->version[nIndex]   : -1);
+						i64 nodeTimestamp = (haveTimestamps ? prevNodeTimestamp + denseNodes->denseinfo->timestamp[nIndex] : 0);
+						i64 nodeChangeset = (haveChangesets ? prevNodeChangeset + denseNodes->denseinfo->changeset[nIndex] : 0);
+						i32 nodeUid       = (haveUids       ? prevNodeUid       + denseNodes->denseinfo->uid[nIndex]       : 0);
+						i32 nodeUserSid   = (haveUserSids   ? prevNodeUserSid   + denseNodes->denseinfo->user_sid[nIndex]  : 0);
+						bool nodeVisible  = (haveVisibles   ? denseNodes->denseinfo->visible[nIndex]   : true);
+						if (nodeId <= 0) { PrintLine_E("Invalid Node ID %lld in blob[%llu] group[%zu] denseNode[%zu]!", nodeId, blobIndex, gIndex, nIndex); result = Result_InvalidID; break; }
+						if (nodeVersion < -1) { PrintLine_E("Invalid Node Version %d in blob[%llu] group[%zu] denseNode[%zu]!", nodeVersion, blobIndex, gIndex, nIndex); result = Result_ValueTooLow; break; }
+						if (nodeTimestamp < 0) { PrintLine_E("Invalid Node Timestamp %d in blob[%llu] group[%zu] denseNode[%zu]!", nodeTimestamp, blobIndex, gIndex, nIndex); result = Result_ValueTooLow; break; }
+						if (nodeChangeset < 0) { PrintLine_E("Invalid Node Changeset %d in blob[%llu] group[%zu] denseNode[%zu]!", nodeChangeset, blobIndex, gIndex, nIndex); result = Result_ValueTooLow; break; }
+						if (nodeUid < 0) { PrintLine_E("Invalid Node UID %d in blob[%llu] group[%zu] denseNode[%zu]!", nodeUid, blobIndex, gIndex, nIndex); result = Result_ValueTooLow; break; }
+						
+						v2d nodeLocation = NewV2d(
+							nodeOffset.X + ((r64)nodeLon * granularityMult),
+							nodeOffset.Y + ((r64)nodeLat * granularityMult)
+						);
+						// if (nIndex < 10) { PrintLine_D("Node[%lld]: (%lld, %lld) -> (%lf, %lf) -> (%lf, %lf)", nodeId, nodeLat, nodeLon, (r64)nodeLon * granularityMult, (r64)nodeLat * granularityMult, nodeLocation.X, nodeLocation.Y); }
+						
+						OsmNode* newNode = AddOsmNode(mapOut, nodeLocation, (u64)nodeId);
+						newNode->visible = nodeVisible;
+						newNode->version = nodeVersion;
+						newNode->changeset = (u64)nodeChangeset;
+						// TODO: Str8 timestampStr;
+						// TODO: Str8 user;
+						newNode->uid = (u64)nodeUid;
+						
+						//Find node tags by walking keys_vals list 2 at a time until we find a 0 entry
+						while (currentKeyValIndex <= denseNodes->n_keys_vals)
+						{
+							i32 keyStringId = denseNodes->keys_vals[currentKeyValIndex+0];
+							if (keyStringId == 0 || currentKeyValIndex+1 >= denseNodes->n_keys_vals) { currentKeyValIndex++; break; } // 0 entry denotes following tags are for next node
+							i32 valStringId = denseNodes->keys_vals[currentKeyValIndex+1];
+							currentKeyValIndex += 2;
+							Str8 keyStr = GetPbfString(primitiveBlock->stringtable, keyStringId);
+							if (!IsEmptyStr(keyStr))
+							{
+								Str8 valueStr = GetPbfString(primitiveBlock->stringtable, valStringId);
+								OsmTag* newTag = VarArrayAdd(OsmTag, &newNode->tags);
+								NotNull(newTag);
+								ClearPointer(newTag);
+								newTag->key = AllocStr8(arena, keyStr);
+								newTag->value = AllocStr8(arena, valueStr);
+							}
+						}
+						
+						prevNodeId = nodeId;
+						prevNodeLat = nodeLat;
+						prevNodeLon = nodeLon;
+						prevNodeVersion = nodeVersion;
+						prevNodeTimestamp = nodeTimestamp;
+						prevNodeChangeset = nodeChangeset;
+						prevNodeUid = nodeUid;
+						prevNodeUserSid = nodeUserSid;
+					}
+					TracyCZoneEnd(Zone_OsmDenseNodes);
+					if (result != Result_None) { break; }
+					if (currentKeyValIndex < denseNodes->n_keys_vals) { PrintLine_W("There were %zu/%zu tags left over after parsing %zu denseNodes in blob[%llu]", denseNodes->n_keys_vals - currentKeyValIndex, denseNodes->n_keys_vals, denseNodes->n_id, blobIndex); }
+				}
+				
+				// +==============================+
+				// |           PBF Ways           |
+				// +==============================+
+				TracyCZoneN(Zone_OsmWays, "OsmWays", true);
+				for (size_t wIndex = 0; wIndex < primitiveGroup->n_ways; wIndex++)
+				{
+					OSMPBF__Way* way = primitiveGroup->ways[wIndex];
+					NotNull(way->info);
+					if (way->id <= 0)                                         { PrintLine_E("Way[%zu] in blob[%llu] has invalid ID %lld",        wIndex, blobIndex, way->id); result = Result_InvalidID; break; }
+					if (way->info->has_timestamp && way->info->timestamp < 0) { PrintLine_E("Way[%zu] in blob[%llu] has invalid timestamp %lld", wIndex, blobIndex, way->info->timestamp); result = Result_ValueTooLow; break; }
+					if (way->info->has_uid       && way->info->uid       < 0) { PrintLine_E("Way[%zu] in blob[%llu] has invalid uid %d",         wIndex, blobIndex, way->info->uid); result = Result_ValueTooLow; break; }
+					if (way->info->has_changeset && way->info->changeset < 0) { PrintLine_E("Way[%zu] in blob[%llu] has invalid changeset %lld", wIndex, blobIndex, way->info->changeset); result = Result_ValueTooLow; break; }
+					if (way->n_keys != way->n_vals)                           { PrintLine_E("Way[%zu] in blob[%llu] key count %zu doesn't match value count %zu", wIndex, blobIndex, way->n_keys, way->n_vals); result = Result_Mismatch; break; }
+					if (way->n_refs > 0)
+					{
+						uxx scratchMark2 = ArenaGetMark(scratch);
+						uxx numNodesInWay = (uxx)way->n_refs;
+						u64* nodeIds = AllocArray(u64, scratch, numNodesInWay);
+						NotNull(nodeIds);
+						u64 prevNodeId = 0;
+						for (size_t rIndex = 0; rIndex < way->n_refs; rIndex++)
+						{
+							if (way->refs[rIndex] < -(i64)prevNodeId) { PrintLine_E("Node[%zu] in Way[%zu] in blob[%llu] has negative ID %llu%s%lld", rIndex, wIndex, blobIndex, prevNodeId, (way->refs[rIndex] >= 0) ? "+" : "", way->refs[rIndex]); result = Result_InvalidID; break; }
+							if (way->refs[rIndex] > 0 && (u64)way->refs[rIndex] > UINT64_MAX - prevNodeId) { PrintLine_E("Node[%zu] in Way[%zu] in blob[%llu] has overflow ID %llu%s%lld", rIndex, wIndex, blobIndex, prevNodeId, (way->refs[rIndex] >= 0) ? "+" : "", way->refs[rIndex]); result = Result_InvalidID; break; }
+							nodeIds[rIndex] = (u64)(prevNodeId + way->refs[rIndex]);
+							prevNodeId = nodeIds[rIndex];
+						}
+						if (result != Result_None) { ArenaResetToMark(scratch, scratchMark2); break; }
+						
+						//TODO: Handle "LocationsOnWays" feature by looking at n_lat,n_lon and disregarding if the IDs map to nodes we loaded!
+						OsmWay* newWay = AddOsmWay(mapOut, (u64)way->id, numNodesInWay, nodeIds);
+						newWay->visible = (way->info->has_visible ? way->info->visible : true);
+						newWay->version = (way->info->has_version ? way->info->version : -1);
+						//TODO: Str8 timestampStr; newWay->timestamp = (way->info->has_timestamp ? (u64)way->info->timestamp : 0);
+						newWay->uid = (way->info->has_uid ? (u64)way->info->uid : 0);
+						//TODO: Str8 user; newWay->user = (way->info->has_user_sid ? LookupString(way->info->user_sid) : Str8_Empty);
+						newWay->changeset = (way->info->has_changeset ? (u64)way->info->changeset : 0);
+						VarArrayExpand(&newWay->tags, newWay->tags.length + (uxx)way->n_keys);
+						for (size_t tIndex = 0; tIndex < way->n_keys; tIndex++)
+						{
+							Str8 keyStr = GetPbfString(primitiveBlock->stringtable, way->keys[tIndex]);
+							if (!IsEmptyStr(keyStr))
+							{
+								Str8 valueStr = GetPbfString(primitiveBlock->stringtable, way->vals[tIndex]);
+								OsmTag* newTag = VarArrayAdd(OsmTag, &newWay->tags);
+								NotNull(newTag);
+								ClearPointer(newTag);
+								newTag->key = AllocStr8(arena, keyStr);
+								newTag->value = AllocStr8(arena, valueStr);
+							}
+						}
+						
+						ArenaResetToMark(scratch, scratchMark2);
+					}
+					else { PrintLine_W("Way[%zu] in blob[%llu] had no node references!", wIndex, blobIndex); }
+				}
+				TracyCZoneEnd(Zone_OsmWays);
+				if (result != Result_None) { break; }
+				
+				// +==============================+
+				// |        PBF Relations         |
+				// +==============================+
+				TracyCZoneN(Zone_OsmRelations, "OsmRelations", true);
+				for (size_t rIndex = 0; rIndex < primitiveGroup->n_relations; rIndex++)
+				{
+					OSMPBF__Relation* relation = primitiveGroup->relations[rIndex];
+					UNUSED(relation); //TODO: Implement me!
+				}
+				TracyCZoneEnd(Zone_OsmRelations);
+				if (result != Result_None) { break; }
+				
+				// +==============================+
+				// |        PBF Changesets        |
+				// +==============================+
+				TracyCZoneN(Zone_OsmChangesets, "OsmChangesets", true);
+				for (size_t cIndex = 0; cIndex < primitiveGroup->n_changesets; cIndex++)
+				{
+					OSMPBF__ChangeSet* changeset = primitiveGroup->changesets[cIndex];
+					UNUSED(changeset); //TODO: Implement me!
+				}
+				TracyCZoneEnd(Zone_OsmChangesets);
+				if (result != Result_None) { break; }
+			}
+			if (result != Result_None) { break; }
+			
+			foundOsmData = true;
+		}
+		else { PrintLine_W("Unhandled blob type \"%s\"", blobHeader->type); foundUnkownBlobTypes = true; }
+		
+		ArenaResetToMark(scratch, scratchMark1);
+		blobIndex++;
+	}
+	
+	if (result != Result_None) { PrintLine_E("Got through %llu blobs before encountering: %s", blobIndex, GetResultStr(result)); }
+	if (!foundOsmData) { result = foundOsmHeader ? (foundUnkownBlobTypes ? Result_WrongInternalFormat : Result_MissingData) : Result_MissingHeader; }
+	if (result == Result_None) { result = Result_Success; }
+	else if (foundOsmHeader) { FreeOsmMap(mapOut); }
+	ScratchEnd(scratch);
+	TracyCZoneEnd(Zone_Func);
+	return result;
 }
 
 Str8 GetOsmNodeTagValue(OsmNode* node, Str8 tagKey, Str8 defaultValue)

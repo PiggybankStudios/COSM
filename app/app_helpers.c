@@ -206,9 +206,9 @@ bool AppChangeFontSize(bool increase)
 void FindInternationalCodepointsInMapNames(OsmMap* map, VarArray* codepointsOut)
 {
 	VarArrayClear(codepointsOut);
-	VarArrayLoop(&app->map.nodes, nIndex)
+	VarArrayLoop(&map->nodes, nIndex)
 	{
-		VarArrayLoopGet(OsmNode, node, &app->map.nodes, nIndex);
+		VarArrayLoopGet(OsmNode, node, &map->nodes, nIndex);
 		Str8 nameStr = GetOsmNodeTagValue(node, StrLit("name:ja"), Str8_Empty);
 		if (IsEmptyStr(nameStr)) { nameStr = GetOsmNodeTagValue(node, StrLit("name"), Str8_Empty); }
 		for (uxx bIndex = 0; bIndex < nameStr.length; bIndex++)
@@ -238,40 +238,62 @@ void OpenOsmMap(FilePath filePath)
 {
 	TracyCZoneN(funcZone, "OpenOsmMap", true);
 	ScratchBegin(scratch);
-	Str8 fileContents = Str8_Empty;
-	TracyCZoneN(_ReadTextFile, "OsReadTextFile", true);
-	bool openedSelectedFile = OsReadTextFile(filePath, scratch, &fileContents);
-	TracyCZoneEnd(_ReadTextFile);
-	if (openedSelectedFile)
+	
+	OsmMap newMap = ZEROED;
+	Result parseResult = Result_None;
+	
+	if (StrAnyCaseEndsWith(filePath, StrLit(".pbf")))
 	{
-		PrintLine_I("Opened \"%.*s\", %llu bytes", StrPrint(filePath), fileContents.length);
-		OsmMap newMap = ZEROED;
-		Result parseResult = TryParseOsmMap(stdHeap, fileContents, &newMap);
-		if (parseResult == Result_Success)
+		Slice fileContents = Slice_Empty;
+		TracyCZoneN(_ReadBinFile, "OsReadBinFile", true);
+		bool openedSelectedFile = OsReadBinFile(filePath, scratch, &fileContents);
+		TracyCZoneEnd(_ReadBinFile);
+		if (openedSelectedFile)
 		{
-			FreeStr8(stdHeap, &app->loadedFilePath);
-			FreeOsmMap(&app->map);
-			MyMemCopy(&app->map, &newMap, sizeof(OsmMap));
-			PrintLine_I("Parsed map! %llu node%s, %llu way%s",
-				app->map.nodes.length, Plural(app->map.nodes.length, "s"),
-				app->map.ways.length, Plural(app->map.ways.length, "s")
-			);
-			
-			v2d targetLocation = AddV2d(app->map.bounds.TopLeft, ShrinkV2d(app->map.bounds.Size, 2.0));
-			app->view.position = MapProject(app->view.projection, targetLocation, NewRecdV(V2d_Zero, app->view.mapRec.Size));
-			app->view.zoom = MinR64(
-				1.0 / (app->map.bounds.SizeLon / 360.0),
-				1.0 / (app->map.bounds.SizeLat / 180.0)
-			);
-			
-			app->loadedFilePath = AllocStr8(stdHeap, filePath);
-			FindInternationalCodepointsInMapNames(&app->map, &app->kanjiCodepoints);
-			bool fontBakeSuccess = AppCreateFonts();
-			Assert(fontBakeSuccess);
+			PrintLine_I("Opened \"%.*s\", %llu bytes", StrPrint(filePath), fileContents.length);
+			parseResult = TryParsePbfMap(stdHeap, fileContents, &newMap);
+			if (parseResult != Result_Success) { PrintLine_E("Failed to parse as OpenStreetMaps Protobuf data! Error: %s", GetResultStr(parseResult)); }
 		}
-		else { PrintLine_E("Failed to parse as OpenStreetMaps XML data! Error: %s", GetResultStr(parseResult)); }
 	}
-	else { PrintLine_E("Failed to open \"%.*s\"", StrPrint(filePath)); }
+	else if (StrAnyCaseEndsWith(filePath, StrLit(".osm")))
+	{
+		Str8 fileContents = Str8_Empty;
+		TracyCZoneN(_ReadTextFile, "OsReadTextFile", true);
+		bool openedSelectedFile = OsReadTextFile(filePath, scratch, &fileContents);
+		TracyCZoneEnd(_ReadTextFile);
+		if (openedSelectedFile)
+		{
+			PrintLine_I("Opened \"%.*s\", %llu bytes", StrPrint(filePath), fileContents.length);
+			parseResult = TryParseOsmMap(stdHeap, fileContents, &newMap);
+			if (parseResult != Result_Success) { PrintLine_E("Failed to parse as OpenStreetMaps XML data! Error: %s", GetResultStr(parseResult)); }
+		}
+		else { PrintLine_E("Failed to open \"%.*s\"", StrPrint(filePath)); }
+	}
+	else { PrintLine_E("Unknown file extension \"%.*s\", expected .osm or .pbf files!", StrPrint(GetFileNamePart(filePath, true))); }
+	
+	if (parseResult == Result_Success)
+	{
+		FreeStr8(stdHeap, &app->loadedFilePath);
+		FreeOsmMap(&app->map);
+		MyMemCopy(&app->map, &newMap, sizeof(OsmMap));
+		PrintLine_I("Parsed map! %llu node%s, %llu way%s",
+			app->map.nodes.length, Plural(app->map.nodes.length, "s"),
+			app->map.ways.length, Plural(app->map.ways.length, "s")
+		);
+		
+		v2d targetLocation = AddV2d(app->map.bounds.TopLeft, ShrinkV2d(app->map.bounds.Size, 2.0));
+		app->view.position = MapProject(app->view.projection, targetLocation, NewRecdV(V2d_Zero, app->view.mapRec.Size));
+		// app->view.zoom = MinR64(
+		// 	1.0 / (app->map.bounds.SizeLon / 360.0),
+		// 	1.0 / (app->map.bounds.SizeLat / 180.0)
+		// );
+		
+		app->loadedFilePath = AllocStr8(stdHeap, filePath);
+		FindInternationalCodepointsInMapNames(&app->map, &app->kanjiCodepoints);
+		bool fontBakeSuccess = AppCreateFonts();
+		Assert(fontBakeSuccess);
+	}
+	
 	ScratchEnd(scratch);
 	TracyCZoneEnd(funcZone);
 }
