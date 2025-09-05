@@ -1,16 +1,26 @@
 # TODO List
-	[ ] Render english city names
-	[ ] Fix panning/zooming interaction (r64)
-	[ ] Load multiple .osm files and display layers
-	[ ] Find a way to download LOD versions of coastline?
-	[?] Optimize renderer to draw a large number of ways
-	[ ] Add selection interaction
+	[X] Render english city names
+	[X] Fix panning/zooming interaction (r64)
+	[-] Find a way to download LOD versions of coastline?
+	[X] Unproject for Mercator projection!
+	[ ] Middle or Right Click to pan
+	[ ] Proper zoom behavior
+	[ ] Store things in dictionaries based on IDs for quick lookup by ID
+	[ ] Caching system with eviction for vertex buffers
+	[ ] Style rules loaded from file
+	[ ] Drag and drop to load file
+	[ ] Recent files list
+	[ ] Serialize to .osm or .pbf
+	[ ] Ability to select elements
 	[ ] Display information about selected nodes/ways
-	[ ] Re-serialize the OSM data to .osm file
+	[ ] Turn selected items on/off. Move to different layers. Delete items.
 	[ ] Add support for choosing color/thickness/radius of selected items
-	[ ] Render names on ways (or collections of ways?)
-	[ ] Add support for rendering kanji characters
-	[ ] Display both english and Japanese names (toggle?)
-	[ ] Allow hiding and deletion of selected elements
+	[ ] Select similar nodes by tag value
+	[ ] Group items together (layer is separate from groups?)
+	[ ] Load multiple .osm files and display layers
+	[ ] Proper JIT glyph baking support in fonts
+	[ ] Choose which name(s) to display for all nodes
+	[ ] Space partitioning data structure
 	[ ] Layer management panel (create, destroy, duplicate, move between layers, etc.)
+	[ ] Render names on ways (or collections of ways?)
 	[ ] 

@@ -508,6 +508,14 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 			
 			DrawRectangleOutlineEx(ToRecFromd(mapRec), 4.0f, MonokaiPurple, false);
 			
+			if (app->map.arena != nullptr && IsMouseBtnPressed(&appIn->mouse, MouseBtn_Right))
+			{
+				v2d clickedLocation = MapUnproject(app->view.projection, ToV2dFromf(appIn->mouse.position), mapRec);
+				OsmNode* newNode = AddOsmNode(&app->map, clickedLocation, 0);
+				OsmTag* newTag1 = VarArrayAdd(OsmTag, &newNode->tags); NotNull(newTag1); newTag1->key = AllocStr8Nt(app->map.arena, "name"); newTag1->value = AllocStr8Nt(app->map.arena, "Mouse");
+				OsmTag* newTag2 = VarArrayAdd(OsmTag, &newNode->tags); NotNull(newTag2); newTag2->key = AllocStr8Nt(app->map.arena, "population"); newTag2->value = AllocStr8Nt(app->map.arena, "1000000");
+			}
+			
 			#if 0
 			if (app->mapFont.arena != nullptr)
 			{

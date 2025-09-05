@@ -30,7 +30,6 @@ const char* GetMapProjectionStr(MapProjection enumValue)
 // |                     Mercator Projection                      |
 // +--------------------------------------------------------------+
 // https://stackoverflow.com/questions/14329691/convert-latitude-longitude-point-to-a-pixels-x-y-on-mercator-projection
-//TODO: Do we need 64-bit float rec?
 v2d MapProject(MapProjection projection, v2d geoLoc, recd mapRec)
 {
 	switch (projection)
@@ -51,14 +50,22 @@ v2d MapProject(MapProjection projection, v2d geoLoc, recd mapRec)
 
 v2d MapUnproject(MapProjection projection, v2d mapPos, recd mapRec)
 {
-	UNUSED(mapPos);
-	UNUSED(mapRec);
 	switch (projection)
 	{
-		// case MapProjection_Mercator:
-		// {
-		// 	//TODO: Implement me!
-		// } break;
+		case MapProjection_Mercator:
+		{
+			v2d result;
+			
+			result.Longitude = ((mapPos.X - mapRec.X) / (mapRec.Width / 360.0)) - 180.0;
+			if (!IsInfiniteOrNanR64(result.Longitude)) { result.Longitude = (((result.Longitude+180)/360) - FloorR64((result.Longitude+180)/360))*360 - 180; } //wrap around
+			
+			r64 relativeY = mapPos.Y - (mapRec.Y + (mapRec.Height/2.0));
+			r64 mercN = -(relativeY * TwoPi64 / mapRec.Width);
+			r64 latRadians = (AtanJoinedR64(PowR64(e64, mercN)) - QuarterPi64) * 2.0;
+			result.Latitude = ToDegrees64(latRadians);
+			
+			return result;
+		} break;
 		
 		default: AssertMsg(false, "MapProjection doesn't have implementation in MapUnproject"); return mapPos;
 	}

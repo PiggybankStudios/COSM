@@ -311,7 +311,7 @@ void UpdateOsmWayColorChoice(OsmWay* way)
 		{
 			way->fillColor = NewColorU32(0x80FF00FF);
 			way->renderLayer = OsmRenderLayer_Bottom;
-			if (way->tags.length == 0) { way->fillColor = Transparent; }
+			if (way->tags.length == 0) { way->fillColor = Transparent; } //TODO: We should see if there are any relations referencing this way and maybe color this way based off that
 			else
 			{
 				Str8 landuseStr = GetOsmWayTagValue(way, StrLit("landuse"), Str8_Empty);
