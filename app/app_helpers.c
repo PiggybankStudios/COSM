@@ -309,7 +309,7 @@ void UpdateOsmWayColorChoice(OsmWay* way)
 		
 		if (way->isClosedLoop)
 		{
-			way->fillColor = Black;
+			way->fillColor = NewColorU32(0x80FF00FF);
 			way->renderLayer = OsmRenderLayer_Bottom;
 			if (way->tags.length == 0) { way->fillColor = Transparent; }
 			else
@@ -398,7 +398,8 @@ void UpdateOsmWayColorChoice(OsmWay* way)
 			
 			if (way->isClosedLoop)
 			{
-				if (way->fillColor.valueU32 == Black_Value)
+				#if 0
+				if (way->fillColor.valueU32 == 0x80FF00FF)
 				{
 					PrintLine_D("Way[%llu] failed to choose a fillColor with %llu tags", way->id, way->tags.length);
 					VarArrayLoop(&way->tags, tIndex)
@@ -407,6 +408,7 @@ void UpdateOsmWayColorChoice(OsmWay* way)
 						PrintLine_D("\tTag[%llu] \"%.*s\" = \"%.*s\"", tIndex, StrPrint(tag->key), StrPrint(tag->value));
 					}
 				}
+				#endif
 				
 				Str8 colorStr = GetOsmWayTagValue(way, StrLit("color"), Str8_Empty);
 				if (!IsEmptyStr(colorStr))
