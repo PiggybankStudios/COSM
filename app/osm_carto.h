@@ -11,6 +11,17 @@ Description:
 #define _OSM_CARTO_H
 
 #define CartoFillBackground_Value       0xFFF2EFE9
+#define CartoTextGrey_Value             0xFF555555
+#define CartoTextGreen_Value            0xFF0E8517
+#define CartoTextOrange_Value           0xFFC77400
+#define CartoTextBrown_Value            0xFF734A08
+#define CartoTextDarkBlue_Value         0xFF5768EC
+#define CartoTextPurple_Value           0xFF8461C4
+#define CartoTextBlue_Value             0xFF0092DA
+#define CartoTextMagenta_Value          0xFFAC39AC
+#define CartoTextRed_Value              0xFFBF0000
+#define CartoTextTan_Value              0xFFB9A99E
+#define CartoTextBlack_Value            0xFF000000
 #define CartoFillResidential_Value      0xFFE0DFDF //Grey
 #define CartoFillRetail_Value           0xFFFFD6D1 //Pink
 #define CartoBorderRetail_Value         0xFFEABBB5
@@ -41,6 +52,17 @@ Description:
 #define CartoFillGrass_Value            0xFFCDEBB0 //Grass Green
 
 #define CartoFillBackground       NewColorU32(CartoFillBackground_Value)
+#define CartoTextGrey             NewColorU32(CartoTextGrey_Value)
+#define CartoTextGreen            NewColorU32(CartoTextGreen_Value)
+#define CartoTextOrange           NewColorU32(CartoTextOrange_Value)
+#define CartoTextBrown            NewColorU32(CartoTextBrown_Value)
+#define CartoTextDarkBlue         NewColorU32(CartoTextDarkBlue_Value)
+#define CartoTextPurple           NewColorU32(CartoTextPurple_Value)
+#define CartoTextBlue             NewColorU32(CartoTextBlue_Value)
+#define CartoTextMagenta          NewColorU32(CartoTextMagenta_Value)
+#define CartoTextRed              NewColorU32(CartoTextRed_Value)
+#define CartoTextTan              NewColorU32(CartoTextTan_Value)
+#define CartoTextBlack            NewColorU32(CartoTextBlack_Value)
 #define CartoFillResidential      NewColorU32(CartoFillResidential_Value)
 #define CartoFillRetail           NewColorU32(CartoFillRetail_Value)
 #define CartoBorderRetail         NewColorU32(CartoBorderRetail_Value)

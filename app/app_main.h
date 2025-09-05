@@ -15,6 +15,8 @@ plex MapView
 	v2d position; //this is relative to mapRec
 	r64 minZoom;
 	r64 zoom;
+	bool isDragPanning;
+	v2d dragPanningPos; //relative to mapRec
 };
 
 typedef plex AppData AppData;

@@ -203,6 +203,79 @@ bool AppChangeFontSize(bool increase)
 	else { return false; }
 }
 
+recd GetMapScreenRec(MapView* view)
+{
+	recd result = view->mapRec;
+	result.TopLeft = SubV2d(result.TopLeft, view->position);
+	result = ScaleRecd(result, view->zoom);
+	
+	rec mainViewportRec = GetClayElementDrawRecNt("MainViewport");
+	if (mainViewportRec.Width > 0 && mainViewportRec.Height > 0)
+	{
+		result.TopLeft = AddV2d(result.TopLeft, AddV2d(ToV2dFromf(mainViewportRec.TopLeft), ToV2dFromf(ShrinkV2(mainViewportRec.Size, 2.0f))));
+	}
+	
+	return result;
+}
+
+void SetMapItemSelected(OsmMap* map, OsmPrimitiveType type, void* itemPntr, bool selected)
+{
+	NotNull(map);
+	NotNull(itemPntr);
+	u64 itemId = 0;
+	if (type == OsmPrimitiveType_Node) { itemId = ((OsmNode*)itemPntr)->id; }
+	else if (type == OsmPrimitiveType_Way) { itemId = ((OsmWay*)itemPntr)->id; }
+	else { Assert(false); }
+	
+	bool isAlreadySelected = false;
+	uxx selectedItemIndex = 0;
+	VarArrayLoop(&map->selectedItems, sIndex)
+	{
+		VarArrayLoopGet(OsmSelectedItem, selectedItem, &map->selectedItems, sIndex);
+		if (selectedItem->type == type && selectedItem->id == itemId)
+		{
+			isAlreadySelected = true;
+			selectedItemIndex = sIndex;
+			break;
+		}
+	}
+	
+	if (selected)
+	{
+		if (isAlreadySelected) { return; }
+		OsmSelectedItem* newSelectedItem = VarArrayAdd(OsmSelectedItem, &map->selectedItems);
+		NotNull(newSelectedItem);
+		ClearPointer(newSelectedItem);
+		newSelectedItem->type = type;
+		newSelectedItem->id = itemId;
+		newSelectedItem->pntr = itemPntr;
+		if (type == OsmPrimitiveType_Node) { ((OsmNode*)itemPntr)->isSelected = true; }
+		else if (type == OsmPrimitiveType_Way) { ((OsmWay*)itemPntr)->isSelected = true; }
+		else { Assert(false); }
+	}
+	else
+	{
+		if (!isAlreadySelected) { return; }
+		if (type == OsmPrimitiveType_Node) { ((OsmNode*)itemPntr)->isSelected = false; }
+		else if (type == OsmPrimitiveType_Way) { ((OsmWay*)itemPntr)->isSelected = false; }
+		else { Assert(false); }
+		VarArrayRemoveAt(OsmSelectedItem, &map->selectedItems, selectedItemIndex);
+	}
+}
+void SetMapNodeSelected(OsmMap* map, OsmNode* node, bool selected) { SetMapItemSelected(map, OsmPrimitiveType_Node, (void*)node, selected); }
+void SetMapWaySelected(OsmMap* map, OsmWay* way, bool selected) { SetMapItemSelected(map, OsmPrimitiveType_Way, (void*)way, selected); }
+
+void ClearMapSelection(OsmMap* map)
+{
+	VarArrayLoop(&map->selectedItems, sIndex)
+	{
+		VarArrayLoopGet(OsmSelectedItem, selectedItem, &map->selectedItems, sIndex);
+		if (selectedItem->type == OsmPrimitiveType_Node) { selectedItem->nodePntr->isSelected = false; }
+		else if (selectedItem->type == OsmPrimitiveType_Way) { selectedItem->wayPntr->isSelected = false; }
+	}
+	VarArrayClear(&map->selectedItems);
+}
+
 void FindInternationalCodepointsInMapNames(OsmMap* map, VarArray* codepointsOut)
 {
 	VarArrayClear(codepointsOut);
@@ -438,6 +511,7 @@ void UpdateOsmWayColorChoice(OsmWay* way)
 
 void UpdateOsmWayTriangulation(OsmMap* map, OsmWay* way)
 {
+	if (!way->isClosedLoop) { return; }
 	if (way->triIndices == nullptr && !way->attemptedTriangulation)
 	{
 		ScratchBegin(scratch);

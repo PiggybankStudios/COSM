@@ -444,6 +444,149 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 			OpenOsmMap(StrLit(TEST_OSM_FILE));
 		}
 		
+		// +==============================+
+		// |      Handle Key_Escape       |
+		// +==============================+
+		if (IsKeyboardKeyPressed(&appIn->keyboard, Key_Escape, true))
+		{
+			if (app->map.selectedItems.length > 0)
+			{
+				ClearMapSelection(&app->map);
+			}
+			else
+			{
+				//TODO: Anything else?
+			}
+		}
+		
+		// +====================================+
+		// | Update Hover and Handle Selection  |
+		// +====================================+
+		if (app->map.arena != nullptr)
+		{
+			if (!IsMouseOverClay(CLAY_ID("MainViewport")))
+			{
+				VarArrayLoop(&app->map.nodes, nIndex) { VarArrayLoopGet(OsmNode, node, &app->map.nodes, nIndex); node->isHovered = false; }
+				VarArrayLoop(&app->map.ways, wIndex) { VarArrayLoopGet(OsmWay, way, &app->map.ways, wIndex); way->isHovered = false; }
+				if (IsMouseBtnPressed(&appIn->mouse, MouseBtn_Left))
+				{
+					if (!IsKeyboardKeyDown(&appIn->keyboard, Key_Shift) && !IsKeyboardKeyDown(&appIn->keyboard, Key_Control)) { ClearMapSelection(&app->map); }
+				}
+			}
+			else
+			{
+				recd screenMapRec = GetMapScreenRec(&app->view);
+				v2d mouseLocation = MapUnproject(app->view.projection, ToV2dFromf(appIn->mouse.position), screenMapRec);
+				
+				OsmNode* closestNode = nullptr;
+				r64 closestNodeDistanceSqr = 0.0f;
+				VarArrayLoop(&app->map.nodes, nIndex)
+				{
+					VarArrayLoopGet(OsmNode, node, &app->map.nodes, nIndex);
+					node->isHovered = false;
+					r64 nodeDistanceSqr = LengthSquaredV2d(SubV2d(mouseLocation, node->location));
+					if (closestNode == nullptr || nodeDistanceSqr < closestNodeDistanceSqr)
+					{
+						closestNode = node;
+						closestNodeDistanceSqr = nodeDistanceSqr;
+					}
+				}
+				
+				OsmWay* closestWay = nullptr;
+				r64 closestWayDistanceSqr = 0.0f;
+				v2d closestWayPoint = V2d_Zero;
+				#if 0
+				//TODO; This doesn't seem to be working super well
+				VarArrayLoop(&app->map.ways, wIndex)
+				{
+					VarArrayLoopGet(OsmWay, way, &app->map.ways, wIndex);
+					way->isHovered = false;
+					if (IsInsideRecd(way->nodeBounds, mouseLocation))
+					{
+						for (uxx nIndex = 1; nIndex < way->nodes.length; nIndex++)
+						{
+							OsmNodeRef* node1 = VarArrayGet(OsmNodeRef, &way->nodes, nIndex-1);
+							OsmNodeRef* node2 = VarArrayGet(OsmNodeRef, &way->nodes, nIndex);
+							Line2DR64 line = NewLine2DR64V(node1->pntr->location, node2->pntr->location);
+							v2d closestPoint = V2d_Zero;
+							r64 distanceToLine = DistanceToLine2DR64(line, mouseLocation, &closestPoint);
+							if (closestWay == nullptr || distanceToLine*distanceToLine < closestWayDistanceSqr)
+							{
+								closestWay = way;
+								closestWayDistanceSqr = distanceToLine*distanceToLine;
+								closestWayPoint = closestPoint;
+							}
+						}
+					}
+				}
+				if (closestWayDistanceSqr < closestNodeDistanceSqr) { closestNode = nullptr; }
+				#else
+				VarArrayLoop(&app->map.ways, wIndex) { VarArrayLoopGet(OsmWay, way, &app->map.ways, wIndex); way->isHovered = false; }
+				#endif
+				
+				OsmNode* hoveredNode = nullptr;
+				OsmWay* hoveredWay = nullptr;
+				if (closestNode != nullptr)
+				{
+					v2 nodePosOnScreen = ToV2Fromd(MapProject(app->view.projection, closestNode->location, screenMapRec));
+					if (LengthSquaredV2(SubV2(nodePosOnScreen, appIn->mouse.position)) < 10*10)
+					{
+						hoveredNode = closestNode;
+						hoveredNode->isHovered = true;
+					}
+				}
+				else if (closestWay != nullptr)
+				{
+					v2 pointPosOnScreen = ToV2Fromd(MapProject(app->view.projection, closestWayPoint, screenMapRec));
+					if (LengthSquaredV2(SubV2(pointPosOnScreen, appIn->mouse.position)) < 10*10)
+					{
+						hoveredWay = closestWay;
+						hoveredWay->isHovered = true;
+					}
+				}
+				
+				// Check if the node is part of a way and hover that way instead
+				if (hoveredNode != nullptr)
+				{
+					OsmWay* nodeWay = nullptr;
+					VarArrayLoop(&app->map.ways, wIndex)
+					{
+						VarArrayLoopGet(OsmWay, way, &app->map.ways, wIndex);
+						VarArrayLoop(&way->nodes, nIndex)
+						{
+							VarArrayLoopGet(OsmNodeRef, nodeRef, &way->nodes, nIndex);
+							if (nodeRef->id == hoveredNode->id)
+							{
+								nodeWay = way;
+								break;
+							}
+						}
+					}
+					
+					if (nodeWay != nullptr)
+					{
+						hoveredNode->isHovered = false;
+						nodeWay->isHovered = true;
+						hoveredNode = nullptr;
+						hoveredWay = nodeWay;
+					}
+				}
+				
+				if (IsMouseBtnPressed(&appIn->mouse, MouseBtn_Left))
+				{
+					if (!IsKeyboardKeyDown(&appIn->keyboard, Key_Shift) && !IsKeyboardKeyDown(&appIn->keyboard, Key_Control)) { ClearMapSelection(&app->map); }
+					if (hoveredNode != nullptr)
+					{
+						SetMapNodeSelected(&app->map, hoveredNode, IsKeyboardKeyDown(&appIn->keyboard, Key_Control) ? !hoveredNode->isSelected : true);
+					}
+					else if (hoveredWay != nullptr)
+					{
+						SetMapWaySelected(&app->map, hoveredWay, IsKeyboardKeyDown(&appIn->keyboard, Key_Control) ? !hoveredWay->isSelected : true);
+					}
+				}
+			}
+		}
+		
 		// +================================================+
 		// | Ctrl+R Refreshes Way Colors and Triangulation  |
 		// +================================================+
@@ -501,20 +644,19 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 		{
 			app->view.minZoom = MinR64(mainViewportRec.Width / app->view.mapRec.Width, mainViewportRec.Height / app->view.mapRec.Height);
 			if (app->view.zoom == 0.0) { app->view.zoom = app->view.minZoom; }
-			recd mapRec = app->view.mapRec;
-			mapRec.TopLeft = SubV2d(mapRec.TopLeft, app->view.position);
-			mapRec = ScaleRecd(mapRec, app->view.zoom);
-			mapRec.TopLeft = AddV2d(mapRec.TopLeft, AddV2d(ToV2dFromf(mainViewportRec.TopLeft), ToV2dFromf(ShrinkV2(mainViewportRec.Size, 2.0f))));
+			recd mapScreenRec = GetMapScreenRec(&app->view);
 			
-			DrawRectangleOutlineEx(ToRecFromd(mapRec), 4.0f, MonokaiPurple, false);
+			DrawRectangleOutlineEx(ToRecFromd(mapScreenRec), 4.0f, MonokaiPurple, false);
 			
+			#if 0
 			if (app->map.arena != nullptr && IsMouseBtnPressed(&appIn->mouse, MouseBtn_Right))
 			{
-				v2d clickedLocation = MapUnproject(app->view.projection, ToV2dFromf(appIn->mouse.position), mapRec);
+				v2d clickedLocation = MapUnproject(app->view.projection, ToV2dFromf(appIn->mouse.position), mapScreenRec);
 				OsmNode* newNode = AddOsmNode(&app->map, clickedLocation, 0);
 				OsmTag* newTag1 = VarArrayAdd(OsmTag, &newNode->tags); NotNull(newTag1); newTag1->key = AllocStr8Nt(app->map.arena, "name"); newTag1->value = AllocStr8Nt(app->map.arena, "Mouse");
 				OsmTag* newTag2 = VarArrayAdd(OsmTag, &newNode->tags); NotNull(newTag2); newTag2->key = AllocStr8Nt(app->map.arena, "population"); newTag2->value = AllocStr8Nt(app->map.arena, "1000000");
 			}
+			#endif
 			
 			#if 0
 			if (app->mapFont.arena != nullptr)
@@ -547,8 +689,8 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 						{
 							if (way->isClosedLoop)
 							{
-								v2 boundsTopLeft = ToV2Fromd(MapProject(app->view.projection, way->nodeBounds.TopLeft, mapRec));
-								v2 boundsBottomRight = ToV2Fromd(MapProject(app->view.projection, AddV2d(way->nodeBounds.TopLeft, way->nodeBounds.Size), mapRec));
+								v2 boundsTopLeft = ToV2Fromd(MapProject(app->view.projection, way->nodeBounds.TopLeft, mapScreenRec));
+								v2 boundsBottomRight = ToV2Fromd(MapProject(app->view.projection, AddV2d(way->nodeBounds.TopLeft, way->nodeBounds.Size), mapScreenRec));
 								rec boundsRec = NewRecBetweenV(boundsTopLeft, boundsBottomRight);
 								if (boundsRec.X + boundsRec.Width >= 0 && boundsRec.Y + boundsRec.Height >= 0 &&
 									boundsRec.X <= screenSize.Width && boundsRec.Y <= screenSize.Height)
@@ -566,7 +708,9 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 									else
 									{
 										UpdateOsmWayTriangulation(&app->map, way);
-										RenderWayFilled(way, mapRec, boundsRec, way->fillColor, way->borderThickness, way->borderColor);
+										Color32 fillColor = way->isSelected ? MonokaiGreen : (way->isHovered ? ColorLerpSimple(way->fillColor, MonokaiOrange, 0.2f) : way->fillColor);
+										Color32 borderColor = (way->isSelected || way->isHovered) ? Transparent : way->borderColor;
+										RenderWayFilled(way, mapScreenRec, boundsRec, fillColor, way->borderThickness, borderColor);
 									}
 								}
 							}
@@ -577,7 +721,7 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 								VarArrayLoop(&way->nodes, nIndex)
 								{
 									VarArrayLoopGet(OsmNodeRef, nodeRef, &way->nodes, nIndex);
-									v2d nodePos = MapProject(app->view.projection, nodeRef->pntr->location, mapRec);
+									v2d nodePos = MapProject(app->view.projection, nodeRef->pntr->location, mapScreenRec);
 									if (nIndex > 0)
 									{
 										DrawLine(ToV2Fromd(prevPos), ToV2Fromd(nodePos), way->lineThickness, way->fillColor);
@@ -585,6 +729,23 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 									prevPos = nodePos;
 								}
 							}
+						}
+					}
+					
+					if (currentLayer == OsmRenderLayer_Selection && (way->isSelected || way->isHovered))
+					{
+						Color32 borderColor = (way->isSelected ? CartoTextGreen : CartoTextOrange);
+						
+						v2d prevPos = V2d_Zero;
+						VarArrayLoop(&way->nodes, nIndex)
+						{
+							VarArrayLoopGet(OsmNodeRef, nodeRef, &way->nodes, nIndex);
+							v2d nodePos = MapProject(app->view.projection, nodeRef->pntr->location, mapScreenRec);
+							if (nIndex > 0)
+							{
+								DrawLine(ToV2Fromd(prevPos), ToV2Fromd(nodePos), 2.0f, borderColor);
+							}
+							prevPos = nodePos;
 						}
 					}
 				}
@@ -607,13 +768,22 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 				Str8 radiusStr = GetOsmNodeTagValue(node, StrLit("radius"), Str8_Empty);
 				if (!IsEmptyStr(radiusStr)) { TryParseR32(radiusStr, &radius, nullptr); }
 				
+				if (node->isSelected) { radius = 3.0f; }
+				else if (node->isHovered) { radius = 2.0f; }
+				
 				if (radius > 0.0f)
 				{
-					Color32 nodeColor = (population < Thousand(50)) ? MonokaiGray2 : ColorLerpSimple(MonokaiYellow, MonokaiRed, populationLerp);
+					Color32 outlineColor = Transparent;
+					Color32 nodeColor = (population < Thousand(50)) ? MonokaiGray2 : ColorLerpSimple(CartoTextOrange, CartoTextGreen, populationLerp);
 					Str8 colorStr = GetOsmNodeTagValue(node, StrLit("color"), Str8_Empty);
 					if (!IsEmptyStr(colorStr)) { TryParseColor(colorStr, &nodeColor, nullptr); }
-					v2d nodePos = MapProject(app->view.projection, node->location, mapRec);
+					
+					if (node->isSelected) { nodeColor = MonokaiGreen; outlineColor = CartoTextGreen; }
+					else if (node->isHovered) { nodeColor = MonokaiOrange; outlineColor = CartoTextOrange; }
+					
+					v2d nodePos = MapProject(app->view.projection, node->location, mapScreenRec);
 					AlignV2d(&nodePos);
+					if (outlineColor.a > 0) { DrawCircle(NewCircleV(ToV2Fromd(nodePos), radius + 1), outlineColor); }
 					DrawCircle(NewCircleV(ToV2Fromd(nodePos), radius), nodeColor);
 					
 					Str8 japaneseNameStr = GetOsmNodeTagValue(node, StrLit("name:ja"), Str8_Empty);
@@ -621,27 +791,32 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 					Str8 englishNameStr = GetOsmNodeTagValue(node, StrLit("name:es"), Str8_Empty);
 					if (IsEmptyStr(englishNameStr)) { englishNameStr = GetOsmNodeTagValue(node, StrLit("name:en"), Str8_Empty); }
 					
+					Color32 textColor = (outlineColor.a > 0) ? outlineColor : nodeColor;
 					v2 namePos = AddV2(ToV2Fromd(nodePos), NewV2(0, -(radius + 5)));
 					if (!IsEmptyStr(japaneseNameStr))
 					{
 						TextMeasure nameMeasure = MeasureTextEx(&app->mapFont, app->mapFontSize, MAP_FONT_STYLE, false, 0.0f, japaneseNameStr);
 						BindFontEx(&app->mapFont, app->mapFontSize, MAP_FONT_STYLE);
-						DrawText(japaneseNameStr, AddV2(namePos, NewV2(-nameMeasure.Width/2, 0)), ColorWithAlpha(nodeColor, 0.75f));
+						v2 textPos = AddV2(namePos, NewV2(-nameMeasure.Width/2, 0));
+						// DrawText(japaneseNameStr, AddV2(textPos, NewV2(0, 2)), ColorLerpSimple(textColor, Black, 0.75f));
+						DrawText(japaneseNameStr, textPos, textColor);
 						namePos.Y -= nameMeasure.Height + 5;
 					}
 					if (!IsEmptyStr(englishNameStr))
 					{
 						TextMeasure nameMeasure = MeasureTextEx(&app->mapFont, app->mapFontSize, MAP_FONT_STYLE, false, 0.0f, englishNameStr);
 						BindFontEx(&app->mapFont, app->mapFontSize, MAP_FONT_STYLE);
-						DrawText(englishNameStr, AddV2(namePos, NewV2(-nameMeasure.Width/2, 0)), nodeColor);
+						v2 textPos = AddV2(namePos, NewV2(-nameMeasure.Width/2, 0));
+						DrawText(englishNameStr, AddV2(textPos, NewV2(0, 2)), ColorLerpSimple(textColor, Black, 0.75f));
+						DrawText(englishNameStr, textPos, textColor);
 						namePos.Y -= nameMeasure.Height + 5;
 					}
 				}
 			}
 			#endif
 			
-			v2 boundsTopLeft = ToV2Fromd(MapProject(app->view.projection, app->map.bounds.TopLeft, mapRec));
-			v2 boundsBottomRight = ToV2Fromd(MapProject(app->view.projection, AddV2d(app->map.bounds.TopLeft, app->map.bounds.Size), mapRec));
+			v2 boundsTopLeft = ToV2Fromd(MapProject(app->view.projection, app->map.bounds.TopLeft, mapScreenRec));
+			v2 boundsBottomRight = ToV2Fromd(MapProject(app->view.projection, AddV2d(app->map.bounds.TopLeft, app->map.bounds.Size), mapScreenRec));
 			rec boundsRec = NewRecBetweenV(boundsTopLeft, boundsBottomRight);
 			DrawRectangleOutline(boundsRec, 2.0f, MonokaiRed);
 			// DrawCircle(NewCircleV(boundsRec.TopLeft, 5), MonokaiRed);

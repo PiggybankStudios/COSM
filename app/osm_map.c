@@ -66,6 +66,7 @@ void FreeOsmMap(OsmMap* map)
 			FreeOsmWay(map->arena, way);
 		}
 		FreeVarArray(&map->ways);
+		FreeVarArray(&map->selectedItems);
 	}
 	ClearPointer(map);
 	TracyCZoneEnd(funcZone);
@@ -82,6 +83,7 @@ void InitOsmMap(Arena* arena, OsmMap* mapOut, u64 numNodesExpected, u64 numWaysE
 	mapOut->nextWayId = 1;
 	InitVarArrayWithInitial(OsmNode, &mapOut->nodes, arena, numNodesExpected);
 	InitVarArrayWithInitial(OsmWay, &mapOut->ways, arena, numWaysExpected);
+	InitVarArray(OsmSelectedItem, &mapOut->selectedItems, arena);
 	TracyCZoneEnd(funcZone);
 }
 

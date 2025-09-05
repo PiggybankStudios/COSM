@@ -7,6 +7,25 @@ Date:   07\06\2025
 #ifndef _OSM_MAP_H
 #define _OSM_MAP_H
 
+typedef enum OsmPrimitiveType OsmPrimitiveType;
+enum OsmPrimitiveType
+{
+	OsmPrimitiveType_None = 0,
+	OsmPrimitiveType_Node,
+	OsmPrimitiveType_Way,
+	OsmPrimitiveType_Count,
+};
+const char* GetOsmPrimitiveTypeStr(OsmPrimitiveType enumValue)
+{
+	switch (enumValue)
+	{
+		case OsmPrimitiveType_None:  return "None";
+		case OsmPrimitiveType_Node:  return "Node";
+		case OsmPrimitiveType_Way:   return "Way";
+		default: return UNKNOWN_STR;
+	}
+}
+
 // <tag k="highway" v="secondary"/>
 typedef plex OsmTag OsmTag;
 plex OsmTag
@@ -28,6 +47,9 @@ plex OsmNode
 	u64 uid;
 	v2d location;
 	VarArray tags; //OsmTag
+	
+	bool isSelected;
+	bool isHovered;
 };
 
 typedef plex OsmNodeRef OsmNodeRef;
@@ -44,17 +66,18 @@ enum OsmRenderLayer
 	OsmRenderLayer_Bottom,
 	OsmRenderLayer_Middle,
 	OsmRenderLayer_Top,
+	OsmRenderLayer_Selection,
 	OsmRenderLayer_Count,
 };
 const char* GetOsmRenderLayerStr(OsmRenderLayer enumValue)
 {
 	switch (enumValue)
 	{
-		case OsmRenderLayer_None:   return "None";
-		case OsmRenderLayer_Bottom: return "Bottom";
-		case OsmRenderLayer_Middle: return "Middle";
-		case OsmRenderLayer_Top:    return "Top";
-		case OsmRenderLayer_Count:  return "Count";
+		case OsmRenderLayer_None:      return "None";
+		case OsmRenderLayer_Bottom:    return "Bottom";
+		case OsmRenderLayer_Middle:    return "Middle";
+		case OsmRenderLayer_Top:       return "Top";
+		case OsmRenderLayer_Selection: return "Selection";
 		default: return UNKNOWN_STR;
 	}
 }
@@ -87,6 +110,17 @@ plex OsmWay
 	uxx numTriIndices;
 	uxx* triIndices;
 	VertBuffer triVertBuffer; //these vertices are normalized within bounds
+	
+	bool isSelected;
+	bool isHovered;
+};
+
+typedef plex OsmSelectedItem OsmSelectedItem;
+plex OsmSelectedItem
+{
+	OsmPrimitiveType type;
+	u64 id;
+	union { void* pntr; OsmNode* nodePntr; OsmWay* wayPntr; };
 };
 
 typedef plex OsmMap OsmMap;
@@ -99,6 +133,8 @@ plex OsmMap
 	VarArray nodes; //OsmNode
 	u64 nextWayId;
 	VarArray ways; //OsmWay
+	
+	VarArray selectedItems; //OsmSelectedItem
 };
 
 #endif //  _OSM_MAP_H

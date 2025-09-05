@@ -48,4 +48,33 @@ void UpdateMapView(MapView* view, MouseState* mouse, KeyboardState* keyboard)
 	{
 		view->position.X += viewSpeed / view->zoom;
 	}
+	
+	// +==============================+
+	// |    Middle Mouse Drag Pans    |
+	// +==============================+
+	rec mainViewportRec = GetClayElementDrawRecNt("MainViewport");
+	if (mainViewportRec.Width > 0 && mainViewportRec.Height > 0)
+	{
+		recd screenMapRec = view->mapRec;
+		screenMapRec.TopLeft = SubV2d(screenMapRec.TopLeft, view->position);
+		screenMapRec = ScaleRecd(screenMapRec, view->zoom);
+		screenMapRec.TopLeft = AddV2d(screenMapRec.TopLeft, AddV2d(ToV2dFromf(mainViewportRec.TopLeft), ToV2dFromf(ShrinkV2(mainViewportRec.Size, 2.0f))));
+		
+		if (!view->isDragPanning && IsMouseBtnPressed(mouse, MouseBtn_Middle))
+		{
+			view->isDragPanning = true;
+			view->dragPanningPos = DivV2d(SubV2d(ToV2dFromf(mouse->position), screenMapRec.TopLeft), screenMapRec.Size);
+		}
+		if (view->isDragPanning)
+		{
+			if (IsMouseBtnDown(mouse, MouseBtn_Middle))
+			{
+				v2d posBefore = view->position;
+				v2 screenCenter = AddV2(mainViewportRec.TopLeft, ShrinkV2(mainViewportRec.Size, 2.0f));
+				view->position.X = (screenCenter.X - (mouse->position.X - view->dragPanningPos.X * screenMapRec.Width)) / view->zoom;
+				view->position.Y = (screenCenter.Y - (mouse->position.Y - view->dragPanningPos.Y * screenMapRec.Height)) / view->zoom;
+			}
+			else { view->isDragPanning = false; }
+		}
+	}
 }
