@@ -66,6 +66,9 @@ typedef SET_WINDOW_ICON_DEF(SetWindowIcon_f);
 #define SET_WINDOW_TOPMOST_DEF(functionName) void functionName(bool topmost)
 typedef SET_WINDOW_TOPMOST_DEF(SetWindowTopmost_f);
 
+#define SET_CURSOR_SHAPE_DEF(functionName) void functionName(CursorShape shape)
+typedef SET_CURSOR_SHAPE_DEF(SetCursorShape_f);
+
 typedef plex PlatformApi PlatformApi;
 plex PlatformApi
 {
@@ -77,6 +80,7 @@ plex PlatformApi
 	SetWindowTitle_f* SetWindowTitle;
 	SetWindowIcon_f* SetWindowIcon;
 	SetWindowTopmost_f* SetWindowTopmost;
+	SetCursorShape_f* SetCursorShape;
 };
 
 // +--------------------------------------------------------------+

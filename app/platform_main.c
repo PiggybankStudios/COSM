@@ -218,6 +218,7 @@ void PlatSappInit(void)
 	platform->SetWindowTitle = Plat_SetWindowTitle;
 	platform->SetWindowIcon = Plat_SetWindowIcon;
 	platform->SetWindowTopmost = Plat_SetWindowTopmost;
+	platform->SetCursorShape = Plat_SetCursorShape;
 	
 	#if BUILD_INTO_SINGLE_UNIT
 	{

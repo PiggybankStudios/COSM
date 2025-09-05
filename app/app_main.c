@@ -158,6 +158,8 @@ EXPORT_FUNC APP_INIT_DEF(AppInit)
 	app->clayUiFontId = AddClayUIRendererFont(&app->clay, &app->uiFont, UI_FONT_STYLE);
 	app->clayLargeFontId = AddClayUIRendererFont(&app->clay, &app->largeFont, LARGE_FONT_STYLE);
 	
+	InitUiResizableSplit(stdHeap, StrLit("SidebarSplit"), true, 0, 0.20f, &app->sidebarSplit);
+	
 	InitMapView(&app->view, MapProjection_Mercator);
 	OpenOsmMap(StrLit(TEST_OSM_FILE));
 	
@@ -342,6 +344,7 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 	v2 screenSize = ToV2Fromi(appIn->screenSize);
 	// v2 screenCenter = Div(screenSize, 2.0f);
 	v2 mousePos = appIn->mouse.position;
+	bool isMouseOverMainViewport = IsMouseOverClay(CLAY_ID("MainViewport"));
 	
 	TracyCZoneN(Zone_Update, "Update", true);
 	// +==============================+
@@ -464,14 +467,14 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 		// +====================================+
 		if (app->map.arena != nullptr)
 		{
-			if (!IsMouseOverClay(CLAY_ID("MainViewport")))
+			if (!isMouseOverMainViewport)
 			{
 				VarArrayLoop(&app->map.nodes, nIndex) { VarArrayLoopGet(OsmNode, node, &app->map.nodes, nIndex); node->isHovered = false; }
 				VarArrayLoop(&app->map.ways, wIndex) { VarArrayLoopGet(OsmWay, way, &app->map.ways, wIndex); way->isHovered = false; }
-				if (IsMouseBtnPressed(&appIn->mouse, MouseBtn_Left))
-				{
-					if (!IsKeyboardKeyDown(&appIn->keyboard, Key_Shift) && !IsKeyboardKeyDown(&appIn->keyboard, Key_Control)) { ClearMapSelection(&app->map); }
-				}
+				// if (IsMouseBtnPressed(&appIn->mouse, MouseBtn_Left))
+				// {
+				// 	if (!IsKeyboardKeyDown(&appIn->keyboard, Key_Shift) && !IsKeyboardKeyDown(&appIn->keyboard, Key_Control)) { ClearMapSelection(&app->map); }
+				// }
 			}
 			else
 			{
@@ -610,7 +613,7 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 			}
 		}
 		
-		UpdateMapView(&app->view, &appIn->mouse, &appIn->keyboard);
+		UpdateMapView(&app->view, isMouseOverMainViewport, &appIn->mouse, &appIn->keyboard);
 	}
 	TracyCZoneEnd(Zone_Update);
 	
@@ -635,6 +638,7 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 		uiArena = scratch3;
 		FlagSet(uiArena->flags, ArenaFlag_DontPop);
 		uxx uiArenaMark = ArenaGetMark(uiArena);
+		UiWidgetContext uiContext = NewUiWidgetContext(uiArena, &app->clay, &appIn->keyboard, &appIn->mouse, app->uiScale, &app->uiFocusedElement, CursorShape_Default);
 		
 		// +==============================+
 		// |          Render Map          |
@@ -971,17 +975,127 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 					CLAY({ .layout={ .sizing={ .width=CLAY_SIZING_FIXED(UI_R32(4)) } } }) {}
 				}
 				
-				// +==============================+
-				// |        Main Viewport         |
-				// +==============================+
-				CLAY({ .id = CLAY_ID("MainViewport"),
-					.layout = {
-						.layoutDirection = CLAY_LEFT_TO_RIGHT,
-						.sizing = { .width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_GROW(0) },
-					}
-				})
+				DoUiResizableSplitInterleaved(sidebarSplitSection, &uiContext, &app->sidebarSplit)
 				{
-					//TODO: Render things here
+					DoUiResizableSplitSection(sidebarSplitSection, Left)
+					{
+						// +==============================+
+						// |           Sidebar            |
+						// +==============================+
+						CLAY({ .id = CLAY_ID("Sidebar"),
+							.layout = {
+								.sizing = { .width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_GROW(0) },
+								.padding = CLAY_PADDING_ALL(UI_U16(10)),
+								.childGap = UI_U16(5),
+								.layoutDirection = CLAY_TOP_TO_BOTTOM,
+							},
+							.backgroundColor = BACKGROUND_GRAY,
+							.scroll = {
+								.vertical = true,
+								.scrollLag = 5.0f,
+							},
+						})
+						{
+							Str8 infoStr = PrintInArenaStr(uiArena, "%llu nodes, %llu ways [color=A6E22E](%llu selected)[color]", app->map.nodes.length, app->map.ways.length, app->map.selectedItems.length);
+							CLAY_TEXT(
+								infoStr,
+								CLAY_TEXT_CONFIG({
+									.fontId = app->clayUiFontId,
+									.fontSize = (u16)app->uiFontSize,
+									.textColor = TEXT_WHITE,
+									.wrapMode = CLAY_TEXT_WRAP_NONE,
+									.textAlignment = CLAY_TEXT_ALIGN_SHRINK,
+									.userData = { .contraction = TextContraction_ClipRight, .richText = true },
+								})
+							);
+							
+							if (app->map.selectedItems.length > 0)
+							{
+								VarArrayLoop(&app->map.selectedItems, sIndex)
+								{
+									VarArrayLoopGet(OsmSelectedItem, selectedItem, &app->map.selectedItems, sIndex);
+									u64 itemId = 0;
+									Str8 nameTag = Str8_Empty;
+									VarArray* tagsArray = nullptr;
+									if (selectedItem->type == OsmPrimitiveType_Node)
+									{
+										itemId = selectedItem->nodePntr->id;
+										nameTag = GetOsmNodeTagValue(selectedItem->nodePntr, StrLit("name:en"), Str8_Empty);
+										if (IsEmptyStr(nameTag)) { nameTag = GetOsmNodeTagValue(selectedItem->nodePntr, StrLit("name"), Str8_Empty); }
+										tagsArray = &selectedItem->nodePntr->tags;
+									}
+									else if (selectedItem->type == OsmPrimitiveType_Way)
+									{
+										itemId = selectedItem->wayPntr->id;
+										nameTag = GetOsmWayTagValue(selectedItem->wayPntr, StrLit("name:en"), Str8_Empty);
+										if (IsEmptyStr(nameTag)) { nameTag = GetOsmWayTagValue(selectedItem->wayPntr, StrLit("name"), Str8_Empty); }
+										tagsArray = &selectedItem->wayPntr->tags;
+									}
+									Str8 displayName = PrintInArenaStr(uiArena, "> %s %llu \"%.*s\"", GetOsmPrimitiveTypeStr(selectedItem->type), itemId, StrPrint(nameTag));
+									CLAY_TEXT(
+										displayName,
+										CLAY_TEXT_CONFIG({
+											.fontId = app->clayUiFontId,
+											.fontSize = (u16)app->uiFontSize,
+											.textColor = MonokaiGreen,
+											.wrapMode = CLAY_TEXT_WRAP_NONE,
+											.textAlignment = CLAY_TEXT_ALIGN_SHRINK,
+											.userData = { .contraction = TextContraction_ClipRight },
+										})
+									);
+									
+									if (tagsArray != nullptr)
+									{
+										VarArrayLoop(tagsArray, tIndex)
+										{
+											VarArrayLoopGet(OsmTag, tag, tagsArray, tIndex);
+											Str8 tagStr = PrintInArenaStr(uiArena, "  %.*s = [color=AAAAAA]\"%.*s\"", StrPrint(tag->key), StrPrint(tag->value));
+											CLAY_TEXT(
+												tagStr,
+												CLAY_TEXT_CONFIG({
+													.fontId = app->clayUiFontId,
+													.fontSize = (u16)app->uiFontSize,
+													.textColor = TEXT_WHITE,
+													.wrapMode = CLAY_TEXT_WRAP_NONE,
+													.textAlignment = CLAY_TEXT_ALIGN_SHRINK,
+													.userData = { .contraction = TextContraction_ClipRight, .richText = true },
+												})
+											);
+										}
+									}
+								}
+							}
+							else
+							{
+								CLAY_TEXT(
+									StrLit("No items selected..."),
+									CLAY_TEXT_CONFIG({
+										.fontId = app->clayUiFontId,
+										.fontSize = (u16)app->uiFontSize,
+										.textColor = TEXT_WHITE,
+										.wrapMode = CLAY_TEXT_WRAP_NONE,
+										.textAlignment = CLAY_TEXT_ALIGN_SHRINK,
+										.userData = { .contraction = TextContraction_ClipRight },
+									})
+								);
+							}
+						}
+					}
+					DoUiResizableSplitSection(sidebarSplitSection, Right)
+					{
+						// +==============================+
+						// |        Main Viewport         |
+						// +==============================+
+						CLAY({ .id = CLAY_ID("MainViewport"),
+							.layout = {
+								.layoutDirection = CLAY_LEFT_TO_RIGHT,
+								.sizing = { .width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_GROW(0) },
+							}
+						})
+						{
+							//TODO: Render things here
+						}
+					}
 				}
 			}
 		}
@@ -991,6 +1105,8 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 		FlagUnset(uiArena->flags, ArenaFlag_DontPop);
 		ArenaResetToMark(uiArena, uiArenaMark);
 		uiArena = nullptr;
+		
+		platform->SetCursorShape(uiContext.cursorShape);
 	}
 	TracyCZoneEnd(Zone_Render);
 	TracyCZoneN(Zone_EndFrame, "EndFrame", true);

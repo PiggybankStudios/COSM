@@ -16,12 +16,12 @@ void InitMapView(MapView* view, MapProjection projection)
 	view->zoom = 0.0; //this will get set to something reasonable after our first UI layout
 }
 
-void UpdateMapView(MapView* view, MouseState* mouse, KeyboardState* keyboard)
+void UpdateMapView(MapView* view, bool isMouseOverMainViewport, MouseState* mouse, KeyboardState* keyboard)
 {
 	// +==============================+
 	// |  Scroll Wheel Zooms In/Out   |
 	// +==============================+
-	if (mouse->scrollDelta.Y != 0 && view->zoom != 0.0 && !IsKeyboardKeyDown(keyboard, Key_Control))
+	if (mouse->scrollDelta.Y != 0 && view->zoom != 0.0 && !IsKeyboardKeyDown(keyboard, Key_Control) && isMouseOverMainViewport)
 	{
 		view->zoom *= 1.0 + (mouse->scrollDelta.Y * 0.1);
 		if (IsInfiniteOrNanR64(view->zoom)) { view->zoom = view->minZoom; }
@@ -60,7 +60,7 @@ void UpdateMapView(MapView* view, MouseState* mouse, KeyboardState* keyboard)
 		screenMapRec = ScaleRecd(screenMapRec, view->zoom);
 		screenMapRec.TopLeft = AddV2d(screenMapRec.TopLeft, AddV2d(ToV2dFromf(mainViewportRec.TopLeft), ToV2dFromf(ShrinkV2(mainViewportRec.Size, 2.0f))));
 		
-		if (!view->isDragPanning && IsMouseBtnPressed(mouse, MouseBtn_Middle))
+		if (!view->isDragPanning && isMouseOverMainViewport && IsMouseBtnPressed(mouse, MouseBtn_Middle))
 		{
 			view->isDragPanning = true;
 			view->dragPanningPos = DivV2d(SubV2d(ToV2dFromf(mouse->position), screenMapRec.TopLeft), screenMapRec.Size);

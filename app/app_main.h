@@ -43,6 +43,8 @@ plex AppData
 	bool keepFileMenuOpenUntilMouseOver;
 	bool isViewMenuOpen;
 	bool keepViewMenuOpenUntilMouseOver;
+	void* uiFocusedElement;
+	UiResizableSplit sidebarSplit;
 	
 	OsmMap map;
 	MapView view;
