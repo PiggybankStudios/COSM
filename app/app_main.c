@@ -444,6 +444,29 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 			OpenOsmMap(StrLit(TEST_OSM_FILE));
 		}
 		
+		// +================================================+
+		// | Ctrl+R Refreshes Way Colors and Triangulation  |
+		// +================================================+
+		if (IsKeyboardKeyDown(&appIn->keyboard, Key_Control) && IsKeyboardKeyPressed(&appIn->keyboard, Key_R, false))
+		{
+			VarArrayLoop(&app->map.ways, wIndex)
+			{
+				VarArrayLoopGet(OsmWay, way, &app->map.ways, wIndex);
+				if (way->triVertBuffer.arena != nullptr)
+				{
+					FreeVertBuffer(&way->triVertBuffer);
+				}
+				if (way->triIndices != nullptr)
+				{
+					FreeArray(uxx, app->map.arena, way->numTriIndices, way->triIndices);
+					way->triIndices = nullptr;
+					way->numTriIndices = 0;
+				}
+				way->attemptedTriangulation = false;
+				way->colorsChosen = false;
+			}
+		}
+		
 		UpdateMapView(&app->view, &appIn->mouse, &appIn->keyboard);
 	}
 	TracyCZoneEnd(Zone_Update);
@@ -503,141 +526,61 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 			// +==============================+
 			// |         Render Ways          |
 			// +==============================+
-			#if 1
-			//Draw loops
-			VarArrayLoop(&app->map.ways, wIndex)
+			for (uxx lIndex = 1; lIndex < OsmRenderLayer_Count; lIndex++)
 			{
-				VarArrayLoopGet(OsmWay, way, &app->map.ways, wIndex);
-				Color32 color = Black;
-				
-				if (way->isClosedLoop)
+				OsmRenderLayer currentLayer = (OsmRenderLayer)lIndex;
+				VarArrayLoop(&app->map.ways, wIndex)
 				{
-					color = Transparent;
-					Str8 landuseStr = GetOsmWayTagValue(way, StrLit("landuse"), Str8_Empty);
-					if (StrAnyCaseEquals(landuseStr, StrLit("retail"))) { color = CartoFillRetail; }
-					else if (StrAnyCaseEquals(landuseStr, StrLit("residential"))) { color = CartoFillResidential; }
-					else if (StrAnyCaseEquals(landuseStr, StrLit("forest"))) { color = CartoFillForest; }
-					else if (StrAnyCaseEquals(landuseStr, StrLit("railway")) || StrAnyCaseEquals(landuseStr, StrLit("industrial"))) { color = CartoFillIndustrial; }
-					else
+					VarArrayLoopGet(OsmWay, way, &app->map.ways, wIndex);
+					UpdateOsmWayColorChoice(way);
+					if (way->renderLayer == currentLayer && way->colorsChosen)
 					{
-						Str8 leisureStr = GetOsmWayTagValue(way, StrLit("leisure"), Str8_Empty);
-						if (StrAnyCaseEquals(leisureStr, StrLit("park"))) { color = CartoFillPark; }
-						else if (StrAnyCaseEquals(leisureStr, StrLit("playground"))) { color = CartoFillPlayground; }
-						else if (StrAnyCaseEquals(leisureStr, StrLit("pitch"))) { color = CartoFillSports; }
-						else if (StrAnyCaseEquals(leisureStr, StrLit("marina"))) { color = CartoFillWater; }
-						else
+						if (way->fillColor.a > 0 || (way->isClosedLoop && way->borderThickness > 0.0f && way->borderColor.a > 0))
 						{
-							Str8 buildingStr = GetOsmWayTagValue(way, StrLit("building"), Str8_Empty);
-							if (StrAnyCaseEquals(buildingStr, StrLit("yes"))) { color = CartoFillBuilding; }
-							else
+							if (way->isClosedLoop)
 							{
-								Str8 amenityStr = GetOsmWayTagValue(way, StrLit("amenity"), Str8_Empty);
-								if (StrAnyCaseEquals(amenityStr, StrLit("school"))) { color = CartoFillSchool; }
-								else
+								v2 boundsTopLeft = ToV2Fromd(MapProject(app->view.projection, way->nodeBounds.TopLeft, mapRec));
+								v2 boundsBottomRight = ToV2Fromd(MapProject(app->view.projection, AddV2d(way->nodeBounds.TopLeft, way->nodeBounds.Size), mapRec));
+								rec boundsRec = NewRecBetweenV(boundsTopLeft, boundsBottomRight);
+								if (boundsRec.X + boundsRec.Width >= 0 && boundsRec.Y + boundsRec.Height >= 0 &&
+									boundsRec.X <= screenSize.Width && boundsRec.Y <= screenSize.Height)
 								{
-									Str8 waterStr = GetOsmWayTagValue(way, StrLit("water"), Str8_Empty);
-									Str8 waterwayStr = GetOsmWayTagValue(way, StrLit("waterway"), Str8_Empty);
-									if (StrAnyCaseEquals(waterStr, StrLit("lake"))) { color = CartoFillWater; }
-									else if (StrAnyCaseEquals(waterwayStr, StrLit("stream"))) { color = CartoFillWater; }
+									if (boundsRec.Width * boundsRec.Height < 50)
+									{
+										Color32 smallColor = (way->borderThickness > 0.0f && way->borderColor.a > 0) ? way->borderColor : way->fillColor;
+										#if 0
+										r32 radius = LengthV2(boundsRec.Size) / 2.0f;
+										DrawCircle(NewCircleV(AddV2(boundsRec.TopLeft, ShrinkV2(boundsRec.Size, 2)), radius), smallColor);
+										#else
+										DrawRectangle(boundsRec, smallColor);
+										#endif
+									}
+									else
+									{
+										UpdateOsmWayTriangulation(&app->map, way);
+										RenderWayFilled(way, mapRec, boundsRec, way->fillColor, way->borderThickness, way->borderColor);
+									}
 								}
 							}
-						}
-					}
-					
-					Str8 colorStr = GetOsmWayTagValue(way, StrLit("color"), Str8_Empty);
-					if (!IsEmptyStr(colorStr)) { TryParseColor(colorStr, &color, nullptr); }
-					
-					if (color.a > 0)
-					{
-						#if 0
-						v2 boundsTopLeft = ToV2Fromd(MapProject(app->view.projection, way->nodeBounds.TopLeft, mapRec));
-						v2 boundsBottomRight = ToV2Fromd(MapProject(app->view.projection, AddV2d(way->nodeBounds.TopLeft, way->nodeBounds.Size), mapRec));
-						rec boundsRec = NewRecBetweenV(boundsTopLeft, boundsBottomRight);
-						DrawRectangle(boundsRec, color);
-						#else
-						
-						v2 boundsTopLeft = ToV2Fromd(MapProject(app->view.projection, way->nodeBounds.TopLeft, mapRec));
-						v2 boundsBottomRight = ToV2Fromd(MapProject(app->view.projection, AddV2d(way->nodeBounds.TopLeft, way->nodeBounds.Size), mapRec));
-						rec boundsRec = NewRecBetweenV(boundsTopLeft, boundsBottomRight);
-						if (boundsRec.X + boundsRec.Width >= 0 && boundsRec.Y + boundsRec.Height >= 0 &&
-							boundsRec.X <= screenSize.Width && boundsRec.Y <= screenSize.Height)
-						{
-							if (boundsRec.Width * boundsRec.Height < 50)
+							
+							if (!way->isClosedLoop && way->lineThickness > 0.0f)
 							{
-								r32 radius = LengthV2(boundsRec.Size) / 2.0f;
-								DrawCircle(NewCircleV(AddV2(boundsRec.TopLeft, ShrinkV2(boundsRec.Size, 2)), radius), color);
-							}
-							else if (way->triIndices == nullptr)
-							{
-								uxx scratchMark = ArenaGetMark(scratch);
-								uxx numPolygonVerts = way->nodes.length;
-								v2d* polygonVerts = AllocArray(v2d, scratch, numPolygonVerts);
+								v2d prevPos = V2d_Zero;
 								VarArrayLoop(&way->nodes, nIndex)
 								{
 									VarArrayLoopGet(OsmNodeRef, nodeRef, &way->nodes, nIndex);
-									polygonVerts[nIndex] = nodeRef->pntr->location;
-								}
-								way->triIndices = Triangulate2DEarClipR64(app->map.arena, numPolygonVerts, polygonVerts, &way->numTriIndices);
-								ArenaResetToMark(scratch, scratchMark);
-							}
-							if (way->numTriIndices > 0 && way->triIndices != nullptr)
-							{
-								for (uxx iIndex = 0; iIndex < way->numTriIndices; iIndex += 3)
-								{
-									OsmNodeRef* node0 = VarArrayGet(OsmNodeRef, &way->nodes, way->triIndices[iIndex+0]);
-									OsmNodeRef* node1 = VarArrayGet(OsmNodeRef, &way->nodes, way->triIndices[iIndex+1]);
-									OsmNodeRef* node2 = VarArrayGet(OsmNodeRef, &way->nodes, way->triIndices[iIndex+2]);
-									v2 vert0 = ToV2Fromd(MapProject(app->view.projection, node0->pntr->location, mapRec));
-									v2 vert1 = ToV2Fromd(MapProject(app->view.projection, node1->pntr->location, mapRec));
-									v2 vert2 = ToV2Fromd(MapProject(app->view.projection, node2->pntr->location, mapRec));
-									DrawLine(vert0, vert1, 2.0f, color);
-									DrawLine(vert1, vert2, 2.0f, color);
-									DrawLine(vert2, vert0, 2.0f, color);
+									v2d nodePos = MapProject(app->view.projection, nodeRef->pntr->location, mapRec);
+									if (nIndex > 0)
+									{
+										DrawLine(ToV2Fromd(prevPos), ToV2Fromd(nodePos), way->lineThickness, way->fillColor);
+									}
+									prevPos = nodePos;
 								}
 							}
-						}
-						#endif
-					}
-				}
-			}
-			
-			//Draw non-loops
-			VarArrayLoop(&app->map.ways, wIndex)
-			{
-				VarArrayLoopGet(OsmWay, way, &app->map.ways, wIndex);
-				r32 thickness = 2.0f;
-				Color32 color = Black;
-				
-				if (!way->isClosedLoop)
-				{
-					color = Black; thickness = 1.0f;
-					Str8 highwayStr = GetOsmWayTagValue(way, StrLit("highway"), Str8_Empty);
-					if (StrAnyCaseEquals(highwayStr, StrLit("trunk"))) { color = CartoStrokeTrunk; thickness = 5.0f; }
-					else if (StrAnyCaseEquals(highwayStr, StrLit("residential"))) { color = CartoStrokeResidential; thickness = 2.0f; }
-					else if (StrAnyCaseEquals(highwayStr, StrLit("secondary"))) { color = CartoStrokeSecondary; thickness = 3.0f; }
-					
-					Str8 thicknessStr = GetOsmWayTagValue(way, StrLit("thickness"), Str8_Empty);
-					if (!IsEmptyStr(thicknessStr)) { TryParseR32(thicknessStr, &thickness, nullptr); }
-					Str8 colorStr = GetOsmWayTagValue(way, StrLit("color"), Str8_Empty);
-					if (!IsEmptyStr(colorStr)) { TryParseColor(colorStr, &color, nullptr); }
-					
-					if (color.a > 0 && thickness > 0)
-					{
-						v2d prevPos = V2d_Zero;
-						VarArrayLoop(&way->nodes, nIndex)
-						{
-							VarArrayLoopGet(OsmNodeRef, nodeRef, &way->nodes, nIndex);
-							v2d nodePos = MapProject(app->view.projection, nodeRef->pntr->location, mapRec);
-							if (nIndex > 0)
-							{
-								DrawLine(ToV2Fromd(prevPos), ToV2Fromd(nodePos), thickness, color);
-							}
-							prevPos = nodePos;
 						}
 					}
 				}
 			}
-			#endif
 			
 			// +==============================+
 			// |         Render Nodes         |

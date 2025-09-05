@@ -37,6 +37,28 @@ plex OsmNodeRef
 	OsmNode* pntr;
 };
 
+typedef enum OsmRenderLayer OsmRenderLayer;
+enum OsmRenderLayer
+{
+	OsmRenderLayer_None = 0,
+	OsmRenderLayer_Bottom,
+	OsmRenderLayer_Middle,
+	OsmRenderLayer_Top,
+	OsmRenderLayer_Count,
+};
+const char* GetOsmRenderLayerStr(OsmRenderLayer enumValue)
+{
+	switch (enumValue)
+	{
+		case OsmRenderLayer_None:   return "None";
+		case OsmRenderLayer_Bottom: return "Bottom";
+		case OsmRenderLayer_Middle: return "Middle";
+		case OsmRenderLayer_Top:    return "Top";
+		case OsmRenderLayer_Count:  return "Count";
+		default: return UNKNOWN_STR;
+	}
+}
+
 // <way id="428033729" visible="true" version="5" changeset="81153531" timestamp="2020-02-18T06:41:24Z" user="thadekam" uid="10455646">
 typedef plex OsmWay OsmWay;
 plex OsmWay
@@ -53,7 +75,15 @@ plex OsmWay
 	VarArray tags; //OsmTag
 	recd nodeBounds;
 	
+	bool colorsChosen;
 	bool isClosedLoop;
+	OsmRenderLayer renderLayer;
+	r32 lineThickness; //for non-closed-loops
+	Color32 fillColor;
+	r32 borderThickness;
+	Color32 borderColor;
+	
+	bool attemptedTriangulation;
 	uxx numTriIndices;
 	uxx* triIndices;
 	VertBuffer triVertBuffer; //these vertices are normalized within bounds
