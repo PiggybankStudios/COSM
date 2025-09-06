@@ -1043,6 +1043,21 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 											.userData = { .contraction = TextContraction_ClipRight },
 										})
 									);
+									if (selectedItem->type == OsmPrimitiveType_Way)
+									{
+										Str8 wayMetaStr = PrintInArenaStr(uiArena, "    %llu nodes%s", selectedItem->wayPntr->nodes.length, selectedItem->wayPntr->isClosedLoop ? " closed loop" : "");
+										CLAY_TEXT(
+											wayMetaStr,
+											CLAY_TEXT_CONFIG({
+												.fontId = app->clayUiFontId,
+												.fontSize = (u16)app->uiFontSize,
+												.textColor = TEXT_GRAY,
+												.wrapMode = CLAY_TEXT_WRAP_NONE,
+												.textAlignment = CLAY_TEXT_ALIGN_SHRINK,
+												.userData = { .contraction = TextContraction_ClipRight },
+											})
+										);
+									}
 									
 									if (tagsArray != nullptr)
 									{
