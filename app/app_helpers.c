@@ -330,37 +330,7 @@ void OpenOsmMap(FilePath filePath)
 	ScratchBegin(scratch);
 	
 	OsmMap newMap = ZEROED;
-	Result parseResult = Result_None;
-	
-	if (StrAnyCaseEndsWith(filePath, StrLit(".pbf")))
-	{
-		Slice fileContents = Slice_Empty;
-		TracyCZoneN(_ReadBinFile, "OsReadBinFile", true);
-		bool openedSelectedFile = OsReadBinFile(filePath, scratch, &fileContents);
-		TracyCZoneEnd(_ReadBinFile);
-		if (openedSelectedFile)
-		{
-			PrintLine_I("Opened \"%.*s\", %llu bytes", StrPrint(filePath), fileContents.length);
-			parseResult = TryParsePbfMap(stdHeap, fileContents, &newMap);
-			if (parseResult != Result_Success) { PrintLine_E("Failed to parse as OpenStreetMaps Protobuf data! Error: %s", GetResultStr(parseResult)); }
-		}
-	}
-	else if (StrAnyCaseEndsWith(filePath, StrLit(".osm")))
-	{
-		Str8 fileContents = Str8_Empty;
-		TracyCZoneN(_ReadTextFile, "OsReadTextFile", true);
-		bool openedSelectedFile = OsReadTextFile(filePath, scratch, &fileContents);
-		TracyCZoneEnd(_ReadTextFile);
-		if (openedSelectedFile)
-		{
-			PrintLine_I("Opened \"%.*s\", %llu bytes", StrPrint(filePath), fileContents.length);
-			parseResult = TryParseOsmMap(stdHeap, fileContents, &newMap);
-			if (parseResult != Result_Success) { PrintLine_E("Failed to parse as OpenStreetMaps XML data! Error: %s", GetResultStr(parseResult)); }
-		}
-		else { PrintLine_E("Failed to open \"%.*s\"", StrPrint(filePath)); }
-	}
-	else { PrintLine_E("Unknown file extension \"%.*s\", expected .osm or .pbf files!", StrPrint(GetFileNamePart(filePath, true))); }
-	
+	Result parseResult = TryParseMapFile(scratch, filePath, &newMap);
 	if (parseResult == Result_Success)
 	{
 		FreeStr8(stdHeap, &app->loadedFilePath);

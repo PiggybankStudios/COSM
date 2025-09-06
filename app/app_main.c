@@ -73,6 +73,7 @@ static Arena* stdHeap = nullptr;
 #include "main2d_shader.glsl.h"
 #include "app_resources.c"
 #include "osm_map.c"
+#include "osm_map_serialization.c"
 #include "app_clay_helpers.c"
 #include "app_helpers.c"
 #include "map_view.c"
