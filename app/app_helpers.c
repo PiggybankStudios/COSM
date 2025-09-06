@@ -50,18 +50,18 @@ bool AppCreateFonts()
 	PigFont newUiFont = ZEROED;
 	{
 		newUiFont = InitFont(stdHeap, StrLit("uiFont"));
-		Result attachResult = AttachOsTtfFileToFont(&newUiFont, StrLit(UI_FONT_NAME), app->uiFontSize, UI_FONT_STYLE);
-		Assert(attachResult == Result_Success);
+		Result attachResult1 = AttachOsTtfFileToFont(&newUiFont, StrLit(UI_FONT_NAME), app->uiFontSize, UI_FONT_STYLE);
+		Assert(attachResult1 == Result_Success);
 		
-		bool bakedSuccessfully = false;
+		bool bakedSuccessfully1 = false;
 		i32 atlasSize = MIN_FONT_ATLAS_SIZE;
 		while (atlasSize <= MAX_FONT_ATLAS_SIZE)
 		{
 			Result bakeResult = BakeFontAtlas(&newUiFont, app->uiFontSize, UI_FONT_STYLE, NewV2i(atlasSize, atlasSize), ArrayCount(fontCharRanges), &fontCharRanges[0]);
-			if (bakeResult == Result_Success) { bakedSuccessfully = true; break; }
+			if (bakeResult == Result_Success) { bakedSuccessfully1 = true; break; }
 			atlasSize *= 2;
 		}
-		if (!bakedSuccessfully)
+		if (!bakedSuccessfully1)
 		{
 			RemoveAttachedTtfFile(&newUiFont);
 			FreeFont(&newUiFont);
@@ -70,6 +70,23 @@ bool AppCreateFonts()
 		
 		FillFontKerningTable(&newUiFont);
 		RemoveAttachedTtfFile(&newUiFont);
+		Result attachResult2 = AttachOsTtfFileToFont(&newUiFont, StrLit(UI_FONT_NAME), app->uiFontSize+2, UI_FONT_STYLE|FontStyleFlag_Bold);
+		Assert(attachResult2 == Result_Success);
+		
+		bool bakedSuccessfully2 = false;
+		atlasSize = MIN_FONT_ATLAS_SIZE;
+		while (atlasSize <= MAX_FONT_ATLAS_SIZE)
+		{
+			Result bakeResult = BakeFontAtlas(&newUiFont, app->uiFontSize+2, UI_FONT_STYLE|FontStyleFlag_Bold, NewV2i(atlasSize, atlasSize), ArrayCount(fontCharRanges), &fontCharRanges[0]);
+			if (bakeResult == Result_Success) { bakedSuccessfully2 = true; break; }
+			atlasSize *= 2;
+		}
+		RemoveAttachedTtfFile(&newUiFont);
+		if (!bakedSuccessfully2)
+		{
+			FreeFont(&newUiFont);
+			return false;
+		}
 	}
 	
 	PigFont newLargeFont = ZEROED;

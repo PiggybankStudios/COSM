@@ -1003,9 +1003,9 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 									.fontId = app->clayUiFontId,
 									.fontSize = (u16)app->uiFontSize,
 									.textColor = TEXT_WHITE,
-									.wrapMode = CLAY_TEXT_WRAP_NONE,
-									.textAlignment = CLAY_TEXT_ALIGN_SHRINK,
-									.userData = { .contraction = TextContraction_ClipRight, .richText = true },
+									.wrapMode = CLAY_TEXT_WRAP_WORDS,
+									.textAlignment = CLAY_TEXT_ALIGN_LEFT,
+									.userData = { .richText = true },
 								})
 							);
 							
@@ -1038,9 +1038,8 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 											.fontId = app->clayUiFontId,
 											.fontSize = (u16)app->uiFontSize,
 											.textColor = MonokaiGreen,
-											.wrapMode = CLAY_TEXT_WRAP_NONE,
-											.textAlignment = CLAY_TEXT_ALIGN_SHRINK,
-											.userData = { .contraction = TextContraction_ClipRight },
+											.wrapMode = CLAY_TEXT_WRAP_WORDS,
+											.textAlignment = CLAY_TEXT_ALIGN_LEFT,
 										})
 									);
 									if (selectedItem->type == OsmPrimitiveType_Way)
@@ -1052,9 +1051,8 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 												.fontId = app->clayUiFontId,
 												.fontSize = (u16)app->uiFontSize,
 												.textColor = TEXT_GRAY,
-												.wrapMode = CLAY_TEXT_WRAP_NONE,
-												.textAlignment = CLAY_TEXT_ALIGN_SHRINK,
-												.userData = { .contraction = TextContraction_ClipRight },
+												.wrapMode = CLAY_TEXT_WRAP_WORDS,
+												.textAlignment = CLAY_TEXT_ALIGN_LEFT,
 											})
 										);
 									}
@@ -1064,16 +1062,16 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 										VarArrayLoop(tagsArray, tIndex)
 										{
 											VarArrayLoopGet(OsmTag, tag, tagsArray, tIndex);
-											Str8 tagStr = PrintInArenaStr(uiArena, "  %.*s = [color=AAAAAA]\"%.*s\"", StrPrint(tag->key), StrPrint(tag->value));
+											Str8 tagStr = PrintInArenaStr(uiArena, "  [bold][size=%g]%.*s[size][bold] = \"%.*s\"", app->uiFontSize+2, StrPrint(tag->key), StrPrint(tag->value));
 											CLAY_TEXT(
 												tagStr,
 												CLAY_TEXT_CONFIG({
 													.fontId = app->clayUiFontId,
 													.fontSize = (u16)app->uiFontSize,
 													.textColor = TEXT_WHITE,
-													.wrapMode = CLAY_TEXT_WRAP_NONE,
-													.textAlignment = CLAY_TEXT_ALIGN_SHRINK,
-													.userData = { .contraction = TextContraction_ClipRight, .richText = true },
+													.wrapMode = CLAY_TEXT_WRAP_WORDS,
+													.textAlignment = CLAY_TEXT_ALIGN_LEFT,
+													.userData = { .richText = true },
 												})
 											);
 										}

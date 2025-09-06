@@ -17,11 +17,12 @@ Date:   02\25\2025
 
 // #define MAP_FONT_NAME  "Arial"
 #define MAP_FONT_NAME  "Helvetica"
-// #define MAP_ASIAN_FONT_NAME  "Yu Mincho" //TODO: This isn't available by default unless you install a japanese keyboard on Windows? Or maybe Windows 11 doesn't have the font by default?
+#define MAP_ASIAN_FONT_NAME  "Yu Mincho" //TODO: This isn't available by default on Win11 unless you install a japanese keyboard on Windows? Or maybe Windows 11 doesn't have the font by default?
 // #define MAP_ASIAN_FONT_NAME  "Yu Gothic" //TODO: This breaks stb_truetype?
 // #define MAP_ASIAN_FONT_NAME  "Meiryo UI"
 // #define MAP_ASIAN_FONT_NAME  "Meiryo"
-#define MAP_ASIAN_FONT_NAME  "MS Mincho"
+// #define MAP_ASIAN_FONT_NAME  "Ms Mincho" //TODO: This one can be found on Win11 can't be found on Win10 for some reason, even though MSMINCHO.ttf exists
+// #define MAP_ASIAN_FONT_NAME  "MSMINCHO" //TODO: This one can be found on Windows 10 but does NOT contain CJK glyphs??
 #define MAP_FONT_STYLE FontStyleFlag_Bold
 #define DEFAULT_MAP_FONT_SIZE   20
 
