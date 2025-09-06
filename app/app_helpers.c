@@ -342,11 +342,18 @@ void OpenOsmMap(FilePath filePath)
 		);
 		
 		v2d targetLocation = AddV2d(app->map.bounds.TopLeft, ShrinkV2d(app->map.bounds.Size, 2.0));
-		app->view.position = MapProject(app->view.projection, targetLocation, NewRecdV(V2d_Zero, app->view.mapRec.Size));
-		// app->view.zoom = MinR64(
-		// 	1.0 / (app->map.bounds.SizeLon / 360.0),
-		// 	1.0 / (app->map.bounds.SizeLat / 180.0)
-		// );
+		v2d boundsOnMapTopLeft = MapProject(app->view.projection, app->map.bounds.TopLeft, app->view.mapRec);
+		v2d boundsOnMapBottomRight = MapProject(app->view.projection, AddV2d(app->map.bounds.TopLeft, app->map.bounds.Size), app->view.mapRec);
+		recd boundsOnMap = NewRecdBetweenV(boundsOnMapTopLeft, boundsOnMapBottomRight);
+		app->view.position = AddV2d(boundsOnMap.TopLeft, ShrinkV2d(boundsOnMap.Size, 2.0));
+		rec mainViewportRec = GetClayElementDrawRecNt("MainViewport");
+		if (boundsOnMap.Width > 0 && boundsOnMap.Height > 0 && mainViewportRec.Width > 0)
+		{
+			app->view.zoom = MinR64(
+				mainViewportRec.Width / boundsOnMap.Width,
+				mainViewportRec.Height / boundsOnMap.Height
+			);
+		}
 		
 		app->loadedFilePath = AllocStr8(stdHeap, filePath);
 		FindInternationalCodepointsInMapNames(&app->map, &app->kanjiCodepoints);
@@ -382,19 +389,20 @@ void UpdateOsmWayColorChoice(OsmWay* way)
 				else if (StrAnyCaseEquals(landuseStr, StrLit("railway")) ||
 					StrAnyCaseEquals(landuseStr, StrLit("industrial"))) { way->fillColor = CartoFillIndustrial; }
 				else if (StrAnyCaseEquals(landuseStr, StrLit("religious"))) { way->fillColor = CartoFillReligious; way->borderThickness = 1.0f; way->borderColor = CartoBorderReligious; }
+				else if (StrAnyCaseEquals(landuseStr, StrLit("cemetery"))) { way->fillColor = CartoFillCemetery; }
 				else if (StrAnyCaseEquals(landuseStr, StrLit("grass")) ||
 					StrAnyCaseEquals(landuseStr, StrLit("flowerbed"))) { way->fillColor = CartoFillGrass; }
 				else
 				{
 					Str8 leisureStr = GetOsmWayTagValue(way, StrLit("leisure"), Str8_Empty);
 					if (StrAnyCaseEquals(leisureStr, StrLit("park"))) { way->fillColor = CartoFillPark; }
-					else if (StrAnyCaseEquals(leisureStr, StrLit("playground"))) { way->fillColor = CartoFillPlayground; }
+					else if (StrAnyCaseEquals(leisureStr, StrLit("playground")) ||
+						StrAnyCaseEquals(landuseStr, StrLit("recreation_ground"))) { way->fillColor = CartoFillPlayground; }
 					else if (StrAnyCaseEquals(leisureStr, StrLit("sports_centre"))) { way->renderLayer = OsmRenderLayer_Top; way->fillColor = CartoFillPlayground; }
-					else if (StrAnyCaseEquals(leisureStr, StrLit("pitch"))) { way->fillColor = CartoFillSports; }
+					else if (StrAnyCaseEquals(leisureStr, StrLit("pitch"))) { way->renderLayer = OsmRenderLayer_Middle; way->fillColor = CartoFillSports; }
 					else if (StrAnyCaseEquals(leisureStr, StrLit("marina"))) { way->fillColor = CartoFillWater; }
 					else if (StrAnyCaseEquals(leisureStr, StrLit("swimming_pool"))) { way->renderLayer = OsmRenderLayer_Middle; way->fillColor = CartoFillWater; way->borderThickness = 1.0f; way->borderColor = CartoBorderWater; }
 					else if (StrAnyCaseEquals(leisureStr, StrLit("garden"))) { way->renderLayer = OsmRenderLayer_Middle; way->fillColor = CartoFillGrass; }
-					else
 					{
 						Str8 buildingStr = GetOsmWayTagValue(way, StrLit("building"), Str8_Empty);
 						if (StrAnyCaseEquals(buildingStr, StrLit("yes")) ||
@@ -411,6 +419,7 @@ void UpdateOsmWayColorChoice(OsmWay* way)
 							StrAnyCaseEquals(buildingStr, StrLit("bridge")) ||
 							StrAnyCaseEquals(buildingStr, StrLit("roof"))) { way->renderLayer = OsmRenderLayer_Top; way->fillColor = CartoFillBuilding; way->borderThickness = 2.0f; way->borderColor = CartoBorderBuilding; }
 						else if (StrAnyCaseEquals(buildingStr, StrLit("garage"))) { way->renderLayer = OsmRenderLayer_Top; way->fillColor = CartoFillParking; way->borderThickness = 1.0f; way->borderColor = CartoBorderParking; }
+						else if (StrAnyCaseEquals(buildingStr, StrLit("train_station"))) { way->renderLayer = OsmRenderLayer_Top; way->fillColor = CartoFillDarkerBuilding; way->borderThickness = 1.0f; way->borderColor = CartoBorderDarkerBuilding; }
 						else if (StrAnyCaseEquals(buildingStr, StrLit("retail"))) { way->renderLayer = OsmRenderLayer_Top; way->fillColor = CartoFillRetailBuilding; way->borderThickness = 1.0f; way->borderColor = CartoBorderRetailBuilding; }
 						// else if (StrAnyCaseEquals(buildingStr, StrLit("train_station"))) { way->renderLayer = OsmRenderLayer_Middle; way->fillColor = CartoFillPublicTransit; }
 						else
@@ -435,7 +444,9 @@ void UpdateOsmWayColorChoice(OsmWay* way)
 								{
 									Str8 demolishedBuildingStr = GetOsmWayTagValue(way, StrLit("demolished:building"), Str8_Empty);
 									Str8 buildingPartStr = GetOsmWayTagValue(way, StrLit("building:part"), Str8_Empty);
+									Str8 wasBuildingStr = GetOsmWayTagValue(way, StrLit("was:building"), Str8_Empty);
 									if (StrAnyCaseEquals(demolishedBuildingStr, StrLit("yes"))) { way->fillColor = Transparent; }
+									else if (StrAnyCaseEquals(wasBuildingStr, StrLit("yes"))) { way->fillColor = Transparent; }
 									else if (!IsEmptyStr(buildingPartStr)) { way->fillColor = Transparent; }
 									else
 									{
@@ -445,8 +456,8 @@ void UpdateOsmWayColorChoice(OsmWay* way)
 										else if (StrAnyCaseEquals(manMadeStr, StrLit("bridge"))) { way->renderLayer = OsmRenderLayer_Middle; way->fillColor = CartoFillBridge; }
 										else
 										{
-											Str8 highwayStr = GetOsmWayTagValue(way, StrLit("highway"), Str8_Empty);
-											if (!IsEmptyStr(highwayStr)) { way->isClosedLoop = false; }
+											if (!IsEmptyStr(GetOsmWayTagValue(way, StrLit("highway"), Str8_Empty)) ||
+												!IsEmptyStr(GetOsmWayTagValue(way, StrLit("barrier"), Str8_Empty))) { way->isClosedLoop = false; }
 										}
 									}
 								}
@@ -485,8 +496,31 @@ void UpdateOsmWayColorChoice(OsmWay* way)
 			way->lineThickness = 1.0f;
 			Str8 highwayStr = GetOsmWayTagValue(way, StrLit("highway"), Str8_Empty);
 			if (StrAnyCaseEquals(highwayStr, StrLit("trunk"))) { way->fillColor = CartoStrokeTrunk; way->lineThickness = 5.0f; }
-			else if (StrAnyCaseEquals(highwayStr, StrLit("residential"))) { way->fillColor = CartoStrokeResidential; way->lineThickness = 2.0f; }
+			else if (StrAnyCaseEquals(highwayStr, StrLit("tertiary"))) { way->fillColor = CartoStrokeRoad; way->lineThickness = 3.0f; }
+			else if (StrAnyCaseEquals(highwayStr, StrLit("residential")) ||
+				StrAnyCaseEquals(highwayStr, StrLit("unclassified"))) { way->fillColor = CartoStrokeRoad; way->lineThickness = 2.0f; }
+			else if (StrAnyCaseEquals(highwayStr, StrLit("service"))) { way->fillColor = CartoStrokeRoad; way->lineThickness = 1.0f; }
 			else if (StrAnyCaseEquals(highwayStr, StrLit("secondary"))) { way->fillColor = CartoStrokeSecondary; way->lineThickness = 3.0f; }
+			else if (StrAnyCaseEquals(highwayStr, StrLit("path")) ||
+				StrAnyCaseEquals(highwayStr, StrLit("footway"))) { way->fillColor = CartoStrokePath; way->lineThickness = 1.0f; }
+			else if (StrAnyCaseEquals(highwayStr, StrLit("cycleway"))) { way->fillColor = CartoStrokeCycleway; way->lineThickness = 1.0f; }
+			else if (StrAnyCaseEquals(highwayStr, StrLit("track"))) { way->fillColor = CartoStrokeTrack; way->lineThickness = 2.0f; }
+			else
+			{
+				Str8 railwayStr = GetOsmWayTagValue(way, StrLit("railway"), Str8_Empty);
+				Str8 waterwayStr = GetOsmWayTagValue(way, StrLit("waterway"), Str8_Empty);
+				Str8 barrierStr = GetOsmWayTagValue(way, StrLit("barrier"), Str8_Empty);
+				if (StrAnyCaseEquals(waterwayStr, StrLit("stream"))) { way->renderLayer = OsmRenderLayer_Middle; way->fillColor = CartoFillWater; way->lineThickness = 2.0f; }
+				else if (StrAnyCaseEquals(barrierStr, StrLit("hedge"))) { way->fillColor = CartoStrokeHedge; way->lineThickness = 3.0f; }
+				else if (StrAnyCaseEquals(barrierStr, StrLit("fence"))) { way->fillColor = CartoStrokeFence; way->lineThickness = 1.0f; }
+				else if (StrAnyCaseEquals(railwayStr, StrLit("rail"))) { way->renderLayer = OsmRenderLayer_Middle; way->fillColor = CartoStrokeRail; way->lineThickness = 2.0f; }
+				else
+				{
+					Str8 powerStr = GetOsmWayTagValue(way, StrLit("power"), Str8_Empty);
+					if (StrAnyCaseEquals(powerStr, StrLit("line"))) { way->renderLayer = OsmRenderLayer_Top; way->fillColor = CartoStrokePowerline; way->lineThickness = 1.0f; }
+					
+				}
+			}
 			
 			Str8 thicknessStr = GetOsmWayTagValue(way, StrLit("thickness"), Str8_Empty);
 			if (!IsEmptyStr(thicknessStr)) { TryParseR32(thicknessStr, &way->lineThickness, nullptr); }
