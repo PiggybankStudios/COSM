@@ -229,7 +229,7 @@ recd GetMapScreenRec(MapView* view)
 	rec mainViewportRec = GetClayElementDrawRecNt("MainViewport");
 	if (mainViewportRec.Width > 0 && mainViewportRec.Height > 0)
 	{
-		result.TopLeft = AddV2d(result.TopLeft, AddV2d(ToV2dFromf(mainViewportRec.TopLeft), ToV2dFromf(ShrinkV2(mainViewportRec.Size, 2.0f))));
+		result.TopLeft = AddV2d(result.TopLeft, ToV2dFromf(AddV2(mainViewportRec.TopLeft, ShrinkV2(mainViewportRec.Size, 2.0f))));
 	}
 	
 	return result;
@@ -341,7 +341,7 @@ void OpenOsmMap(FilePath filePath)
 			app->map.ways.length, Plural(app->map.ways.length, "s")
 		);
 		
-		v2d targetLocation = AddV2d(app->map.bounds.TopLeft, ShrinkV2d(app->map.bounds.Size, 2.0));
+		// PrintLine_D("Bounds are (%lf, %lf, %lf, %lf)", app->map.bounds.X, app->map.bounds.Y, app->map.bounds.Width, app->map.bounds.Height);
 		v2d boundsOnMapTopLeft = MapProject(app->view.projection, app->map.bounds.TopLeft, app->view.mapRec);
 		v2d boundsOnMapBottomRight = MapProject(app->view.projection, AddV2d(app->map.bounds.TopLeft, app->map.bounds.Size), app->view.mapRec);
 		recd boundsOnMap = NewRecdBetweenV(boundsOnMapTopLeft, boundsOnMapBottomRight);
@@ -354,6 +354,7 @@ void OpenOsmMap(FilePath filePath)
 				mainViewportRec.Height / boundsOnMap.Height
 			);
 		}
+		// PrintLine_D("Placing view at (%lf, %lf) at zoom %lf", app->view.position.X, app->view.position.Y, app->view.zoom);
 		
 		app->loadedFilePath = AllocStr8(stdHeap, filePath);
 		FindInternationalCodepointsInMapNames(&app->map, &app->kanjiCodepoints);

@@ -6,6 +6,9 @@ Description:
 	** None
 */
 
+// +--------------------------------------------------------------+
+// |                       .osm File Format                       |
+// +--------------------------------------------------------------+
 Result TryParseOsmMap(Arena* arena, Str8 xmlFileContents, OsmMap* mapOut)
 {
 	TracyCZoneN(funcZone, "TryParseOsmMap", true);
@@ -131,6 +134,9 @@ Result TryParseOsmMap(Arena* arena, Str8 xmlFileContents, OsmMap* mapOut)
 	return (xml.error == Result_None) ? Result_Success : xml.error;
 }
 
+// +--------------------------------------------------------------+
+// |                       .pbf File Format                       |
+// +--------------------------------------------------------------+
 char GetPbfBlobTypeChar(u8 blobType)
 {
 	switch (blobType)
@@ -150,39 +156,45 @@ char GetPbfBlobTypeChar(u8 blobType)
 	: Str8_Empty                                                                           \
 )
 
-Result TryParsePbfMap(Arena* arena, Slice protobufFileContents, OsmMap* mapOut)
+Result TryParsePbfMap(Arena* arena, DataStream* protobufStream, OsmMap* mapOut)
 {
 	TracyCZoneN(Zone_Func, "TryParsePbfMap", true);
 	ScratchBegin1(scratch, arena);
 	ProtobufCAllocator scratchAllocator = ProtobufAllocatorFromArena(scratch);
 	Result result = Result_None;
-	uxx readIndex = 0;
 	uxx blobIndex = 0;
 	bool foundOsmHeader = false;
 	bool foundOsmData = false;
 	bool foundUnkownBlobTypes = false;
 	
-	while (readIndex < protobufFileContents.length && result == Result_None)
+	while (!IsDataStreamFinished(protobufStream) && result == Result_None)
 	{
 		uxx scratchMark1 = ArenaGetMark(scratch);
-		u32 headerLength = BinReadU32(protobufFileContents, &readIndex, result = ((blobIndex == 0) ? Result_MissingFileHeader : Result_UnexpectedEof); break);
+		u32 headerLength = BinStreamReadU32(protobufStream, scratch,
+			result = ((blobIndex == 0) ? Result_EmptyFile : result);
+			break
+		);
 		FlipEndianU32(headerLength);
 		if (headerLength == 0) { result = Result_ValueTooLow; break; }
-		if (readIndex + headerLength > protobufFileContents.length || headerLength > Kilobytes(64)) { result = Result_ValueTooHigh; break; }
+		if (headerLength > Kilobytes(64)) { result = Result_ValueTooHigh; break; }
+		u8* headerBytes = TryReadFromDataStream(protobufStream, headerLength, scratch);
+		if (headerBytes == nullptr) { PrintLine_E("Failed to read %u byte header for blob[%llu]", headerLength, blobIndex); result = protobufStream->error; break; }
 		// PrintLine_D("headerLength=%u", headerLength);
 		
 		TracyCZoneN(Zone_BlobHeader, "BlobHeader", true);
-		OSMPBF__BlobHeader* blobHeader = osmpbf__blob_header__unpack(&scratchAllocator, headerLength, &protobufFileContents.bytes[readIndex]); readIndex += headerLength;
+		OSMPBF__BlobHeader* blobHeader = osmpbf__blob_header__unpack(&scratchAllocator, headerLength, headerBytes);
 		TracyCZoneEnd(Zone_BlobHeader);
 		if (blobHeader == nullptr) { result = Result_ParsingFailure; break; }
+		Str8 blobTypeStr = StrLit(blobHeader->type);
 		// PrintLine_I("Parsed %u byte BlobHeader: %d byte \"%s\"", headerLength, blobHeader->datasize, blobHeader->type);
 		// if (blobHeader->has_indexdata) { PrintLine_D("\tindexdata=%zu bytes %p", blobHeader->indexdata.len, blobHeader->indexdata.data); }
 		if (blobHeader->datasize == 0) { result = Result_ValueTooLow; break; }
-		if (readIndex + blobHeader->datasize > protobufFileContents.length || headerLength > Megabytes(32)) { result = Result_ValueTooHigh; break; }
-		Str8 blobTypeStr = StrLit(blobHeader->type);
+		if (blobHeader->datasize > Megabytes(32)) { result = Result_ValueTooHigh; break; }
+		u8* blobBytes = TryReadFromDataStream(protobufStream, blobHeader->datasize, scratch);
+		if (blobBytes == nullptr) { PrintLine_E("Failed to read %u byte blob[%llu]", blobHeader->datasize, blobIndex); result = protobufStream->error; break; }
 		
 		TracyCZoneN(Zone_Blob, "Blob", true);
-		OSMPBF__Blob* blob = osmpbf__blob__unpack(&scratchAllocator, blobHeader->datasize, &protobufFileContents.bytes[readIndex]); readIndex += blobHeader->datasize;
+		OSMPBF__Blob* blob = osmpbf__blob__unpack(&scratchAllocator, blobHeader->datasize, blobBytes);
 		TracyCZoneEnd(Zone_Blob);
 		if (blob == nullptr) { result = Result_ParsingFailure; break; }
 		// PrintLine_I("\tParsed %d byte Blob!", blobHeader->datasize);
@@ -246,10 +258,10 @@ Result TryParsePbfMap(Arena* arena, Slice protobufFileContents, OsmMap* mapOut)
 			if (headerBlock == nullptr) { PrintLine_E("Failed to parse OSMPBF::HeaderBlock in blob[%llu]!", blobIndex); result = Result_ParsingFailure; break; }
 			#if 0
 			PrintLine_D("\tbbox: (%lf, %lf, %lf, %lf)",
-				(r64)headerBlock->bbox->left / * (r64)Nano(1),
-				(r64)headerBlock->bbox->top / (r64)Nano(1),
-				(r64)headerBlock->bbox->right / (r64)Nano(1),
-				(r64)headerBlock->bbox->bottom / (r64)Nano(1)
+				(r64)headerBlock->bbox->left * (r64)Nano(1),
+				(r64)headerBlock->bbox->top * (r64)Nano(1),
+				(r64)headerBlock->bbox->right * (r64)Nano(1),
+				(r64)headerBlock->bbox->bottom * (r64)Nano(1)
 			);
 			PrintLine_D("\tn_required_features: %zu", headerBlock->n_required_features);
 			for (size_t fIndex = 0; fIndex < headerBlock->n_required_features; fIndex++) { PrintLine_D("\t\trequired_feature[%zu]: \"%s\"", fIndex, headerBlock->required_features[fIndex]); }
@@ -264,10 +276,10 @@ Result TryParsePbfMap(Arena* arena, Slice protobufFileContents, OsmMap* mapOut)
 			
 			foundOsmHeader = true;
 			InitOsmMap(arena, mapOut, 0, 0);
-			mapOut->bounds.X = (r64)headerBlock->bbox->left / (r64)Nano(1);
-			mapOut->bounds.Y = (r64)headerBlock->bbox->top / (r64)Nano(1);
-			mapOut->bounds.Width = ((r64)headerBlock->bbox->right / (r64)Nano(1)) - mapOut->bounds.X;
-			mapOut->bounds.Height = ((r64)headerBlock->bbox->bottom / (r64)Nano(1)) - mapOut->bounds.Y;
+			mapOut->bounds.X = (r64)headerBlock->bbox->left * (r64)Nano(1);
+			mapOut->bounds.Y = (r64)headerBlock->bbox->top * (r64)Nano(1);
+			mapOut->bounds.Width = ((r64)headerBlock->bbox->right * (r64)Nano(1)) - mapOut->bounds.X;
+			mapOut->bounds.Height = ((r64)headerBlock->bbox->bottom * (r64)Nano(1)) - mapOut->bounds.Y;
 			//TODO: Ensure that all the "required_features" are things we expect to handle
 			//      "OsmSchema-V0.6", "DenseNodes", "Sort.Type_then_ID", "LocationsOnWays", "HistoricalInformation", etc.
 		}
@@ -543,6 +555,21 @@ Result TryParseMapFile(Arena* arena, FilePath filePath, OsmMap* mapOut)
 	
 	if (StrAnyCaseEndsWith(filePath, StrLit(".pbf")))
 	{
+		#if 1
+		OsFile pbfFile = ZEROED;
+		TracyCZoneN(_OsOpenFile, "OsOpenFile", true);
+		bool openedSelectedFile = OsOpenFile(scratch, filePath, OsOpenFileMode_Read, false, &pbfFile);
+		TracyCZoneEnd(_OpenBinFile);
+		if (openedSelectedFile)
+		{
+			PrintLine_I("Opened binary \"%.*s\"", StrPrint(filePath));
+			DataStream fileStream = ToDataStreamFromFile(&pbfFile);
+			parseResult = TryParsePbfMap(stdHeap, &fileStream, mapOut);
+			OsCloseFile(&pbfFile);
+			if (parseResult != Result_Success) { PrintLine_E("Failed to parse as OpenStreetMaps Protobuf data! Error: %s", GetResultStr(parseResult)); }
+		}
+		else { PrintLine_E("Failed to open \"%.*s\"", StrPrint(filePath)); }
+		#else
 		Slice fileContents = Slice_Empty;
 		TracyCZoneN(_ReadBinFile, "OsReadBinFile", true);
 		bool openedSelectedFile = OsReadBinFile(filePath, scratch, &fileContents);
@@ -550,9 +577,12 @@ Result TryParseMapFile(Arena* arena, FilePath filePath, OsmMap* mapOut)
 		if (openedSelectedFile)
 		{
 			PrintLine_I("Opened binary \"%.*s\", %llu bytes", StrPrint(filePath), fileContents.length);
-			parseResult = TryParsePbfMap(stdHeap, fileContents, mapOut);
+			DataStream fileStream = ToDataStreamFromBuffer(fileContents);
+			parseResult = TryParsePbfMap(stdHeap, &fileStream, mapOut);
 			if (parseResult != Result_Success) { PrintLine_E("Failed to parse as OpenStreetMaps Protobuf data! Error: %s", GetResultStr(parseResult)); }
 		}
+		else { PrintLine_E("Failed to open \"%.*s\"", StrPrint(filePath)); }
+		#endif
 	}
 	else if (StrAnyCaseEndsWith(filePath, StrLit(".osm")))
 	{

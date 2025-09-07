@@ -5,13 +5,14 @@
 	[X] Unproject for Mercator projection!
 	[X] Middle or Right Click to pan
 	[X] Ability to select elements
+	[X] File Streaming!
+	[!] Serialize to .osm or .pbf
 	[ ] Proper zoom behavior
 	[ ] Store things in dictionaries based on IDs for quick lookup by ID
 	[ ] Caching system with eviction for vertex buffers
 	[ ] Style rules loaded from file
 	[ ] Drag and drop to load file
 	[ ] Recent files list
-	[ ] Serialize to .osm or .pbf
 	[ ] Display information about selected nodes/ways
 	[ ] Turn selected items on/off. Move to different layers. Delete items.
 	[ ] Add support for choosing color/thickness/radius of selected items
@@ -23,4 +24,5 @@
 	[ ] Space partitioning data structure
 	[ ] Layer management panel (create, destroy, duplicate, move between layers, etc.)
 	[ ] Render names on ways (or collections of ways?)
+	[ ] Dynamically show node names based on importance and position to maximize space usage
 	[ ] 
