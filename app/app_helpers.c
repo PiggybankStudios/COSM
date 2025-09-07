@@ -354,6 +354,38 @@ void OpenOsmMap(FilePath filePath)
 			app->map.ways.length, Plural(app->map.ways.length, "s")
 		);
 		
+		#if 1
+		if (!IsVarArraySortedUintMember(OsmNode, id, &app->map.nodes))
+		{
+			TracyCZoneN(_SortOsmNodes, "SortOsmNodes", true);
+			PrintLine_D("Sorting %llu nodes...", app->map.nodes.length);
+			// VarArrayLoop(&app->map.nodes, nIndex) { VarArrayLoopGet(OsmNode, node, &app->map.nodes, nIndex); PrintLine_D("Before Node[%llu]: ID %llu", nIndex, node->id); if (nIndex >= 10) { break; } }
+			QuickSortVarArrayUintMember(OsmNode, id, &app->map.nodes);
+			// VarArrayLoop(&app->map.nodes, nIndex) { VarArrayLoopGet(OsmNode, node, &app->map.nodes, nIndex); PrintLine_D("After Node[%llu]: ID %llu", nIndex, node->id); if (nIndex >= 10) { break; } }
+			TracyCZoneEnd(_SortOsmNodes);
+			
+			TracyCZoneN(_FixNodeRefs, "FixNodeRefs", true);
+			VarArrayLoop(&app->map.ways, wIndex)
+			{
+				VarArrayLoopGet(OsmWay, way, &app->map.ways, wIndex);
+				VarArrayLoop(&way->nodes, nIndex)
+				{
+					VarArrayLoopGet(OsmNodeRef, nodeRef, &way->nodes, nIndex);
+					nodeRef->pntr = FindOsmNode(&app->map, nodeRef->id);
+				}
+			}
+			TracyCZoneEnd(_FixNodeRefs);
+		}
+		else { PrintLine_D("%llu nodes are already sorted!", app->map.nodes.length); }
+		
+		TracyCZoneN(_SortOsmWays, "SortOsmWays", true);
+		PrintLine_D("Sorting %llu ways...", app->map.ways.length);
+		// VarArrayLoop(&app->map.ways, wIndex) { VarArrayLoopGet(OsmWay, way, &app->map.ways, wIndex); PrintLine_D("Before Way[%llu]: ID %llu", wIndex, way->id); if (wIndex >= 10) { break; } }
+		QuickSortVarArrayIntMember(OsmWay, id, &app->map.ways);
+		// VarArrayLoop(&app->map.ways, wIndex) { VarArrayLoopGet(OsmWay, way, &app->map.ways, wIndex); PrintLine_D("After Way[%llu]: ID %llu", wIndex, way->id); if (wIndex >= 10) { break; } }
+		TracyCZoneEnd(_SortOsmWays);
+		#endif
+		
 		v2d targetLocation = AddV2d(app->map.bounds.TopLeft, ShrinkV2d(app->map.bounds.Size, 2.0));
 		app->view.position = MapProject(app->view.projection, targetLocation, NewRecdV(V2d_Zero, app->view.mapRec.Size));
 		// app->view.zoom = MinR64(

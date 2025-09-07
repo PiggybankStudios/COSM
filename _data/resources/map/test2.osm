@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<osm version="0.6" generator="openstreetmap-cgimap 2.0.1 (211876 spike-06.openstreetmap.org)" copyright="OpenStreetMap and contributors" attribution="http://www.openstreetmap.org/copyright" license="http://opendatacommons.org/licenses/odbl/1-0/">
+	<bounds minlat="62.7358200" minlon="15.3574300" maxlat="62.7700900" maxlon="15.4921800"/>
+	
+	<node id="10" visible="true" version="12" changeset="1003" timestamp="2024-10-05T15:34:54Z" user="leojth" uid="2001" lat="62.7501409" lon="15.4174949">
+		<tag k="name" v="Bräcke"/>
+		<tag k="public_transport" v="stop_position"/>
+		<tag k="railway" v="stop"/>
+		<tag k="railway:ref" v="Bä"/>
+		<tag k="ref" v="Bä"/>
+		<tag k="train" v="yes"/>
+	</node>
+	<node id="14" visible="true" version="4" changeset="1000" timestamp="2020-12-11T09:15:36Z" user="Ice25T" uid="2000" lat="62.7481184" lon="15.4190513"/>
+	<node id="18" visible="true" version="4" changeset="1000" timestamp="2020-12-11T09:15:36Z" user="Ice25T" uid="2000" lat="62.7472212" lon="15.4201323"/>
+	<node id="17" visible="true" version="1" changeset="1000" timestamp="2020-12-11T09:15:36Z" user="Ice25T" uid="2000" lat="62.7474036" lon="15.4198936"/>
+	<node id="13" visible="true" version="3" changeset="1000" timestamp="2020-12-11T09:15:36Z" user="Ice25T" uid="2000" lat="62.7483757" lon="15.4187939"/>
+	<node id="16" visible="true" version="4" changeset="1000" timestamp="2020-12-11T09:15:36Z" user="Ice25T" uid="2000" lat="62.7475872" lon="15.4196629"/>
+	<node id="15" visible="true" version="1" changeset="1000" timestamp="2020-12-11T09:15:36Z" user="Ice25T" uid="2000" lat="62.7478408" lon="15.4193531"/>
+	<node id="12" visible="true" version="1" changeset="1000" timestamp="2020-12-11T09:15:36Z" user="Ice25T" uid="2000" lat="62.7487398" lon="15.4184908"/>
+	<node id="11" visible="true" version="2" changeset="1000" timestamp="2020-12-11T09:15:36Z" user="Ice25T" uid="2000" lat="62.7492532" lon="15.4181153"/>
+	<node id="20" visible="true" version="4" changeset="1000" timestamp="2020-12-11T09:15:36Z" user="Ice25T" uid="2000" lat="62.7468856" lon="15.4206485"/>
+	<node id="21" visible="true" version="4" changeset="1000" timestamp="2020-12-11T09:15:36Z" user="Ice25T" uid="2000" lat="62.7462339" lon="15.4217012"/>
+	<node id="19" visible="true" version="2" changeset="1001" timestamp="2022-03-30T17:29:57Z" user="Tomas Marklund" uid="350222" lat="62.7470788" lon="15.4203534">
+		<tag k="railway" v="signal"/>
+		<tag k="railway:position:exact" v="514.585"/>
+		<tag k="railway:signal:direction" v="forward"/>
+		<tag k="railway:signal:main" v="SE:Mellansignal"/>
+		<tag k="railway:signal:main:form" v="light"/>
+		<tag k="railway:signal:main:function" v="intermediate"/>
+		<tag k="railway:signal:position" v="left"/>
+		<tag k="ref" v="Bä 31"/>
+	</node>
+	
+	<way id="100" visible="true" version="19" changeset="1002" timestamp="2025-01-09T05:19:17Z" user="streckengaenger21" uid="12622800">
+		<nd ref="10"/>
+		<nd ref="11"/>
+		<nd ref="12"/>
+		<nd ref="13"/>
+		<nd ref="14"/>
+		<nd ref="15"/>
+		<nd ref="16"/>
+		<nd ref="17"/>
+		<nd ref="18"/>
+		<nd ref="19"/>
+		<nd ref="20"/>
+		<nd ref="21"/>
+		<tag k="axle_load" v="25"/>
+		<tag k="electrified" v="contact_line"/>
+		<tag k="frequency" v="16.67"/>
+		<tag k="gauge" v="1435"/>
+		<tag k="loading_gauge" v="TSI_GC"/>
+		<tag k="maxspeed" v="135"/>
+		<tag k="maxspeed:sign" v="105"/>
+		<tag k="metre_load" v="8"/>
+		<tag k="name" v="Mittbanan"/>
+		<tag k="passenger_lines" v="2"/>
+		<tag k="railway" v="rail"/>
+		<tag k="railway:atc" v="yes"/>
+		<tag k="railway:bidirectional" v="regular"/>
+		<tag k="railway:ctc" v="yes"/>
+		<tag k="railway:etcs" v="no"/>
+		<tag k="railway:preferred_direction" v="forward"/>
+		<tag k="railway:radio" v="gsm-r"/>
+		<tag k="railway:rail" v="continuous"/>
+		<tag k="railway:traffic_mode" v="mixed"/>
+		<tag k="start_date" v="1878-10-01"/>
+		<tag k="tracks" v="1"/>
+		<tag k="usage" v="main"/>
+		<tag k="voltage" v="15000"/>
+		<tag k="workrules" v="SE:H"/>
+	</way>
+</osm>
