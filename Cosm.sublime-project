@@ -741,6 +741,7 @@
 			"bool IsPolygonClockwise(u64 numVertices, v2* vertices)",
 			"bool IsPolygonClockwiseR64(uxx numVertices, v2d* vertices)",
 			"bool IsSizedPointerInRemap(const PointerRemap* remap, const void* pointer, size_t size)",
+			"bool IsSorted(const SortApi* sortApi, CompareFunc_f* compareFunc, void* contextPntr)",
 			"bool IsSortedFlat(const void* arrayPntr, uxx numElements, uxx elementSize, CompareFunc_f* compareFunc, void* contextPntr)",
 			"bool IsTriangleClockwiseR64(v2d p0, v2d p1, v2d p2)",
 			"bool IsVarArrayInit(const VarArray* array)",
@@ -885,6 +886,7 @@
 			"uxx FindNextWhitespaceInStrEx(Str8 target, uxx startIndex, bool ignoreCharsInQuotes)",
 			"uxx OsGetFullPathLength(FilePath relativePath)",
 			"uxx RemoveColinearAndDuplicateVerticesR64(uxx numVertices, v2d* vertices)",
+			"uxx SORT_API_GET_NUM_ELEMENTS_DEF(void* structPntr)",
 			"uxx StrAnyCaseFind(Str8 haystack, Str8 needle)",
 			"uxx StrExactFind(Str8 haystack, Str8 needle)",
 			"uxx StrFind(Str8 haystack, Str8 needle, bool caseSensitive)",
@@ -1127,6 +1129,7 @@
 			"void* ReallocMem(Arena* arena, void* allocPntr, uxx oldSize, uxx newSize)",
 			"void* ReallocMemAligned(Arena* arena, void* allocPntr, uxx oldSize, uxx oldAlignmentOverride, uxx newSize, uxx newAlignmentOverride)",
 			"void* ReallocMemNoOldSize(Arena* arena, void* allocPntr, uxx newSize)",
+			"void* SORT_API_GET_ELEMENT_DEF(void* structPntr, uxx index)",
 		],
 		"custom_globals":
 		[
@@ -1149,6 +1152,9 @@
 			"OsmSelectedItem",
 			"PointerRemap",
 			"PointerRemapRange",
+			"SortApi",
+			"SortApiGetElement_f",
+			"SortApiGetNumElements_f",
 			"UiTextbox",
 			"VarArray",
 			"Vec2R64",

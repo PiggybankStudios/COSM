@@ -113,4 +113,5 @@ Description:
 #define CartoStrokeFence          NewColorU32(CartoStrokeFence_Value)
 #define CartoStrokePowerline      NewColorU32(CartoStrokePowerline_Value)
 #define CartoStrokeRail           NewColorU32(CartoStrokeRail_Value)
+
 #endif //  _OSM_CARTO_H
