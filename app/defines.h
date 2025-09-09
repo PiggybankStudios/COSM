@@ -7,6 +7,11 @@ Date:   02\25\2025
 #ifndef _DEFINES_H
 #define _DEFINES_H
 
+#define RECENT_FILES_SAVE_FILEPATH        "recent_files.txt"
+#define RECENT_FILES_MAX_LENGTH           16 //files
+#define CHECK_RECENT_FILES_CHANGED_PERIOD 1000 //ms
+#define RECENT_FILES_RELOAD_DELAY         100 //ms
+
 #define MIN_FONT_ATLAS_SIZE 256 //px
 #define MAX_FONT_ATLAS_SIZE 1024 //px
 
@@ -61,5 +66,8 @@ Date:   02\25\2025
 // #define MAP_BACKGROUND_TEXTURE_PATH "resources/image/mercator_countries_1027px.png"
 // #define MAP_BACKGROUND_TEXTURE_PATH "resources/image/mercator_countries_1200px.png"
 // #define MAP_BACKGROUND_TEXTURE_PATH "resources/image/mercator_geography_2044px.png"
+
+#define DEFAULT_WINDOW_SIZE   NewV2(800, 600)
+#define MIN_WINDOW_SIZE       NewV2(150, 100)
 
 #endif //  _DEFINES_H

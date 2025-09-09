@@ -82,6 +82,7 @@ PlatformData* platformData = nullptr;
 Arena* stdHeap = nullptr;
 PlatformInfo* platformInfo = nullptr;
 PlatformApi* platform = nullptr;
+ProgramArgs programArgs = ZEROED;
 
 // +--------------------------------------------------------------+
 // |                    Platform Source Files                     |
@@ -200,17 +201,6 @@ void PlatSappInit(void)
 {
 	TracyCZoneN(Zone_Func, "PlatSappInit", true);
 	
-	Arena stdHeapLocal = ZEROED;
-	InitArenaStdHeap(&stdHeapLocal);
-	platformData = AllocType(PlatformData, &stdHeapLocal);
-	NotNull(platformData);
-	ClearPointer(platformData);
-	MyMemCopy(&platformData->stdHeap, &stdHeapLocal, sizeof(Arena));
-	stdHeap = &platformData->stdHeap;
-	InitArenaStdHeap(&platformData->stdHeapAllowFreeWithoutSize);
-	FlagSet(platformData->stdHeapAllowFreeWithoutSize.flags, ArenaFlag_AllowFreeWithoutSize);
-	InitScratchArenasVirtual(Gigabytes(4));
-	
 	ScratchBegin(loadScratch);
 	
 	InitAppInput(&platformData->appInputs[0]);
@@ -223,6 +213,7 @@ void PlatSappInit(void)
 	ClearPointer(platformInfo);
 	platformInfo->platformStdHeap = stdHeap;
 	platformInfo->platformStdHeapAllowFreeWithoutSize = &platformData->stdHeapAllowFreeWithoutSize;
+	platformInfo->programArgs = &programArgs;
 	
 	platform = AllocType(PlatformApi, stdHeap);
 	NotNull(platform);
@@ -407,14 +398,50 @@ sapp_desc sokol_main(int argc, char* argv[])
 	TracyCAppInfo(projectName.chars, projectName.length);
 	#endif
 	
+	Arena stdHeapLocal = ZEROED;
+	InitArenaStdHeap(&stdHeapLocal);
+	// FlagSet(stdHeapLocal.flags, ArenaFlag_AddPaddingForDebug);
+	platformData = AllocType(PlatformData, &stdHeapLocal);
+	NotNull(platformData);
+	ClearPointer(platformData);
+	MyMemCopy(&platformData->stdHeap, &stdHeapLocal, sizeof(Arena));
+	stdHeap = &platformData->stdHeap;
+	InitArenaStdHeap(&platformData->stdHeapAllowFreeWithoutSize);
+	FlagSet(platformData->stdHeapAllowFreeWithoutSize.flags, ArenaFlag_AllowFreeWithoutSize);
+	// FlagSet(platformData->stdHeapAllowFreeWithoutSize.flags, ArenaFlag_AddPaddingForDebug);
+	
+	#if TARGET_IS_WINDOWS
+	Assert(argc >= 1); //First argument on windows is always the path to our .exe
+	ParseProgramArgs(stdHeap, (uxx)argc-1, &argv[1], &programArgs);
+	#else
+	//TODO: Is the above true for other platforms??
+	//TODO: We are getting a warning in clang unless we make an explicit cast: warning: passing 'char **' to parameter of type 'const char **' discards qualifiers in nested pointer types
+	ParseProgramArgs(stdHeap, (uxx)argc, (const char**)&argv[0], &programArgs);
+	#endif
+	
+	v2 windowSize = DEFAULT_WINDOW_SIZE;
+	Str8 sizeStr = FindNamedProgramArgStr(&programArgs, StrLit("size"), StrLit("s"), Str8_Empty);
+	if (!IsEmptyStr(sizeStr))
+	{
+		v2 newSize = V2_Zero_Const;
+		if (TryParseV2(sizeStr, &newSize, nullptr))
+		{
+			windowSize = newSize;
+		}
+	}
+	if (windowSize.Width < MIN_WINDOW_SIZE.Width) { windowSize.Width = MIN_WINDOW_SIZE.Width; }
+	if (windowSize.Height < MIN_WINDOW_SIZE.Height) { windowSize.Height = MIN_WINDOW_SIZE.Height; }
+	
+	InitScratchArenasVirtual(Gigabytes(4));
+	
 	return (sapp_desc){
 		.init_cb = PlatSappInit,
 		.frame_cb = PlatDoUpdate,
 		.cleanup_cb = PlatSappCleanup,
 		.event_cb = PlatSappEvent,
 		.enable_dragndrop = true,
-		.width = 800,
-		.height = 600,
+		.width = RoundR32i(windowSize.Width),
+		.height = RoundR32i(windowSize.Height),
 		.window_title = "Loading...",
 		.icon.sokol_default = false,
 		.logger.func = SokolLogCallback,

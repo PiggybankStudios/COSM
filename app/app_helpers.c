@@ -344,13 +344,15 @@ void OpenOsmMap(FilePath filePath)
 	Result parseResult = TryParseMapFile(scratch, filePath, &newMap);
 	if (parseResult == Result_Success)
 	{
-		FreeStr8(stdHeap, &app->loadedFilePath);
+		FreeStr8(stdHeap, &app->mapFilePath);
 		FreeOsmMap(&app->map);
 		MyMemCopy(&app->map, &newMap, sizeof(OsmMap));
+		app->mapFilePath = AllocStr8(stdHeap, filePath);
 		PrintLine_I("Parsed map! %llu node%s, %llu way%s",
 			app->map.nodes.length, Plural(app->map.nodes.length, "s"),
 			app->map.ways.length, Plural(app->map.ways.length, "s")
 		);
+		AppRememberRecentFile(filePath);
 		
 		#if 0
 		if (!IsVarArraySortedUintMember(OsmNode, id, &app->map.nodes))
@@ -398,8 +400,6 @@ void OpenOsmMap(FilePath filePath)
 				mainViewportRec.Height / boundsOnMap.Height
 			);
 		}
-		
-		app->loadedFilePath = AllocStr8(stdHeap, filePath);
 		
 		TracyCZoneN(_FindInternationalCodepoints, "FindInternationalCodepoints", true);
 		FindInternationalCodepointsInMapNames(&app->map, &app->kanjiCodepoints);

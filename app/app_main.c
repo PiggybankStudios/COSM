@@ -75,6 +75,7 @@ static Arena* stdHeap = nullptr;
 #include "osm_map.c"
 #include "osm_map_serialization.c"
 #include "app_clay_helpers.c"
+#include "app_recent_files.c"
 #include "app_helpers.c"
 #include "map_view.c"
 #include "app_clay.c"
@@ -147,6 +148,9 @@ EXPORT_FUNC APP_INIT_DEF(AppInit)
 	InitCompiledShader(&app->mainShader, stdHeap, main2d);
 	LoadMapBackTexture();
 	
+	InitVarArray(RecentFile, &app->recentFiles, stdHeap);
+	AppLoadRecentFilesList();
+	
 	InitVarArray(u32, &app->kanjiCodepoints, stdHeap);
 	app->uiFontSize = DEFAULT_UI_FONT_SIZE;
 	app->largeFontSize = DEFAULT_LARGE_FONT_SIZE;
@@ -164,7 +168,38 @@ EXPORT_FUNC APP_INIT_DEF(AppInit)
 	InitUiResizableSplit(stdHeap, StrLit("InfoLayersSplit"), false, 0, 0.50f, &app->infoLayersSplit);
 	
 	InitMapView(&app->view, MapProjection_Mercator);
+	
+	#if 0
 	OpenOsmMap(StrLit(TEST_OSM_FILE));
+	#else
+	bool wasCmdPathGiven = false;
+	//NOTE: Not really sure if we need to handle multiple argument paths being passed.
+	// I guess if the first one fails doesn't point to a real file we can
+	// open secondary one(s) but that really isn't super intuitive behavior
+	uxx argIndex = 0;
+	Str8 pathArgument = GetNamelessProgramArg(platformInfo->programArgs, argIndex);
+	while (!IsEmptyStr(pathArgument))
+	{
+		wasCmdPathGiven = true;
+		if (OsDoesFileExist(pathArgument))
+		{
+			OpenOsmMap(pathArgument);
+			break;
+		}
+		else
+		{
+			PrintLine_E("Command line path does not point to a file: \"%.*s\"", StrPrint(pathArgument));
+		}
+		
+		argIndex++;
+		pathArgument = GetNamelessProgramArg(platformInfo->programArgs, argIndex);
+	}
+	if (!wasCmdPathGiven && app->recentFiles.length > 0)
+	{
+		RecentFile* mostRecentFile = VarArrayGetLast(RecentFile, &app->recentFiles);
+		OpenOsmMap(mostRecentFile->path);
+	}
+	#endif
 	
 	#if 0
 	Str8 testFileContents = Str8_Empty;
@@ -359,6 +394,19 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 	// |            Update            |
 	// +==============================+
 	{
+		// +==============================+
+		// |  Check Recent Files Changed  |
+		// +==============================+
+		if (app->recentFilesSaveWatch.arena != nullptr)
+		{
+			OsUpdateFileWatch(&app->recentFilesSaveWatch, appIn->programTime);
+			if (app->recentFilesSaveWatch.change != OsFileWatchChange_None && TimeSinceBy(appIn->programTime, app->recentFilesSaveWatch.lastChangeTime) >= RECENT_FILES_RELOAD_DELAY)
+			{
+				OsResetFileWatch(&app->recentFilesSaveWatch, appIn->programTime);
+				AppLoadRecentFilesList();
+			}
+		}
+		
 		// +==============================+
 		// |     Handle Dropped Files     |
 		// +==============================+
@@ -919,7 +967,7 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 					// +==============================+
 					// |          File Menu           |
 					// +==============================+
-					if (ClayTopBtn("File", showMenuHotkeys, &app->isFileMenuOpen, &app->keepFileMenuOpenUntilMouseOver, false))
+					if (ClayTopBtn("File", showMenuHotkeys, &app->isFileMenuOpen, &app->keepFileMenuOpenUntilMouseOver, app->isOpenRecentSubmenuOpen))
 					{
 						if (ClayBtn("Open" UNICODE_ELLIPSIS_STR, "Ctrl+O", true, nullptr))
 						{
@@ -934,6 +982,50 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 							}
 							else if (openResult != Result_Canceled) { PrintLine_E("OpenFileDialog failed: %s", GetResultStr(openResult)); }
 						} Clay__CloseElement();
+						
+						if (app->recentFiles.length > 0)
+						{
+							if (ClayTopSubmenu("Open Recent >", app->isFileMenuOpen, &app->isOpenRecentSubmenuOpen, &app->keepOpenRecentSubmenuOpenUntilMouseOver, nullptr))
+							{
+								for (uxx rIndex = app->recentFiles.length; rIndex > 0; rIndex--)
+								{
+									RecentFile* recentFile = VarArrayGet(RecentFile, &app->recentFiles, rIndex-1);
+									Str8 displayPath = GetUniqueRecentFilePath(recentFile->path);
+									bool isOpenFile = StrAnyCaseEquals(app->mapFilePath, recentFile->path);
+									if (ClayBtnStrEx(recentFile->path, AllocStr8(uiArena, displayPath), StrLit(""), !isOpenFile && recentFile->fileExists, nullptr))
+									{
+										OpenOsmMap(recentFile->path);
+										isOverDisplayLimit = (app->map.nodes.length > DISPLAY_NODE_COUNT_LIMIT || app->map.ways.length > DISPLAY_WAY_COUNT_LIMIT);
+										app->isOpenRecentSubmenuOpen = false;
+										app->isFileMenuOpen = false;
+									} Clay__CloseElement();
+								}
+								
+								if (ClayBtn("Clear Recent Files", "", app->recentFiles.length > 0, nullptr))
+								{
+									#if 0
+									OpenPopupDialog(stdHeap, &app->popup,
+										ScratchPrintStr("Are you sure you want to clear all %llu recent file entr%s", app->recentFiles.length, PluralEx(app->recentFiles.length, "y", "ies")),
+										AppClearRecentFilesPopupCallback, nullptr
+									);
+									AddPopupButton(&app->popup, 1, StrLit("Cancel"), PopupDialogResult_No, TEXT_GRAY);
+									AddPopupButton(&app->popup, 2, StrLit("Delete"), PopupDialogResult_Yes, ERROR_RED);
+									#else
+									AppClearRecentFiles();
+									AppSaveRecentFilesList();
+									#endif
+									app->isOpenRecentSubmenuOpen = false;
+									app->isFileMenuOpen = false;
+								} Clay__CloseElement();
+								
+								Clay__CloseElement();
+								Clay__CloseElement();
+							} Clay__CloseElement();
+						}
+						else
+						{
+							if (ClayBtn("Open Recent >", "", false, nullptr)) { } Clay__CloseElement();
+						}
 						
 						if (ClayBtn("Close File", "Ctrl+W", true, nullptr))
 						{
@@ -975,10 +1067,10 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 					
 					CLAY({ .id = CLAY_ID("FileNameDisplay") })
 					{
-						if (!IsEmptyStr(app->loadedFilePath))
+						if (!IsEmptyStr(app->mapFilePath))
 						{
 							CLAY_TEXT(
-								GetFileNamePart(app->loadedFilePath, true),
+								GetFileNamePart(app->mapFilePath, true),
 								CLAY_TEXT_CONFIG({
 									.fontId = app->clayUiFontId,
 									.fontSize = (u16)app->uiFontSize,
@@ -1315,6 +1407,8 @@ EXPORT_FUNC APP_CLOSING_DEF(AppClosing)
 	#if BUILD_WITH_IMGUI
 	igSaveIniSettingsToDisk(app->imgui->io->IniFilename);
 	#endif
+	
+	AppSaveRecentFilesList();
 	
 	ScratchEnd(scratch);
 	ScratchEnd(scratch2);

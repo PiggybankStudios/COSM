@@ -10,7 +10,7 @@
 	[X] Proper zoom behavior
 	[X] Parse Relations
 	[X] Drag and drop to load file
-	[!] Recent files list
+	[X] Recent files list
 	[!] Serialize to .osm or .pbf
 	[!] Filter by tags UI, render if filtered items are below limit, save only filtered items
 	[ ] Async loading of background image

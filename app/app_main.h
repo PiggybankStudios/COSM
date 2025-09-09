@@ -19,6 +19,13 @@ plex MapView
 	v2d dragPanningPos; //relative to mapRec
 };
 
+typedef plex RecentFile RecentFile;
+plex RecentFile
+{
+	Str8 path;
+	bool fileExists;
+};
+
 typedef plex AppData AppData;
 plex AppData
 {
@@ -44,16 +51,20 @@ plex AppData
 	u16 clayLargeFontId;
 	bool isFileMenuOpen;
 	bool keepFileMenuOpenUntilMouseOver;
+	bool isOpenRecentSubmenuOpen;
+	bool keepOpenRecentSubmenuOpenUntilMouseOver;
 	bool isViewMenuOpen;
 	bool keepViewMenuOpenUntilMouseOver;
 	void* uiFocusedElement;
 	UiResizableSplit sidebarSplit;
 	UiResizableSplit infoLayersSplit;
 	
+	OsFileWatch recentFilesSaveWatch;
+	VarArray recentFiles; //RecentFile
+	
+	Str8 mapFilePath;
 	OsmMap map;
 	MapView view;
-	
-	Str8 loadedFilePath;
 };
 
 #endif //  _APP_MAIN_H
