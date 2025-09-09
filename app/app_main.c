@@ -145,11 +145,7 @@ EXPORT_FUNC APP_INIT_DEF(AppInit)
 	SeedRandomSeriesU64(&app->random, OsGetCurrentTimestamp(false));
 	
 	InitCompiledShader(&app->mainShader, stdHeap, main2d);
-	
-	ImageData mapBackImageData = LoadImageData(scratch, "resources/image/mercator_1200px.png");
-	NotNull(mapBackImageData.pixels);
-	Assert(mapBackImageData.size.Width > 0 && mapBackImageData.size.Height > 0);
-	app->mapBackTexture = InitTexture(stdHeap, StrLit("mapBackTexture"), mapBackImageData.size, mapBackImageData.pixels, 0x00);
+	LoadMapBackTexture();
 	
 	InitVarArray(u32, &app->kanjiCodepoints, stdHeap);
 	app->uiFontSize = DEFAULT_UI_FONT_SIZE;
@@ -165,6 +161,7 @@ EXPORT_FUNC APP_INIT_DEF(AppInit)
 	app->clayLargeFontId = AddClayUIRendererFont(&app->clay, &app->largeFont, LARGE_FONT_STYLE);
 	
 	InitUiResizableSplit(stdHeap, StrLit("SidebarSplit"), true, 0, 0.20f, &app->sidebarSplit);
+	InitUiResizableSplit(stdHeap, StrLit("InfoLayersSplit"), false, 0, 0.50f, &app->infoLayersSplit);
 	
 	InitMapView(&app->view, MapProjection_Mercator);
 	OpenOsmMap(StrLit(TEST_OSM_FILE));
@@ -326,7 +323,11 @@ EXPORT_FUNC APP_AFTER_RELOAD_DEF(AppAfterReload)
 	UpdateDllGlobals(inPlatformInfo, inPlatformApi, memoryPntr, nullptr);
 	
 	WriteLine_I("New app DLL was loaded!");
-	//TODO: Anything that needs fixup after DLL reload should be done here
+	if (!StrExactEquals(app->mapBackTexturePath, StrLit(MAP_BACKGROUND_TEXTURE_PATH)))
+	{
+		PrintLine_W("Loading background texture from \"%s\" (was \"%.*s\")", MAP_BACKGROUND_TEXTURE_PATH, StrPrint(app->mapBackTexturePath));
+		LoadMapBackTexture();
+	}
 	
 	ScratchEnd(scratch);
 	ScratchEnd(scratch2);
@@ -621,6 +622,15 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 			}
 		}
 		
+		// +==============================+
+		// |   Alt+R Reloads Background   |
+		// +==============================+
+		if (IsKeyboardKeyDown(&appIn->keyboard, Key_Alt) && IsKeyboardKeyPressed(&appIn->keyboard, Key_R, false))
+		{
+			PrintLine_W("Loading background texture from \"%s\" (was \"%.*s\")", MAP_BACKGROUND_TEXTURE_PATH, StrPrint(app->mapBackTexturePath));
+			LoadMapBackTexture();
+		}
+		
 		UpdateMapView(&app->view, isMouseOverMainViewport, &appIn->mouse, &appIn->keyboard);
 	}
 	TracyCZoneEnd(Zone_Update);
@@ -660,8 +670,8 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 			
 			v2 backSize = ToV2Fromi(app->mapBackTexture.size);
 			rec backSourceRec = NewRec(
-				0 * backSize.Width, 0.25f * backSize.Height,
-				1 * backSize.Width, 0.50f * backSize.Height
+				0 * backSize.Width, 0.0f * backSize.Height,
+				1 * backSize.Width, 1.0f * backSize.Height
 			);
 			DrawTexturedRectangleEx(ToRecFromd(mapScreenRec), White, &app->mapBackTexture, backSourceRec);
 			
@@ -844,6 +854,15 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 			DrawRectangleOutline(boundsRec, 2.0f, MonokaiRed);
 			// DrawCircle(NewCircleV(boundsRec.TopLeft, 5), MonokaiRed);
 			// DrawCircle(NewCircleV(Add(boundsRec.TopLeft, boundsRec.Size), 5), MonokaiOrange);
+			
+			// +==============================+
+			// |    Render Center Reticle     |
+			// +==============================+
+			v2 reticleScreenPos = ToV2Fromd(AddV2d(MulV2d(app->view.position, mapScreenRec.Size), mapScreenRec.TopLeft));
+			r32 reticleRadius = OscillateBy(appIn->programTime, 3.0f, 6.0f, 1000, 0);
+			// DrawRoundedRectangleOutline(NewRecCenteredV(reticleScreenPos, FillV2(reticleRadius*2)), 1.5f, reticleRadius, ColorWithAlpha(Black, 0.3f));
+			DrawRectangle(NewRecCentered(reticleScreenPos.X, reticleScreenPos.Y, reticleRadius*2, 1.5f), ColorWithAlpha(Black, 0.3f));
+			DrawRectangle(NewRecCentered(reticleScreenPos.X, reticleScreenPos.Y, 1.5f, reticleRadius*2), ColorWithAlpha(Black, 0.3f));
 		}
 		
 		// +==============================+
@@ -1013,94 +1032,60 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 				
 				DoUiResizableSplitInterleaved(sidebarSplitSection, &uiContext, &app->sidebarSplit)
 				{
+					// +==============================+
+					// |           Sidebar            |
+					// +==============================+
 					DoUiResizableSplitSection(sidebarSplitSection, Left)
 					{
-						// +==============================+
-						// |           Sidebar            |
-						// +==============================+
-						CLAY({ .id = CLAY_ID("Sidebar"),
-							.layout = {
-								.sizing = { .width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_GROW(0) },
-								.padding = CLAY_PADDING_ALL(UI_U16(10)),
-								.childGap = UI_U16(5),
-								.layoutDirection = CLAY_TOP_TO_BOTTOM,
-							},
-							.backgroundColor = BACKGROUND_GRAY,
-							.scroll = {
-								.vertical = true,
-								.scrollLag = 5.0f,
-							},
-						})
+						CLAY({ .layout = { .sizing = { .width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_GROW(0) } }, .backgroundColor = BACKGROUND_GRAY })
 						{
-							Str8 infoStr = PrintInArenaStr(uiArena, "%llu nodes, %llu ways [color=A6E22E](%llu selected)[color]", app->map.nodes.length, app->map.ways.length, app->map.selectedItems.length);
-							CLAY_TEXT(
-								infoStr,
-								CLAY_TEXT_CONFIG({
-									.fontId = app->clayUiFontId,
-									.fontSize = (u16)app->uiFontSize,
-									.textColor = TEXT_WHITE,
-									.wrapMode = CLAY_TEXT_WRAP_WORDS,
-									.textAlignment = CLAY_TEXT_ALIGN_LEFT,
-									.userData = { .richText = true },
-								})
-							);
-							
-							if (app->map.selectedItems.length > 0)
+							DoUiResizableSplitInterleaved(infoLayersSplitSection, &uiContext, &app->infoLayersSplit)
 							{
-								VarArrayLoop(&app->map.selectedItems, sIndex)
+								// +==============================+
+								// |          Info Panel          |
+								// +==============================+
+								DoUiResizableSplitSection(infoLayersSplitSection, Top)
 								{
-									VarArrayLoopGet(OsmSelectedItem, selectedItem, &app->map.selectedItems, sIndex);
-									u64 itemId = 0;
-									Str8 nameTag = Str8_Empty;
-									VarArray* tagsArray = nullptr;
-									if (selectedItem->type == OsmPrimitiveType_Node)
+									CLAY({ .layout = { .sizing = { .width=CLAY_SIZING_GROW(0), .height=CLAY_SIZING_GROW(0) }, .layoutDirection = CLAY_TOP_TO_BOTTOM } })
 									{
-										itemId = selectedItem->nodePntr->id;
-										nameTag = GetOsmNodeTagValue(selectedItem->nodePntr, StrLit("name:en"), Str8_Empty);
-										if (IsEmptyStr(nameTag)) { nameTag = GetOsmNodeTagValue(selectedItem->nodePntr, StrLit("name"), Str8_Empty); }
-										tagsArray = &selectedItem->nodePntr->tags;
-									}
-									else if (selectedItem->type == OsmPrimitiveType_Way)
-									{
-										itemId = selectedItem->wayPntr->id;
-										nameTag = GetOsmWayTagValue(selectedItem->wayPntr, StrLit("name:en"), Str8_Empty);
-										if (IsEmptyStr(nameTag)) { nameTag = GetOsmWayTagValue(selectedItem->wayPntr, StrLit("name"), Str8_Empty); }
-										tagsArray = &selectedItem->wayPntr->tags;
-									}
-									Str8 displayName = PrintInArenaStr(uiArena, "> %s %llu \"%.*s\"", GetOsmPrimitiveTypeStr(selectedItem->type), itemId, StrPrint(nameTag));
-									CLAY_TEXT(
-										displayName,
-										CLAY_TEXT_CONFIG({
-											.fontId = app->clayUiFontId,
-											.fontSize = (u16)app->uiFontSize,
-											.textColor = MonokaiGreen,
-											.wrapMode = CLAY_TEXT_WRAP_WORDS,
-											.textAlignment = CLAY_TEXT_ALIGN_LEFT,
+										CLAY({ .id = CLAY_ID("InfoPanelTitle"),
+											.layout = {
+												.sizing = { .width=CLAY_SIZING_GROW(0), .height=CLAY_SIZING_FIT(0) },
+												.childAlignment = { .x = CLAY_ALIGN_X_CENTER, .y = CLAY_ALIGN_Y_CENTER },
+												.padding = CLAY_PADDING_ALL(UI_U16(4)),
+											},
+											.backgroundColor = OUTLINE_GRAY,
 										})
-									);
-									if (selectedItem->type == OsmPrimitiveType_Way)
-									{
-										Str8 wayMetaStr = PrintInArenaStr(uiArena, "    %llu nodes%s", selectedItem->wayPntr->nodes.length, selectedItem->wayPntr->isClosedLoop ? " closed loop" : "");
-										CLAY_TEXT(
-											wayMetaStr,
-											CLAY_TEXT_CONFIG({
-												.fontId = app->clayUiFontId,
-												.fontSize = (u16)app->uiFontSize,
-												.textColor = TEXT_GRAY,
-												.wrapMode = CLAY_TEXT_WRAP_WORDS,
-												.textAlignment = CLAY_TEXT_ALIGN_LEFT,
-											})
-										);
-									}
-									
-									if (tagsArray != nullptr)
-									{
-										VarArrayLoop(tagsArray, tIndex)
 										{
-											VarArrayLoopGet(OsmTag, tag, tagsArray, tIndex);
-											Str8 tagStr = PrintInArenaStr(uiArena, "  [bold][size=%g]%.*s[size][bold] = \"%.*s\"", app->uiFontSize+2, StrPrint(tag->key), StrPrint(tag->value));
 											CLAY_TEXT(
-												tagStr,
+												StrLit("Selected Info"),
+												CLAY_TEXT_CONFIG({
+													.fontId = app->clayUiFontId,
+													.fontSize = (u16)app->uiFontSize,
+													.textColor = TEXT_WHITE,
+													.wrapMode = CLAY_TEXT_WRAP_NONE,
+													.textAlignment = CLAY_TEXT_ALIGN_SHRINK,
+													.userData = { .contraction = TextContraction_ClipRight },
+												})
+											);
+										}
+										
+										CLAY({ .id = CLAY_ID("InfoPanel"),
+											.layout = {
+												.sizing = { .width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_GROW(0) },
+												.padding = CLAY_PADDING_ALL(UI_U16(10)),
+												.childGap = UI_U16(5),
+												.layoutDirection = CLAY_TOP_TO_BOTTOM,
+											},
+											.scroll = {
+												.vertical = true,
+												.scrollLag = 5.0f,
+											},
+										})
+										{
+											Str8 infoStr = PrintInArenaStr(uiArena, "%llu nodes, %llu ways, %llu relations [color=A6E22E](%llu selected)[color]", app->map.nodes.length, app->map.ways.length, app->map.relations.length, app->map.selectedItems.length);
+											CLAY_TEXT(
+												infoStr,
 												CLAY_TEXT_CONFIG({
 													.fontId = app->clayUiFontId,
 													.fontSize = (u16)app->uiFontSize,
@@ -1110,66 +1095,165 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 													.userData = { .richText = true },
 												})
 											);
+											
+											if (app->map.selectedItems.length > 0)
+											{
+												VarArrayLoop(&app->map.selectedItems, sIndex)
+												{
+													VarArrayLoopGet(OsmSelectedItem, selectedItem, &app->map.selectedItems, sIndex);
+													u64 itemId = 0;
+													Str8 nameTag = Str8_Empty;
+													VarArray* tagsArray = nullptr;
+													if (selectedItem->type == OsmPrimitiveType_Node)
+													{
+														itemId = selectedItem->nodePntr->id;
+														nameTag = GetOsmNodeTagValue(selectedItem->nodePntr, StrLit("name:en"), Str8_Empty);
+														if (IsEmptyStr(nameTag)) { nameTag = GetOsmNodeTagValue(selectedItem->nodePntr, StrLit("name"), Str8_Empty); }
+														tagsArray = &selectedItem->nodePntr->tags;
+													}
+													else if (selectedItem->type == OsmPrimitiveType_Way)
+													{
+														itemId = selectedItem->wayPntr->id;
+														nameTag = GetOsmWayTagValue(selectedItem->wayPntr, StrLit("name:en"), Str8_Empty);
+														if (IsEmptyStr(nameTag)) { nameTag = GetOsmWayTagValue(selectedItem->wayPntr, StrLit("name"), Str8_Empty); }
+														tagsArray = &selectedItem->wayPntr->tags;
+													}
+													Str8 displayName = PrintInArenaStr(uiArena, "> %s %llu \"%.*s\"", GetOsmPrimitiveTypeStr(selectedItem->type), itemId, StrPrint(nameTag));
+													CLAY_TEXT(
+														displayName,
+														CLAY_TEXT_CONFIG({
+															.fontId = app->clayUiFontId,
+															.fontSize = (u16)app->uiFontSize,
+															.textColor = MonokaiGreen,
+															.wrapMode = CLAY_TEXT_WRAP_WORDS,
+															.textAlignment = CLAY_TEXT_ALIGN_LEFT,
+														})
+													);
+													if (selectedItem->type == OsmPrimitiveType_Way)
+													{
+														Str8 wayMetaStr = PrintInArenaStr(uiArena, "    %llu nodes%s", selectedItem->wayPntr->nodes.length, selectedItem->wayPntr->isClosedLoop ? " closed loop" : "");
+														CLAY_TEXT(
+															wayMetaStr,
+															CLAY_TEXT_CONFIG({
+																.fontId = app->clayUiFontId,
+																.fontSize = (u16)app->uiFontSize,
+																.textColor = TEXT_GRAY,
+																.wrapMode = CLAY_TEXT_WRAP_WORDS,
+																.textAlignment = CLAY_TEXT_ALIGN_LEFT,
+															})
+														);
+													}
+													
+													if (tagsArray != nullptr)
+													{
+														VarArrayLoop(tagsArray, tIndex)
+														{
+															VarArrayLoopGet(OsmTag, tag, tagsArray, tIndex);
+															Str8 tagStr = PrintInArenaStr(uiArena, "  [bold][size=%g]%.*s[size][bold] = \"%.*s\"", app->uiFontSize+2, StrPrint(tag->key), StrPrint(tag->value));
+															CLAY_TEXT(
+																tagStr,
+																CLAY_TEXT_CONFIG({
+																	.fontId = app->clayUiFontId,
+																	.fontSize = (u16)app->uiFontSize,
+																	.textColor = TEXT_WHITE,
+																	.wrapMode = CLAY_TEXT_WRAP_WORDS,
+																	.textAlignment = CLAY_TEXT_ALIGN_LEFT,
+																	.userData = { .richText = true },
+																})
+															);
+														}
+													}
+												}
+											}
+											else
+											{
+												CLAY_TEXT(
+													StrLit("No items selected..."),
+													CLAY_TEXT_CONFIG({
+														.fontId = app->clayUiFontId,
+														.fontSize = (u16)app->uiFontSize,
+														.textColor = TEXT_WHITE,
+														.wrapMode = CLAY_TEXT_WRAP_NONE,
+														.textAlignment = CLAY_TEXT_ALIGN_SHRINK,
+														.userData = { .contraction = TextContraction_ClipRight },
+													})
+												);
+											}
+											
+											#if 0
+											{
+												Str8 stdHeapText = PrintInArenaStr(uiArena, "Std: %llu used", stdHeap->used);
+												CLAY_TEXT(
+													stdHeapText,
+													CLAY_TEXT_CONFIG({
+														.fontId = app->clayUiFontId,
+														.fontSize = (u16)app->uiFontSize,
+														.textColor = TEXT_WHITE,
+														.wrapMode = CLAY_TEXT_WRAP_NONE,
+														.textAlignment = CLAY_TEXT_ALIGN_SHRINK,
+														.userData = { .contraction = TextContraction_ClipRight },
+													})
+												);
+												for (uxx sIndex = 0; sIndex < NUM_SCRATCH_ARENAS_PER_THREAD; sIndex++)
+												{
+													Arena* scratchArena = scratch;
+													if (sIndex == 1) { scratchArena = scratch2; }
+													else if (sIndex == 2) { scratchArena = scratch3; }
+													Str8 scratchText = PrintInArenaStr(uiArena, "Scratch[%llu]: %llu/%llu", sIndex, scratchArena->committed, scratchArena->size);
+													CLAY_TEXT(
+														scratchText,
+														CLAY_TEXT_CONFIG({
+															.fontId = app->clayUiFontId,
+															.fontSize = (u16)app->uiFontSize,
+															.textColor = TEXT_WHITE,
+															.wrapMode = CLAY_TEXT_WRAP_NONE,
+															.textAlignment = CLAY_TEXT_ALIGN_SHRINK,
+															.userData = { .contraction = TextContraction_ClipRight },
+														})
+													);
+												}
+											}
+											#endif
 										}
 									}
 								}
-							}
-							else
-							{
-								CLAY_TEXT(
-									StrLit("No items selected..."),
-									CLAY_TEXT_CONFIG({
-										.fontId = app->clayUiFontId,
-										.fontSize = (u16)app->uiFontSize,
-										.textColor = TEXT_WHITE,
-										.wrapMode = CLAY_TEXT_WRAP_NONE,
-										.textAlignment = CLAY_TEXT_ALIGN_SHRINK,
-										.userData = { .contraction = TextContraction_ClipRight },
-									})
-								);
-							}
-							
-							#if 1
-							{
-								Str8 stdHeapText = PrintInArenaStr(uiArena, "Std: %llu used", stdHeap->used);
-								CLAY_TEXT(
-									stdHeapText,
-									CLAY_TEXT_CONFIG({
-										.fontId = app->clayUiFontId,
-										.fontSize = (u16)app->uiFontSize,
-										.textColor = TEXT_WHITE,
-										.wrapMode = CLAY_TEXT_WRAP_NONE,
-										.textAlignment = CLAY_TEXT_ALIGN_SHRINK,
-										.userData = { .contraction = TextContraction_ClipRight },
-									})
-								);
-								for (uxx sIndex = 0; sIndex < NUM_SCRATCH_ARENAS_PER_THREAD; sIndex++)
+								
+								// +==============================+
+								// |         Layers Panel         |
+								// +==============================+
+								DoUiResizableSplitSection(infoLayersSplitSection, Bottom)
 								{
-									Arena* scratchArena = scratch;
-									if (sIndex == 1) { scratchArena = scratch2; }
-									else if (sIndex == 2) { scratchArena = scratch3; }
-									Str8 scratchText = PrintInArenaStr(uiArena, "Scratch[%llu]: %llu/%llu", sIndex, scratchArena->committed, scratchArena->size);
-									CLAY_TEXT(
-										scratchText,
-										CLAY_TEXT_CONFIG({
-											.fontId = app->clayUiFontId,
-											.fontSize = (u16)app->uiFontSize,
-											.textColor = TEXT_WHITE,
-											.wrapMode = CLAY_TEXT_WRAP_NONE,
-											.textAlignment = CLAY_TEXT_ALIGN_SHRINK,
-											.userData = { .contraction = TextContraction_ClipRight },
-										})
-									);
+									CLAY({ .id = CLAY_ID("LayersPanelTitle"),
+										.layout = {
+											.sizing = { .width=CLAY_SIZING_GROW(0), .height=CLAY_SIZING_FIT(0) },
+											.childAlignment = { .x = CLAY_ALIGN_X_CENTER, .y = CLAY_ALIGN_Y_CENTER },
+											.padding = CLAY_PADDING_ALL(UI_U16(4)),
+										},
+										.backgroundColor = OUTLINE_GRAY,
+									})
+									{
+										CLAY_TEXT(
+											StrLit("Layers"),
+											CLAY_TEXT_CONFIG({
+												.fontId = app->clayUiFontId,
+												.fontSize = (u16)app->uiFontSize,
+												.textColor = TEXT_WHITE,
+												.wrapMode = CLAY_TEXT_WRAP_NONE,
+												.textAlignment = CLAY_TEXT_ALIGN_SHRINK,
+												.userData = { .contraction = TextContraction_ClipRight },
+											})
+										);
+									}
 								}
 							}
-							#endif
 						}
 					}
+					
+					// +==============================+
+					// |        Main Viewport         |
+					// +==============================+
 					DoUiResizableSplitSection(sidebarSplitSection, Right)
 					{
-						// +==============================+
-						// |        Main Viewport         |
-						// +==============================+
 						CLAY({ .id = CLAY_ID("MainViewport"),
 							.layout = {
 								.layoutDirection = CLAY_LEFT_TO_RIGHT,

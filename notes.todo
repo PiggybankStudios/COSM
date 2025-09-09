@@ -6,14 +6,20 @@
 	[X] Middle or Right Click to pan
 	[X] Ability to select elements
 	[X] File Streaming!
+	[X] Display information about selected nodes/ways
+	[X] Proper zoom behavior
+	[X] Parse Relations
+	[!] Drag and drop to load file
 	[!] Serialize to .osm or .pbf
-	[ ] Proper zoom behavior
+	[!] Filter by tags UI, render if filtered items are below limit, save only filtered items
+	[ ] Async loading of background image
+	[ ] Choose which background image to use
+	[ ] ResizableSplit based on px not percent
+	[ ] Proper hover/selection behavior for ways
 	[ ] Store things in dictionaries based on IDs for quick lookup by ID
 	[ ] Caching system with eviction for vertex buffers
 	[ ] Style rules loaded from file
-	[ ] Drag and drop to load file
 	[ ] Recent files list
-	[ ] Display information about selected nodes/ways
 	[ ] Turn selected items on/off. Move to different layers. Delete items.
 	[ ] Add support for choosing color/thickness/radius of selected items
 	[ ] Select similar nodes by tag value

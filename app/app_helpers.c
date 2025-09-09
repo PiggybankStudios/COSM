@@ -8,9 +8,12 @@ Description:
 
 ImageData LoadImageData(Arena* arena, const char* path)
 {
+	TracyCZoneN(funcZone, "LoadImageData", true);
 	ScratchBegin1(scratch, arena);
 	Slice fileContents = Slice_Empty;
+	TracyCZoneN(_TryReadAppResource, "TryReadAppResource", true);
 	Result readFileResult = TryReadAppResource(&app->resources, scratch, FilePathLit(path), false, &fileContents);
+	TracyCZoneEnd(_TryReadAppResource);
 	Assert(readFileResult == Result_Success);
 	UNUSED(readFileResult);
 	ImageData imageData = ZEROED;
@@ -18,6 +21,7 @@ ImageData LoadImageData(Arena* arena, const char* path)
 	Assert(parseResult == Result_Success);
 	UNUSED(parseResult);
 	ScratchEnd(scratch);
+	TracyCZoneEnd(funcZone);
 	return imageData;
 }
 
@@ -33,6 +37,30 @@ void LoadWindowIcon()
 	iconImageDatas[5] = LoadImageData(scratch, "resources/image/icon_256.png");
 	platform->SetWindowIcon(ArrayCount(iconImageDatas), &iconImageDatas[0]);
 	ScratchEnd(scratch);
+}
+
+void LoadMapBackTexture()
+{
+	TracyCZoneN(funcZone, "LoadMapBackTexture", true);
+	ScratchBegin(scratch);
+	ImageData mapBackImageData = LoadImageData(scratch, MAP_BACKGROUND_TEXTURE_PATH);
+	if (mapBackImageData.pixels != nullptr && mapBackImageData.size.Width > 0 && mapBackImageData.size.Height > 0)
+	{
+		TracyCZoneN(_InitTexture, "InitTexture", true);
+		Texture newTexture = InitTexture(stdHeap, StrLit("mapBackTexture"), mapBackImageData.size, mapBackImageData.pixels, 0x00);
+		TracyCZoneEnd(_InitTexture);
+		if (newTexture.error == Result_Success)
+		{
+			FreeTexture(&app->mapBackTexture);
+			app->mapBackTexture = newTexture;
+			FreeStr8(stdHeap, &app->mapBackTexturePath);
+			app->mapBackTexturePath = AllocStr8Nt(stdHeap, MAP_BACKGROUND_TEXTURE_PATH);
+		}
+		else { PrintLine_E("Failed to parse create Texture from %dx%d ImageData!", mapBackImageData.size.Width, mapBackImageData.size.Height); }
+	}
+	else { PrintLine_E("Failed to load map background texture from \"%s\"", MAP_BACKGROUND_TEXTURE_PATH); }
+	ScratchEnd(scratch);
+	TracyCZoneEnd(funcZone);
 }
 
 bool AppCreateFonts()

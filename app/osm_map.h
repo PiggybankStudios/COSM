@@ -115,6 +115,52 @@ plex OsmWay
 	bool isHovered;
 };
 
+typedef enum OsmRelationMemberType OsmRelationMemberType;
+enum OsmRelationMemberType
+{
+	OsmRelationMemberType_None = 0,
+	OsmRelationMemberType_Node,
+	OsmRelationMemberType_Way,
+	OsmRelationMemberType_Relation,
+	OsmRelationMemberType_Count,
+};
+const char* GetOsmRelationMemberTypeStr(OsmRelationMemberType enumValue)
+{
+	switch (enumValue)
+	{
+		case OsmRelationMemberType_None:     return "None";
+		case OsmRelationMemberType_Node:     return "Node";
+		case OsmRelationMemberType_Way:      return "Way";
+		case OsmRelationMemberType_Relation: return "Relation";
+		default: return UNKNOWN_STR;
+	}
+}
+
+typedef plex OsmRelationMember OsmRelationMember;
+plex OsmRelationMember
+{
+	u64 id;
+	u32 role;
+	OsmRelationMemberType type;
+	VarArray locations; //v2d
+	union { void* pntr; OsmNode* nodePntr; OsmWay* wayPntr; plex OsmRelation* relationPntr; };
+};
+
+typedef plex OsmRelation OsmRelation;
+plex OsmRelation
+{
+	u64 id;
+	bool visible;
+	i32 version;
+	u64 changeset;
+	Str8 timestampStr;
+	Str8 user;
+	u64 uid;
+	
+	VarArray tags; //OsmTag
+	VarArray members; //OsmRelationMember
+};
+
 typedef plex OsmSelectedItem OsmSelectedItem;
 plex OsmSelectedItem
 {
@@ -135,6 +181,9 @@ plex OsmMap
 	bool areWaysSorted;
 	u64 nextWayId;
 	VarArray ways; //OsmWay
+	bool areRelationsSorted;
+	u64 nextRelationId;
+	VarArray relations; //OsmRelation
 	
 	VarArray selectedItems; //OsmSelectedItem
 };

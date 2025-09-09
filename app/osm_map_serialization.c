@@ -22,9 +22,10 @@ Result TryParseOsmMap(Arena* arena, Str8 xmlFileContents, OsmMap* mapOut)
 		return parseResult;
 	}
 	
-	InitOsmMap(arena, mapOut, 0, 0);
+	InitOsmMap(arena, mapOut, 0, 0, 0);
 	mapOut->areNodesSorted = true;
 	mapOut->areWaysSorted = true;
+	mapOut->areRelationsSorted = false; //TODO: Change me!
 	
 	do
 	{
@@ -304,9 +305,10 @@ Result TryParsePbfMap(Arena* arena, DataStream* protobufStream, OsmMap* mapOut)
 			#endif
 			
 			foundOsmHeader = true;
-			InitOsmMap(arena, mapOut, 0, 0);
+			InitOsmMap(arena, mapOut, 0, 0, 0);
 			mapOut->areNodesSorted = true;
 			mapOut->areWaysSorted = true;
+			mapOut->areRelationsSorted = true;
 			mapOut->bounds.X = (r64)headerBlock->bbox->left * (r64)Nano(1);
 			mapOut->bounds.Y = (r64)headerBlock->bbox->top * (r64)Nano(1);
 			mapOut->bounds.Width = ((r64)headerBlock->bbox->right * (r64)Nano(1)) - mapOut->bounds.X;
@@ -545,7 +547,7 @@ Result TryParsePbfMap(Arena* arena, DataStream* protobufStream, OsmMap* mapOut)
 							}
 							if (result != Result_None) { ArenaResetToMark(scratch, scratchMark2); break; }
 							
-							if (wIndex == 0)
+							if (prevWayId == 0)
 							{
 								OsmWay* lastWay = VarArrayGetLastSoft(OsmWay, &mapOut->ways);
 								if (lastWay != nullptr && lastWay->id >= (u64)way->id) { areNewWaysSorted = false; }
@@ -598,13 +600,91 @@ Result TryParsePbfMap(Arena* arena, DataStream* protobufStream, OsmMap* mapOut)
 				if (primitiveGroup->n_relations > 0)
 				{
 					TracyCZoneN(Zone_OsmRelations, "OsmRelations", true);
+					bool areNewRelationsSorted = true;
+					u64 prevRelationId = 0;
 					for (size_t rIndex = 0; rIndex < primitiveGroup->n_relations; rIndex++)
 					{
 						OSMPBF__Relation* relation = primitiveGroup->relations[rIndex];
-						UNUSED(relation); //TODO: Implement me!
+						NotNull(relation->info);
+						if (relation->id <= 0)                                              { PrintLine_E("Relation[%zu] in blob[%llu] has invalid ID %lld", rIndex, blobIndex, relation->id); result = Result_InvalidID; break; }
+						if (relation->info->has_timestamp && relation->info->timestamp < 0) { PrintLine_E("Relation[%zu] in blob[%llu] has invalid timestamp %lld", rIndex, blobIndex, relation->info->timestamp); result = Result_ValueTooLow; break; }
+						if (relation->info->has_uid       && relation->info->uid       < 0) { PrintLine_E("Relation[%zu] in blob[%llu] has invalid uid %d", rIndex, blobIndex, relation->info->uid); result = Result_ValueTooLow; break; }
+						if (relation->info->has_changeset && relation->info->changeset < 0) { PrintLine_E("Relation[%zu] in blob[%llu] has invalid changeset %lld", rIndex, blobIndex, relation->info->changeset); result = Result_ValueTooLow; break; }
+						if (relation->n_keys != relation->n_vals)                           { PrintLine_E("Relation[%zu] in blob[%llu] key count %zu doesn't match value count %zu", rIndex, blobIndex, relation->n_keys, relation->n_vals); result = Result_Mismatch; break; }
+						if (relation->n_memids != relation->n_roles_sid)                    { PrintLine_E("Relation[%zu] in blob[%llu] member ID count %zu doesn't match roles SID count %zu", rIndex, blobIndex, relation->n_memids, relation->n_roles_sid); result = Result_Mismatch; break; }
+						if (relation->n_memids != relation->n_types)                        { PrintLine_E("Relation[%zu] in blob[%llu] member ID count %zu doesn't match types count %zu", rIndex, blobIndex, relation->n_memids, relation->n_types); result = Result_Mismatch; break; }
+						if (relation->n_memids > 0)
+						{
+							if (prevRelationId == 0)
+							{
+								OsmRelation* lastRelation = VarArrayGetLastSoft(OsmRelation, &mapOut->relations);
+								if (lastRelation != nullptr && lastRelation->id >= (u64)relation->id) { areNewRelationsSorted = false; }
+							}
+							else if (prevRelationId >= (u64)relation->id) { areNewRelationsSorted = false; }
+							prevRelationId = (u64)relation->id;
+							
+							OsmRelation* newRelation = AddOsmRelation(mapOut, (u64)relation->id, (uxx)relation->n_memids);
+							newRelation->visible = (relation->info->has_visible ? relation->info->visible : true);
+							newRelation->version = (relation->info->has_version ? relation->info->version : -1);
+							//TODO: Str8 timestampStr; newRelation->timestamp = (relation->info->has_timestamp ? (u64)relation->info->timestamp : 0);
+							newRelation->uid = (relation->info->has_uid ? (u64)relation->info->uid : 0);
+							//TODO: Str8 user; newRelation->user = (relation->info->has_user_sid ? LookupString(relation->info->user_sid) : Str8_Empty);
+							newRelation->changeset = (relation->info->has_changeset ? (u64)relation->info->changeset : 0);
+							VarArrayExpand(&newRelation->tags, newRelation->tags.length + (uxx)relation->n_keys);
+							for (size_t tIndex = 0; tIndex < relation->n_keys; tIndex++)
+							{
+								Str8 keyStr = GetPbfString(primitiveBlock->stringtable, relation->keys[tIndex]);
+								if (!IsEmptyStr(keyStr))
+								{
+									Str8 valueStr = GetPbfString(primitiveBlock->stringtable, relation->vals[tIndex]);
+									OsmTag* newTag = VarArrayAdd(OsmTag, &newRelation->tags);
+									NotNull(newTag);
+									ClearPointer(newTag);
+									newTag->key = AllocStr8(arena, keyStr);
+									newTag->value = AllocStr8(arena, valueStr);
+								}
+							}
+							
+							i64 prevMemberId = 0;
+							for (size_t mIndex = 0; mIndex < relation->n_memids; mIndex++)
+							{
+								i32 rolesSid = relation->roles_sid[mIndex];
+								i64 memberId = prevMemberId + relation->memids[mIndex];
+								prevMemberId = memberId;
+								OSMPBF__Relation__MemberType memberType = relation->types[mIndex];
+								if (memberId <= 0) { PrintLine_E("Member[%zu] in Relation[%zu] in blob[%llu] has invalid ID %lld", mIndex, rIndex, blobIndex, memberId); result = Result_InvalidID; break; }
+								else
+								{
+									OsmRelationMember* newMember = VarArrayAdd(OsmRelationMember, &newRelation->members);
+									NotNull(newMember);
+									ClearPointer(newMember);
+									newMember->id = (u64)memberId;
+									newMember->role = (u32)rolesSid;
+									newMember->pntr = nullptr; //We'll look it up later
+									switch (memberType)
+									{
+										case OSMPBF__RELATION__MEMBER_TYPE__NODE: newMember->type = OsmRelationMemberType_Node; break;
+										case OSMPBF__RELATION__MEMBER_TYPE__WAY: newMember->type = OsmRelationMemberType_Way; break;
+										case OSMPBF__RELATION__MEMBER_TYPE__RELATION: newMember->type = OsmRelationMemberType_Relation; break;
+										default: PrintLine_E("Member[%zu] in Relation[%zu] in blob[%llu] has unhandled type %d", mIndex, rIndex, blobIndex, memberType); result = Result_InvalidType; break;
+									}
+									if (result != Result_None) { break; }
+								}
+							}
+							if (result != Result_None) { break; }
+						}
+						else { PrintLine_W("Relation[%zu] in blob[%llu] had no members!", rIndex, blobIndex); }
 					}
 					TracyCZoneEnd(Zone_OsmRelations);
 					if (result != Result_None) { break; }
+					
+					if (!areNewRelationsSorted || !mapOut->areRelationsSorted)
+					{
+						TracyCZoneN(Zone_SortRelations, "SortRelations", true);
+						QuickSortVarArrayUintMember(OsmRelation, id, &mapOut->relations);
+						mapOut->areRelationsSorted = true;
+						TracyCZoneEnd(Zone_SortRelations);
+					}
 				}
 				
 				// +==============================+

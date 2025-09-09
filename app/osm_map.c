@@ -30,6 +30,27 @@ void FreeOsmNode(Arena* arena, OsmNode* node)
 	ClearPointer(node);
 }
 
+void FreeOsmRelation(Arena* arena, OsmRelation* relation)
+{
+	NotNull(arena);
+	NotNull(relation);
+	FreeStr8(arena, &relation->timestampStr);
+	FreeStr8(arena, &relation->user);
+	VarArrayLoop(&relation->tags, tIndex)
+	{
+		VarArrayLoopGet(OsmTag, tag, &relation->tags, tIndex);
+		FreeOsmTag(arena, tag);
+	}
+	FreeVarArray(&relation->tags);
+	VarArrayLoop(&relation->members, mIndex)
+	{
+		VarArrayLoopGet(OsmRelationMember, member, &relation->members, mIndex);
+		FreeVarArray(&member->locations);
+	}
+	FreeVarArray(&relation->members);
+	ClearPointer(relation);
+}
+
 void FreeOsmWay(Arena* arena, OsmWay* way)
 {
 	NotNull(arena);
@@ -72,7 +93,7 @@ void FreeOsmMap(OsmMap* map)
 	TracyCZoneEnd(funcZone);
 }
 
-void InitOsmMap(Arena* arena, OsmMap* mapOut, u64 numNodesExpected, u64 numWaysExpected)
+void InitOsmMap(Arena* arena, OsmMap* mapOut, u64 numNodesExpected, u64 numWaysExpected, u64 numRelationsExpected)
 {
 	TracyCZoneN(funcZone, "InitOsmMap", true);
 	NotNull(arena);
@@ -81,8 +102,10 @@ void InitOsmMap(Arena* arena, OsmMap* mapOut, u64 numNodesExpected, u64 numWaysE
 	mapOut->arena = arena;
 	mapOut->nextNodeId = 1;
 	mapOut->nextWayId = 1;
+	mapOut->nextRelationId = 1;
 	InitVarArrayWithInitial(OsmNode, &mapOut->nodes, arena, numNodesExpected);
 	InitVarArrayWithInitial(OsmWay, &mapOut->ways, arena, numWaysExpected);
+	InitVarArrayWithInitial(OsmRelation, &mapOut->relations, arena, numRelationsExpected);
 	InitVarArray(OsmSelectedItem, &mapOut->selectedItems, arena);
 	TracyCZoneEnd(funcZone);
 }
@@ -117,6 +140,7 @@ OsmNode* AddOsmNode(OsmMap* map, v2d location, u64 id)
 	ClearPointer(result);
 	result->id = (id == 0) ? map->nextNodeId : id;
 	if (id == 0) { map->nextNodeId++; }
+	else if (map->nextNodeId <= id) { map->nextNodeId = id+1; }
 	result->location = location;
 	result->visible = true;
 	InitVarArray(OsmTag, &result->tags, map->arena);
@@ -134,6 +158,7 @@ OsmWay* AddOsmWay(OsmMap* map, u64 id, u64 numNodes, u64* nodeIds)
 	ClearPointer(result);
 	result->id = (id == 0) ? map->nextWayId : id;
 	if (id == 0) { map->nextWayId++; }
+	else if (map->nextWayId <= id) { map->nextWayId = id+1; }
 	result->visible = true;
 	InitVarArrayWithInitial(OsmNodeRef, &result->nodes, map->arena, numNodes);
 	for (u64 nIndex = 0; nIndex < numNodes; nIndex++)
@@ -149,6 +174,24 @@ OsmWay* AddOsmWay(OsmMap* map, u64 id, u64 numNodes, u64* nodeIds)
 	}
 	result->isClosedLoop = (numNodes >= 3 && nodeIds[0] == nodeIds[numNodes-1]);
 	InitVarArray(OsmTag, &result->tags, map->arena);
+	TracyCZoneEnd(funcZone);
+	return result;
+}
+
+OsmRelation* AddOsmRelation(OsmMap* map, u64 id, uxx numMembersExpected)
+{
+	TracyCZoneN(funcZone, "AddOsmRelation", true);
+	NotNull(map);
+	NotNull(map->arena);
+	OsmRelation* result = VarArrayAdd(OsmRelation, &map->relations);
+	NotNull(result);
+	ClearPointer(result);
+	result->id = (id == 0) ? map->nextRelationId : id;
+	if (id == 0) { map->nextRelationId++; }
+	else if (map->nextRelationId <= id) { map->nextRelationId = id+1; }
+	result->visible = true;
+	InitVarArray(OsmTag, &result->tags, map->arena);
+	InitVarArrayWithInitial(OsmRelationMember, &result->members, map->arena, numMembersExpected);
 	TracyCZoneEnd(funcZone);
 	return result;
 }

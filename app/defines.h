@@ -50,10 +50,16 @@ Date:   02\25\2025
 // #define TEST_OSM_FILE "bracke.osm" //download a portion of OSM from https://www.openstreetmap.org/export and put it in the _data folder
 #define TEST_OSM_FILE "Q:/downtown_seattle.osm.pbf"
 
-#define MERCATOR_MAP_ASPECT_RATIO   (2.0/1.0) //2:1 aspect ratio for Mercator projection maps
+// #define MERCATOR_MAP_ASPECT_RATIO   (2.0/1.0) //2:1 aspect ratio for many Mercator projection maps (ones that cut off top/bottom)
+#define MERCATOR_MAP_ASPECT_RATIO   (1.0/1.0) //1:1 aspect ratio for full Mercator projection maps
 #define MAP_MAX_ZOOM                Million(100) //multiplier TODO: Change to a unit of measurement that isn't dependent on screen size and mapRec size!
 
-#define DISPLAY_NODE_COUNT_LIMIT     Thousand(30)
+#define DISPLAY_NODE_COUNT_LIMIT     Thousand(100)
 #define DISPLAY_WAY_COUNT_LIMIT      Thousand(30)
+
+#define MAP_BACKGROUND_TEXTURE_PATH "resources/image/mercator_6734px.png"
+// #define MAP_BACKGROUND_TEXTURE_PATH "resources/image/mercator_countries_1027px.png"
+// #define MAP_BACKGROUND_TEXTURE_PATH "resources/image/mercator_countries_1200px.png"
+// #define MAP_BACKGROUND_TEXTURE_PATH "resources/image/mercator_geography_2044px.png"
 
 #endif //  _DEFINES_H

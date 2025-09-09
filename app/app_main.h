@@ -31,6 +31,8 @@ plex AppData
 	VarArray kanjiCodepoints; //u32
 	PigFont mapFont;
 	PigFont largeFont;
+	
+	Str8 mapBackTexturePath;
 	Texture mapBackTexture;
 	
 	ClayUIRenderer clay;
@@ -46,6 +48,7 @@ plex AppData
 	bool keepViewMenuOpenUntilMouseOver;
 	void* uiFocusedElement;
 	UiResizableSplit sidebarSplit;
+	UiResizableSplit infoLayersSplit;
 	
 	OsmMap map;
 	MapView view;
