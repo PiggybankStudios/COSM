@@ -37,6 +37,8 @@ plex AppInput
 	bool screenSizeChanged;
 	bool isWindowTopmost;
 	// v2i windowSize; //TODO: Can we somehow ask sokol_sapp for the window size (include title bar and border)?
+	
+	VarArray droppedFilePaths; //Str8
 };
 
 // +--------------------------------------------------------------+

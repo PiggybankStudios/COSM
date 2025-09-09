@@ -1154,6 +1154,7 @@
 			"void FreeUiTextbox(UiTextbox* tbox)",
 			"void FreeVarArray(VarArray* array)",
 			"void FreeXmlParser(XmlParser* parser)",
+			"void InitAppInput(AppInput* input)",
 			"void InitFontTtfInfo(PigFont* font)",
 			"void InitMapView(MapView* view, MapProjection projection)",
 			"void InitOsmMap(Arena* arena, OsmMap* mapOut, u64 numNodesExpected, u64 numWaysExpected, u64 numRelationsExpected)",

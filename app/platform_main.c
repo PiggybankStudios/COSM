@@ -88,6 +88,19 @@ PlatformApi* platform = nullptr;
 // +--------------------------------------------------------------+
 #include "platform_api.c"
 
+void InitAppInput(AppInput* input)
+{
+	NotNull(input);
+	ClearPointer(input);
+	InitKeyboardState(&input->keyboard);
+	InitMouseState(&input->mouse);
+	input->cursorType = SAPP_MOUSECURSOR_DEFAULT;
+	input->isFullscreen = sapp_is_fullscreen();
+	input->isFocused = true; //we assume we are focused when we first present the window, I belive sokol_app will give us an unfocus event immediately after startup if that's not true
+	input->screenSize = NewV2i((i32)sapp_width(), (i32)sapp_height());
+	InitVarArray(Str8, &input->droppedFilePaths, stdHeap);
+}
+
 bool PlatDoUpdate(void)
 {
 	TracyCFrameMarkNamed("Game Loop");
@@ -154,7 +167,13 @@ bool PlatDoUpdate(void)
 	if (oldAppInput->isFullscreen != newIsFullScreen) { oldAppInput->isFullscreenChanged = true; }
 	oldAppInput->isFullscreen = newIsFullScreen;
 	
+	VarArrayLoop(&newAppInput->droppedFilePaths, fIndex)
+	{
+		VarArrayLoopGet(Str8, filePathStr, &newAppInput->droppedFilePaths, fIndex);
+		FreeStr8(stdHeap, filePathStr);
+	}
 	MyMemCopy(newAppInput, oldAppInput, sizeof(AppInput));
+	VarArrayClear(&newAppInput->droppedFilePaths);
 	newAppInput->screenSizeChanged = false;
 	newAppInput->isFullscreenChanged = false;
 	newAppInput->isMinimizedChanged = false;
@@ -194,10 +213,8 @@ void PlatSappInit(void)
 	
 	ScratchBegin(loadScratch);
 	
-	InitKeyboardState(&platformData->appInputs[0].keyboard);
-	InitKeyboardState(&platformData->appInputs[1].keyboard);
-	InitMouseState(&platformData->appInputs[0].mouse);
-	InitMouseState(&platformData->appInputs[1].mouse);
+	InitAppInput(&platformData->appInputs[0]);
+	InitAppInput(&platformData->appInputs[1]);
 	platformData->currentAppInput = &platformData->appInputs[0];
 	platformData->oldAppInput = &platformData->appInputs[1];
 	
@@ -360,7 +377,18 @@ void PlatSappEvent(const sapp_event* event)
 			case SAPP_EVENTTYPE_RESUMED:           WriteLine_D("Event: RESUMED");           break;
 			case SAPP_EVENTTYPE_QUIT_REQUESTED:    WriteLine_D("Event: QUIT_REQUESTED");    break;
 			case SAPP_EVENTTYPE_CLIPBOARD_PASTED:  WriteLine_D("Event: CLIPBOARD_PASTED");  break;
-			case SAPP_EVENTTYPE_FILES_DROPPED:     WriteLine_D("Event: FILES_DROPPED");     break;
+			case SAPP_EVENTTYPE_FILES_DROPPED:
+			{
+				int numDroppedFiles = sapp_get_num_dropped_files();
+				Assert(numDroppedFiles > 0);
+				Str8* newDroppedFilePaths = VarArrayAddMulti(Str8, &platformData->currentAppInput->droppedFilePaths, (uxx)numDroppedFiles);
+				for (uxx fIndex = 0; fIndex < (uxx)numDroppedFiles; fIndex++)
+				{
+					const char* filePathPntr = sapp_get_dropped_file_path((int)fIndex);
+					NotNull(filePathPntr);
+					newDroppedFilePaths[fIndex] = AllocStr8(stdHeap, StrLit(filePathPntr));
+				}
+			} break;
 			default: PrintLine_D("Event: UNKNOWN(%d)", event->type); break;
 		}
 	}
@@ -384,6 +412,7 @@ sapp_desc sokol_main(int argc, char* argv[])
 		.frame_cb = PlatDoUpdate,
 		.cleanup_cb = PlatSappCleanup,
 		.event_cb = PlatSappEvent,
+		.enable_dragndrop = true,
 		.width = 800,
 		.height = 600,
 		.window_title = "Loading...",

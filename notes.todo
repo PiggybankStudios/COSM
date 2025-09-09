@@ -9,7 +9,8 @@
 	[X] Display information about selected nodes/ways
 	[X] Proper zoom behavior
 	[X] Parse Relations
-	[!] Drag and drop to load file
+	[X] Drag and drop to load file
+	[!] Recent files list
 	[!] Serialize to .osm or .pbf
 	[!] Filter by tags UI, render if filtered items are below limit, save only filtered items
 	[ ] Async loading of background image
@@ -19,7 +20,6 @@
 	[ ] Store things in dictionaries based on IDs for quick lookup by ID
 	[ ] Caching system with eviction for vertex buffers
 	[ ] Style rules loaded from file
-	[ ] Recent files list
 	[ ] Turn selected items on/off. Move to different layers. Delete items.
 	[ ] Add support for choosing color/thickness/radius of selected items
 	[ ] Select similar nodes by tag value

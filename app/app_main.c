@@ -360,6 +360,17 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 	// +==============================+
 	{
 		// +==============================+
+		// |     Handle Dropped Files     |
+		// +==============================+
+		if (appIn->droppedFilePaths.length == 1)
+		{
+			Str8 droppedFilePath = VarArrayGetFirstValue(Str8, &appIn->droppedFilePaths);
+			PrintLine_I("Opening dropped file: \"%.*s\"", StrPrint(droppedFilePath));
+			OpenOsmMap(droppedFilePath);
+			isOverDisplayLimit = (app->map.nodes.length > DISPLAY_NODE_COUNT_LIMIT || app->map.ways.length > DISPLAY_WAY_COUNT_LIMIT);
+		}
+		
+		// +==============================+
 		// |       Test XML Parsers       |
 		// +==============================+
 		if (IsKeyboardKeyPressed(&appIn->keyboard, Key_Enter, false))
