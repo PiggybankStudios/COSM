@@ -23,6 +23,8 @@ Result TryParseOsmMap(Arena* arena, Str8 xmlFileContents, OsmMap* mapOut)
 	}
 	
 	InitOsmMap(arena, mapOut, 0, 0);
+	mapOut->areNodesSorted = true;
+	mapOut->areWaysSorted = true;
 	
 	do
 	{
@@ -41,12 +43,19 @@ Result TryParseOsmMap(Arena* arena, Str8 xmlFileContents, OsmMap* mapOut)
 		//TODO: This does not properly handle if the rectangle passes over the international date line (max longitude will be less than min longitude)
 		mapOut->bounds = NewRecd(boundsMinLon, boundsMinLat, boundsMaxLon - boundsMinLon, boundsMaxLat - boundsMinLat);
 		
+		u64 prevNodeId = 0;
+		bool areNodesSorted = true;
+		u64 prevWayId = 0;
+		bool areWaysSorted = true;
+		
 		XmlElement* xmlNode = nullptr;
 		while ((xmlNode = XmlGetNextChild(&xml, root, StrLit("node"), xmlNode)) != nullptr)
 		{
 			u64 id = XmlGetAttributeU64OrBreak(&xml, xmlNode, StrLit("id"));
 			r64 longitude = XmlGetAttributeR64OrBreak(&xml, xmlNode, StrLit("lon"));
 			r64 latitude = XmlGetAttributeR64OrBreak(&xml, xmlNode, StrLit("lat"));
+			if (id <= prevNodeId) { areNodesSorted = false; }
+			prevNodeId = id;
 			OsmNode* newNode = AddOsmNode(mapOut, NewV2d(longitude, latitude), id);
 			NotNull(newNode);
 			UNUSED(newNode);
@@ -70,6 +79,14 @@ Result TryParseOsmMap(Arena* arena, Str8 xmlFileContents, OsmMap* mapOut)
 			if (xml.error != Result_None) { break; }
 		}
 		if (xml.error != Result_None) { break; }
+		
+		if (!mapOut->areNodesSorted || !areNodesSorted)
+		{
+			TracyCZoneN(Zone_SortNodes, "SortNodes", true);
+			QuickSortVarArrayUintMember(OsmNode, id, &mapOut->nodes);
+			mapOut->areNodesSorted = true;
+			TracyCZoneEnd(Zone_SortNodes);
+		}
 		
 		XmlElement* xmlWay = nullptr;
 		while ((xmlWay = XmlGetNextChild(&xml, root, StrLit("way"), xmlWay)) != nullptr)
@@ -102,6 +119,10 @@ Result TryParseOsmMap(Arena* arena, Str8 xmlFileContents, OsmMap* mapOut)
 			// TODO: Parse "timestamp" attribute
 			// TODO: Parse "user" attribute
 			// TODO: Parse "uid" attribute
+			
+			if (id <= prevWayId) { areWaysSorted = false; }
+			prevWayId = id;
+			
 			OsmWay* newWay = AddOsmWay(mapOut, id, numNodesInWay, nodeIds);
 			NotNull(newWay);
 			
@@ -121,6 +142,14 @@ Result TryParseOsmMap(Arena* arena, Str8 xmlFileContents, OsmMap* mapOut)
 			ArenaResetToMark(scratch, mark);
 		}
 		if (xml.error != Result_None) { break; }
+		
+		if (!mapOut->areWaysSorted || !areWaysSorted)
+		{
+			TracyCZoneN(Zone_SortWays, "SortWays", true);
+			QuickSortVarArrayUintMember(OsmWay, id, &mapOut->ways);
+			mapOut->areWaysSorted = true;
+			TracyCZoneEnd(Zone_SortWays);
+		}
 		
 	} while(false);
 	
@@ -276,6 +305,8 @@ Result TryParsePbfMap(Arena* arena, DataStream* protobufStream, OsmMap* mapOut)
 			
 			foundOsmHeader = true;
 			InitOsmMap(arena, mapOut, 0, 0);
+			mapOut->areNodesSorted = true;
+			mapOut->areWaysSorted = true;
 			mapOut->bounds.X = (r64)headerBlock->bbox->left * (r64)Nano(1);
 			mapOut->bounds.Y = (r64)headerBlock->bbox->top * (r64)Nano(1);
 			mapOut->bounds.Width = ((r64)headerBlock->bbox->right * (r64)Nano(1)) - mapOut->bounds.X;
@@ -335,17 +366,21 @@ Result TryParsePbfMap(Arena* arena, DataStream* protobufStream, OsmMap* mapOut)
 			for (size_t gIndex = 0; gIndex < primitiveBlock->n_primitivegroup; gIndex++)
 			{
 				OSMPBF__PrimitiveGroup* primitiveGroup = primitiveBlock->primitivegroup[gIndex];
+				
 				// +==============================+
 				// |          PBF Nodes           |
 				// +==============================+
-				TracyCZoneN(Zone_OsmNodes, "OsmNodes", true);
-				for (size_t nIndex = 0; nIndex < primitiveGroup->n_nodes; nIndex++)
+				if (primitiveGroup->n_nodes > 0)
 				{
-					OSMPBF__Node* node = primitiveGroup->nodes[nIndex];
-					UNUSED(node); //TODO: Implement me!
+					TracyCZoneN(Zone_OsmNodes, "OsmNodes", true);
+					for (size_t nIndex = 0; nIndex < primitiveGroup->n_nodes; nIndex++)
+					{
+						OSMPBF__Node* node = primitiveGroup->nodes[nIndex];
+						UNUSED(node); //TODO: Implement me!
+					}
+					TracyCZoneEnd(Zone_OsmNodes);
+					if (result != Result_None) { break; }
 				}
-				TracyCZoneEnd(Zone_OsmNodes);
-				if (result != Result_None) { break; }
 				
 				// +==============================+
 				// |       PBF Dense Nodes        |
@@ -374,6 +409,7 @@ Result TryParsePbfMap(Arena* arena, DataStream* protobufStream, OsmMap* mapOut)
 					
 					size_t currentKeyValIndex = 0;
 					
+					bool areNewNodesSorted = true;
 					i64 prevNodeId = 0;
 					i64 prevNodeLat = 0;
 					i64 prevNodeLon = 0;
@@ -399,6 +435,12 @@ Result TryParsePbfMap(Arena* arena, DataStream* protobufStream, OsmMap* mapOut)
 						if (nodeChangeset < 0) { PrintLine_E("Invalid Node Changeset %d in blob[%llu] group[%zu] denseNode[%zu]!", nodeChangeset, blobIndex, gIndex, nIndex); result = Result_ValueTooLow; break; }
 						if (nodeUid < 0) { PrintLine_E("Invalid Node UID %d in blob[%llu] group[%zu] denseNode[%zu]!", nodeUid, blobIndex, gIndex, nIndex); result = Result_ValueTooLow; break; }
 						
+						if (nIndex == 0)
+						{
+							OsmNode* lastNode = VarArrayGetLastSoft(OsmNode, &mapOut->nodes);
+							if (lastNode != nullptr && lastNode->id >= (u64)nodeId) { areNewNodesSorted = false; }
+						}
+						else if (prevNodeId >= nodeId) { areNewNodesSorted = false; }
 						v2d nodeLocation = NewV2d(
 							nodeOffset.X + ((r64)nodeLon * granularityMult),
 							nodeOffset.Y + ((r64)nodeLat * granularityMult)
@@ -444,90 +486,141 @@ Result TryParsePbfMap(Arena* arena, DataStream* protobufStream, OsmMap* mapOut)
 					TracyCZoneEnd(Zone_OsmDenseNodes);
 					if (result != Result_None) { break; }
 					if (currentKeyValIndex < denseNodes->n_keys_vals) { PrintLine_W("There were %zu/%zu tags left over after parsing %zu denseNodes in blob[%llu]", denseNodes->n_keys_vals - currentKeyValIndex, denseNodes->n_keys_vals, denseNodes->n_id, blobIndex); }
+					
+					if (!areNewNodesSorted || !mapOut->areNodesSorted)
+					{
+						TracyCZoneN(Zone_SortNodes, "SortNodes", true);
+						QuickSortVarArrayUintMember(OsmNode, id, &mapOut->nodes);
+						mapOut->areNodesSorted = true;
+						TracyCZoneEnd(Zone_SortNodes);
+						
+						//TODO: We really should be waiting till the end of parsing the entire file before hook up NodeRefs with valid pointers
+						if (mapOut->ways.length > 0)
+						{
+							TracyCZoneN(_FixNodeRefs, "FixNodeRefs", true);
+							VarArrayLoop(&mapOut->ways, wIndex)
+							{
+								VarArrayLoopGet(OsmWay, way, &mapOut->ways, wIndex);
+								VarArrayLoop(&way->nodes, nIndex)
+								{
+									VarArrayLoopGet(OsmNodeRef, nodeRef, &way->nodes, nIndex);
+									nodeRef->pntr = FindOsmNode(mapOut, nodeRef->id);
+								}
+							}
+							TracyCZoneEnd(_FixNodeRefs);
+						}
+					}
 				}
 				
 				// +==============================+
 				// |           PBF Ways           |
 				// +==============================+
-				TracyCZoneN(Zone_OsmWays, "OsmWays", true);
-				for (size_t wIndex = 0; wIndex < primitiveGroup->n_ways; wIndex++)
+				if (primitiveGroup->n_ways > 0)
 				{
-					OSMPBF__Way* way = primitiveGroup->ways[wIndex];
-					NotNull(way->info);
-					if (way->id <= 0)                                         { PrintLine_E("Way[%zu] in blob[%llu] has invalid ID %lld",        wIndex, blobIndex, way->id); result = Result_InvalidID; break; }
-					if (way->info->has_timestamp && way->info->timestamp < 0) { PrintLine_E("Way[%zu] in blob[%llu] has invalid timestamp %lld", wIndex, blobIndex, way->info->timestamp); result = Result_ValueTooLow; break; }
-					if (way->info->has_uid       && way->info->uid       < 0) { PrintLine_E("Way[%zu] in blob[%llu] has invalid uid %d",         wIndex, blobIndex, way->info->uid); result = Result_ValueTooLow; break; }
-					if (way->info->has_changeset && way->info->changeset < 0) { PrintLine_E("Way[%zu] in blob[%llu] has invalid changeset %lld", wIndex, blobIndex, way->info->changeset); result = Result_ValueTooLow; break; }
-					if (way->n_keys != way->n_vals)                           { PrintLine_E("Way[%zu] in blob[%llu] key count %zu doesn't match value count %zu", wIndex, blobIndex, way->n_keys, way->n_vals); result = Result_Mismatch; break; }
-					if (way->n_refs > 0)
+					TracyCZoneN(Zone_OsmWays, "OsmWays", true);
+					bool areNewWaysSorted = true;
+					u64 prevWayId = 0;
+					for (size_t wIndex = 0; wIndex < primitiveGroup->n_ways; wIndex++)
 					{
-						uxx scratchMark2 = ArenaGetMark(scratch);
-						uxx numNodesInWay = (uxx)way->n_refs;
-						u64* nodeIds = AllocArray(u64, scratch, numNodesInWay);
-						NotNull(nodeIds);
-						u64 prevNodeId = 0;
-						for (size_t rIndex = 0; rIndex < way->n_refs; rIndex++)
+						OSMPBF__Way* way = primitiveGroup->ways[wIndex];
+						NotNull(way->info);
+						if (way->id <= 0)                                         { PrintLine_E("Way[%zu] in blob[%llu] has invalid ID %lld",        wIndex, blobIndex, way->id); result = Result_InvalidID; break; }
+						if (way->info->has_timestamp && way->info->timestamp < 0) { PrintLine_E("Way[%zu] in blob[%llu] has invalid timestamp %lld", wIndex, blobIndex, way->info->timestamp); result = Result_ValueTooLow; break; }
+						if (way->info->has_uid       && way->info->uid       < 0) { PrintLine_E("Way[%zu] in blob[%llu] has invalid uid %d",         wIndex, blobIndex, way->info->uid); result = Result_ValueTooLow; break; }
+						if (way->info->has_changeset && way->info->changeset < 0) { PrintLine_E("Way[%zu] in blob[%llu] has invalid changeset %lld", wIndex, blobIndex, way->info->changeset); result = Result_ValueTooLow; break; }
+						if (way->n_keys != way->n_vals)                           { PrintLine_E("Way[%zu] in blob[%llu] key count %zu doesn't match value count %zu", wIndex, blobIndex, way->n_keys, way->n_vals); result = Result_Mismatch; break; }
+						if (way->n_refs > 0)
 						{
-							if (way->refs[rIndex] < -(i64)prevNodeId) { PrintLine_E("Node[%zu] in Way[%zu] in blob[%llu] has negative ID %llu%s%lld", rIndex, wIndex, blobIndex, prevNodeId, (way->refs[rIndex] >= 0) ? "+" : "", way->refs[rIndex]); result = Result_InvalidID; break; }
-							if (way->refs[rIndex] > 0 && (u64)way->refs[rIndex] > UINT64_MAX - prevNodeId) { PrintLine_E("Node[%zu] in Way[%zu] in blob[%llu] has overflow ID %llu%s%lld", rIndex, wIndex, blobIndex, prevNodeId, (way->refs[rIndex] >= 0) ? "+" : "", way->refs[rIndex]); result = Result_InvalidID; break; }
-							nodeIds[rIndex] = (u64)(prevNodeId + way->refs[rIndex]);
-							prevNodeId = nodeIds[rIndex];
-						}
-						if (result != Result_None) { ArenaResetToMark(scratch, scratchMark2); break; }
-						
-						//TODO: Handle "LocationsOnWays" feature by looking at n_lat,n_lon and disregarding if the IDs map to nodes we loaded!
-						OsmWay* newWay = AddOsmWay(mapOut, (u64)way->id, numNodesInWay, nodeIds);
-						newWay->visible = (way->info->has_visible ? way->info->visible : true);
-						newWay->version = (way->info->has_version ? way->info->version : -1);
-						//TODO: Str8 timestampStr; newWay->timestamp = (way->info->has_timestamp ? (u64)way->info->timestamp : 0);
-						newWay->uid = (way->info->has_uid ? (u64)way->info->uid : 0);
-						//TODO: Str8 user; newWay->user = (way->info->has_user_sid ? LookupString(way->info->user_sid) : Str8_Empty);
-						newWay->changeset = (way->info->has_changeset ? (u64)way->info->changeset : 0);
-						VarArrayExpand(&newWay->tags, newWay->tags.length + (uxx)way->n_keys);
-						for (size_t tIndex = 0; tIndex < way->n_keys; tIndex++)
-						{
-							Str8 keyStr = GetPbfString(primitiveBlock->stringtable, way->keys[tIndex]);
-							if (!IsEmptyStr(keyStr))
+							uxx scratchMark2 = ArenaGetMark(scratch);
+							uxx numNodesInWay = (uxx)way->n_refs;
+							u64* nodeIds = AllocArray(u64, scratch, numNodesInWay);
+							NotNull(nodeIds);
+							u64 prevNodeId = 0;
+							for (size_t rIndex = 0; rIndex < way->n_refs; rIndex++)
 							{
-								Str8 valueStr = GetPbfString(primitiveBlock->stringtable, way->vals[tIndex]);
-								OsmTag* newTag = VarArrayAdd(OsmTag, &newWay->tags);
-								NotNull(newTag);
-								ClearPointer(newTag);
-								newTag->key = AllocStr8(arena, keyStr);
-								newTag->value = AllocStr8(arena, valueStr);
+								if (way->refs[rIndex] < -(i64)prevNodeId) { PrintLine_E("Node[%zu] in Way[%zu] in blob[%llu] has negative ID %llu%s%lld", rIndex, wIndex, blobIndex, prevNodeId, (way->refs[rIndex] >= 0) ? "+" : "", way->refs[rIndex]); result = Result_InvalidID; break; }
+								if (way->refs[rIndex] > 0 && (u64)way->refs[rIndex] > UINT64_MAX - prevNodeId) { PrintLine_E("Node[%zu] in Way[%zu] in blob[%llu] has overflow ID %llu%s%lld", rIndex, wIndex, blobIndex, prevNodeId, (way->refs[rIndex] >= 0) ? "+" : "", way->refs[rIndex]); result = Result_InvalidID; break; }
+								nodeIds[rIndex] = (u64)(prevNodeId + way->refs[rIndex]);
+								prevNodeId = nodeIds[rIndex];
 							}
+							if (result != Result_None) { ArenaResetToMark(scratch, scratchMark2); break; }
+							
+							if (wIndex == 0)
+							{
+								OsmWay* lastWay = VarArrayGetLastSoft(OsmWay, &mapOut->ways);
+								if (lastWay != nullptr && lastWay->id >= (u64)way->id) { areNewWaysSorted = false; }
+							}
+							else if (prevWayId >= (u64)way->id) { areNewWaysSorted = false; }
+							prevWayId = (u64)way->id;
+							
+							//TODO: Handle "LocationsOnWays" feature by looking at n_lat,n_lon and disregarding if the IDs map to nodes we loaded!
+							OsmWay* newWay = AddOsmWay(mapOut, (u64)way->id, numNodesInWay, nodeIds);
+							newWay->visible = (way->info->has_visible ? way->info->visible : true);
+							newWay->version = (way->info->has_version ? way->info->version : -1);
+							//TODO: Str8 timestampStr; newWay->timestamp = (way->info->has_timestamp ? (u64)way->info->timestamp : 0);
+							newWay->uid = (way->info->has_uid ? (u64)way->info->uid : 0);
+							//TODO: Str8 user; newWay->user = (way->info->has_user_sid ? LookupString(way->info->user_sid) : Str8_Empty);
+							newWay->changeset = (way->info->has_changeset ? (u64)way->info->changeset : 0);
+							VarArrayExpand(&newWay->tags, newWay->tags.length + (uxx)way->n_keys);
+							for (size_t tIndex = 0; tIndex < way->n_keys; tIndex++)
+							{
+								Str8 keyStr = GetPbfString(primitiveBlock->stringtable, way->keys[tIndex]);
+								if (!IsEmptyStr(keyStr))
+								{
+									Str8 valueStr = GetPbfString(primitiveBlock->stringtable, way->vals[tIndex]);
+									OsmTag* newTag = VarArrayAdd(OsmTag, &newWay->tags);
+									NotNull(newTag);
+									ClearPointer(newTag);
+									newTag->key = AllocStr8(arena, keyStr);
+									newTag->value = AllocStr8(arena, valueStr);
+								}
+							}
+							
+							ArenaResetToMark(scratch, scratchMark2);
 						}
-						
-						ArenaResetToMark(scratch, scratchMark2);
+						else { PrintLine_W("Way[%zu] in blob[%llu] had no node references!", wIndex, blobIndex); }
 					}
-					else { PrintLine_W("Way[%zu] in blob[%llu] had no node references!", wIndex, blobIndex); }
+					TracyCZoneEnd(Zone_OsmWays);
+					if (result != Result_None) { break; }
+					
+					if (!areNewWaysSorted || !mapOut->areWaysSorted)
+					{
+						TracyCZoneN(Zone_SortWays, "SortWays", true);
+						QuickSortVarArrayUintMember(OsmWay, id, &mapOut->ways);
+						mapOut->areWaysSorted = true;
+						TracyCZoneEnd(Zone_SortWays);
+					}
 				}
-				TracyCZoneEnd(Zone_OsmWays);
-				if (result != Result_None) { break; }
 				
 				// +==============================+
 				// |        PBF Relations         |
 				// +==============================+
-				TracyCZoneN(Zone_OsmRelations, "OsmRelations", true);
-				for (size_t rIndex = 0; rIndex < primitiveGroup->n_relations; rIndex++)
+				if (primitiveGroup->n_relations > 0)
 				{
-					OSMPBF__Relation* relation = primitiveGroup->relations[rIndex];
-					UNUSED(relation); //TODO: Implement me!
+					TracyCZoneN(Zone_OsmRelations, "OsmRelations", true);
+					for (size_t rIndex = 0; rIndex < primitiveGroup->n_relations; rIndex++)
+					{
+						OSMPBF__Relation* relation = primitiveGroup->relations[rIndex];
+						UNUSED(relation); //TODO: Implement me!
+					}
+					TracyCZoneEnd(Zone_OsmRelations);
+					if (result != Result_None) { break; }
 				}
-				TracyCZoneEnd(Zone_OsmRelations);
-				if (result != Result_None) { break; }
 				
 				// +==============================+
 				// |        PBF Changesets        |
 				// +==============================+
-				TracyCZoneN(Zone_OsmChangesets, "OsmChangesets", true);
-				for (size_t cIndex = 0; cIndex < primitiveGroup->n_changesets; cIndex++)
+				if (primitiveGroup->n_changesets > 0)
 				{
-					OSMPBF__ChangeSet* changeset = primitiveGroup->changesets[cIndex];
-					UNUSED(changeset); //TODO: Implement me!
+					TracyCZoneN(Zone_OsmChangesets, "OsmChangesets", true);
+					for (size_t cIndex = 0; cIndex < primitiveGroup->n_changesets; cIndex++)
+					{
+						OSMPBF__ChangeSet* changeset = primitiveGroup->changesets[cIndex];
+						UNUSED(changeset); //TODO: Implement me!
+					}
+					TracyCZoneEnd(Zone_OsmChangesets);
+					if (result != Result_None) { break; }
 				}
-				TracyCZoneEnd(Zone_OsmChangesets);
-				if (result != Result_None) { break; }
 			}
 			if (result != Result_None) { break; }
 			
@@ -559,7 +652,7 @@ Result TryParseMapFile(Arena* arena, FilePath filePath, OsmMap* mapOut)
 		OsFile pbfFile = ZEROED;
 		TracyCZoneN(_OsOpenFile, "OsOpenFile", true);
 		bool openedSelectedFile = OsOpenFile(scratch, filePath, OsOpenFileMode_Read, false, &pbfFile);
-		TracyCZoneEnd(_OpenBinFile);
+		TracyCZoneEnd(_OsOpenFile);
 		if (openedSelectedFile)
 		{
 			PrintLine_I("Opened binary \"%.*s\"", StrPrint(filePath));

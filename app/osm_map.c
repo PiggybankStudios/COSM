@@ -90,10 +90,18 @@ void InitOsmMap(Arena* arena, OsmMap* mapOut, u64 numNodesExpected, u64 numWaysE
 OsmNode* FindOsmNode(OsmMap* map, u64 nodeId)
 {
 	TracyCZoneN(funcZone, "FindOsmNode", true);
-	VarArrayLoop(&map->nodes, nIndex)
+	if (map->areNodesSorted)
 	{
-		VarArrayLoopGet(OsmNode, node, &map->nodes, nIndex);
-		if (node->id == nodeId) { TracyCZoneEnd(funcZone); return node; }
+		uxx foundIndex = BinarySearchVarArrayUintMember(OsmNode, id, &map->nodes, &nodeId);
+		if (foundIndex < map->nodes.length) { TracyCZoneEnd(funcZone); return VarArrayGet(OsmNode, &map->nodes, foundIndex); }
+	}
+	else
+	{
+		VarArrayLoop(&map->nodes, nIndex)
+		{
+			VarArrayLoopGet(OsmNode, node, &map->nodes, nIndex);
+			if (node->id == nodeId) { TracyCZoneEnd(funcZone); return node; }
+		}
 	}
 	TracyCZoneEnd(funcZone);
 	return nullptr;

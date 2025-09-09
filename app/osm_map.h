@@ -129,8 +129,10 @@ plex OsmMap
 	Arena* arena;
 	recd bounds;
 	
+	bool areNodesSorted;
 	u64 nextNodeId;
 	VarArray nodes; //OsmNode
+	bool areWaysSorted;
 	u64 nextWayId;
 	VarArray ways; //OsmWay
 	

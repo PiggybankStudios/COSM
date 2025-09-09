@@ -53,4 +53,7 @@ Date:   02\25\2025
 #define MERCATOR_MAP_ASPECT_RATIO   (2.0/1.0) //2:1 aspect ratio for Mercator projection maps
 #define MAP_MAX_ZOOM                Million(100) //multiplier TODO: Change to a unit of measurement that isn't dependent on screen size and mapRec size!
 
+#define DISPLAY_NODE_COUNT_LIMIT     Thousand(30)
+#define DISPLAY_WAY_COUNT_LIMIT      Thousand(30)
+
 #endif //  _DEFINES_H

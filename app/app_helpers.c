@@ -313,40 +313,7 @@ void OpenOsmMap(FilePath filePath)
 	ScratchBegin(scratch);
 	
 	OsmMap newMap = ZEROED;
-	Result parseResult = Result_None;
-	
-	if (StrAnyCaseEndsWith(filePath, StrLit(".pbf")))
-	{
-		OsFile pbfFile = ZEROED;
-		TracyCZoneN(_ReadBinFile, "OsReadBinFile", true);
-		bool openedSelectedFile = OsOpenFile(scratch, filePath, OsOpenFileMode_Read, false, &pbfFile);
-		TracyCZoneEnd(_ReadBinFile);
-		if (openedSelectedFile)
-		{
-			PrintLine_I("Opened \"%.*s\"...", StrPrint(filePath));
-			DataStream fileStream = ToDataStreamFromFile(&pbfFile);
-			parseResult = TryParsePbfMap(stdHeap, &fileStream, &newMap);
-			OsCloseFile(&pbfFile);
-			if (parseResult != Result_Success) { PrintLine_E("Failed to parse as OpenStreetMaps Protobuf data! Error: %s", GetResultStr(parseResult)); }
-		}
-		else { PrintLine_E("Failed to open \"%.*s\"", StrPrint(filePath)); }
-	}
-	else if (StrAnyCaseEndsWith(filePath, StrLit(".osm")))
-	{
-		Str8 fileContents = Str8_Empty;
-		TracyCZoneN(_ReadTextFile, "OsReadTextFile", true);
-		bool openedSelectedFile = OsReadTextFile(filePath, scratch, &fileContents);
-		TracyCZoneEnd(_ReadTextFile);
-		if (openedSelectedFile)
-		{
-			PrintLine_I("Opened \"%.*s\", %llu bytes", StrPrint(filePath), fileContents.length);
-			parseResult = TryParseOsmMap(stdHeap, fileContents, &newMap);
-			if (parseResult != Result_Success) { PrintLine_E("Failed to parse as OpenStreetMaps XML data! Error: %s", GetResultStr(parseResult)); }
-		}
-		else { PrintLine_E("Failed to open \"%.*s\"", StrPrint(filePath)); }
-	}
-	else { PrintLine_E("Unknown file extension \"%.*s\", expected .osm or .pbf files!", StrPrint(GetFileNamePart(filePath, true))); }
-	
+	Result parseResult = TryParseMapFile(scratch, filePath, &newMap);
 	if (parseResult == Result_Success)
 	{
 		FreeStr8(stdHeap, &app->loadedFilePath);
@@ -357,15 +324,17 @@ void OpenOsmMap(FilePath filePath)
 			app->map.ways.length, Plural(app->map.ways.length, "s")
 		);
 		
-		#if 1
+		#if 0
 		if (!IsVarArraySortedUintMember(OsmNode, id, &app->map.nodes))
 		{
 			TracyCZoneN(_SortOsmNodes, "SortOsmNodes", true);
 			PrintLine_D("Sorting %llu nodes...", app->map.nodes.length);
 			// VarArrayLoop(&app->map.nodes, nIndex) { VarArrayLoopGet(OsmNode, node, &app->map.nodes, nIndex); PrintLine_D("Before Node[%llu]: ID %llu", nIndex, node->id); if (nIndex >= 10) { break; } }
 			QuickSortVarArrayUintMember(OsmNode, id, &app->map.nodes);
+			app->map.areNodesSorted = true;
 			// VarArrayLoop(&app->map.nodes, nIndex) { VarArrayLoopGet(OsmNode, node, &app->map.nodes, nIndex); PrintLine_D("After Node[%llu]: ID %llu", nIndex, node->id); if (nIndex >= 10) { break; } }
 			TracyCZoneEnd(_SortOsmNodes);
+			
 			
 			TracyCZoneN(_FixNodeRefs, "FixNodeRefs", true);
 			VarArrayLoop(&app->map.ways, wIndex)
@@ -403,8 +372,16 @@ void OpenOsmMap(FilePath filePath)
 		}
 		
 		app->loadedFilePath = AllocStr8(stdHeap, filePath);
+		
+		TracyCZoneN(_FindInternationalCodepoints, "FindInternationalCodepoints", true);
 		FindInternationalCodepointsInMapNames(&app->map, &app->kanjiCodepoints);
+		TracyCZoneEnd(_FindInternationalCodepoints);
+		
+		//TODO: This is taking like 40-50ms now. We should really work on changing how we display international codepoints
+		TracyCZoneN(_CreatingFonts, "CreatingFonts", true);
 		bool fontBakeSuccess = AppCreateFonts();
+		TracyCZoneEnd(_CreatingFonts);
+		
 		Assert(fontBakeSuccess);
 	}
 	

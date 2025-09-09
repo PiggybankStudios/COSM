@@ -31,6 +31,7 @@ plex AppData
 	VarArray kanjiCodepoints; //u32
 	PigFont mapFont;
 	PigFont largeFont;
+	Texture mapBackTexture;
 	
 	ClayUIRenderer clay;
 	r32 uiScale;

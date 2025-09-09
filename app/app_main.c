@@ -146,6 +146,11 @@ EXPORT_FUNC APP_INIT_DEF(AppInit)
 	
 	InitCompiledShader(&app->mainShader, stdHeap, main2d);
 	
+	ImageData mapBackImageData = LoadImageData(scratch, "resources/image/mercator_1200px.png");
+	NotNull(mapBackImageData.pixels);
+	Assert(mapBackImageData.size.Width > 0 && mapBackImageData.size.Height > 0);
+	app->mapBackTexture = InitTexture(stdHeap, StrLit("mapBackTexture"), mapBackImageData.size, mapBackImageData.pixels, 0x00);
+	
 	InitVarArray(u32, &app->kanjiCodepoints, stdHeap);
 	app->uiFontSize = DEFAULT_UI_FONT_SIZE;
 	app->largeFontSize = DEFAULT_LARGE_FONT_SIZE;
@@ -346,6 +351,7 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 	// v2 screenCenter = Div(screenSize, 2.0f);
 	v2 mousePos = appIn->mouse.position;
 	bool isMouseOverMainViewport = IsMouseOverClay(CLAY_ID("MainViewport"));
+	bool isOverDisplayLimit = (app->map.nodes.length > DISPLAY_NODE_COUNT_LIMIT || app->map.ways.length > DISPLAY_WAY_COUNT_LIMIT);
 	
 	TracyCZoneN(Zone_Update, "Update", true);
 	// +==============================+
@@ -446,6 +452,7 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 		if (IsKeyboardKeyDown(&appIn->keyboard, Key_Control) && IsKeyboardKeyDown(&appIn->keyboard, Key_Shift) && IsKeyboardKeyPressed(&appIn->keyboard, Key_O, false))
 		{
 			OpenOsmMap(StrLit(TEST_OSM_FILE));
+			isOverDisplayLimit = (app->map.nodes.length > DISPLAY_NODE_COUNT_LIMIT || app->map.ways.length > DISPLAY_WAY_COUNT_LIMIT);
 		}
 		
 		// +==============================+
@@ -466,7 +473,7 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 		// +====================================+
 		// | Update Hover and Handle Selection  |
 		// +====================================+
-		if (app->map.arena != nullptr)
+		if (app->map.arena != nullptr && !isOverDisplayLimit)
 		{
 			if (!isMouseOverMainViewport)
 			{
@@ -594,7 +601,7 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 		// +================================================+
 		// | Ctrl+R Refreshes Way Colors and Triangulation  |
 		// +================================================+
-		if (IsKeyboardKeyDown(&appIn->keyboard, Key_Control) && IsKeyboardKeyPressed(&appIn->keyboard, Key_R, false))
+		if (IsKeyboardKeyDown(&appIn->keyboard, Key_Control) && IsKeyboardKeyPressed(&appIn->keyboard, Key_R, false) && !isOverDisplayLimit)
 		{
 			VarArrayLoop(&app->map.ways, wIndex)
 			{
@@ -651,6 +658,13 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 			if (app->view.zoom == 0.0) { app->view.zoom = app->view.minZoom; }
 			recd mapScreenRec = GetMapScreenRec(&app->view);
 			
+			v2 backSize = ToV2Fromi(app->mapBackTexture.size);
+			rec backSourceRec = NewRec(
+				0 * backSize.Width, 0.25f * backSize.Height,
+				1 * backSize.Width, 0.50f * backSize.Height
+			);
+			DrawTexturedRectangleEx(ToRecFromd(mapScreenRec), White, &app->mapBackTexture, backSourceRec);
+			
 			DrawRectangleOutlineEx(ToRecFromd(mapScreenRec), 4.0f, MonokaiPurple, false);
 			
 			#if 0
@@ -681,76 +695,79 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 			// +==============================+
 			// |         Render Ways          |
 			// +==============================+
-			for (uxx lIndex = 1; lIndex < OsmRenderLayer_Count; lIndex++)
+			if (!isOverDisplayLimit)
 			{
-				OsmRenderLayer currentLayer = (OsmRenderLayer)lIndex;
-				VarArrayLoop(&app->map.ways, wIndex)
+				for (uxx lIndex = 1; lIndex < OsmRenderLayer_Count; lIndex++)
 				{
-					VarArrayLoopGet(OsmWay, way, &app->map.ways, wIndex);
-					UpdateOsmWayColorChoice(way);
-					if (way->renderLayer == currentLayer && way->colorsChosen)
+					OsmRenderLayer currentLayer = (OsmRenderLayer)lIndex;
+					VarArrayLoop(&app->map.ways, wIndex)
 					{
-						if (way->fillColor.a > 0 || (way->isClosedLoop && way->borderThickness > 0.0f && way->borderColor.a > 0))
+						VarArrayLoopGet(OsmWay, way, &app->map.ways, wIndex);
+						UpdateOsmWayColorChoice(way);
+						if (way->renderLayer == currentLayer && way->colorsChosen)
 						{
-							if (way->isClosedLoop)
+							if (way->fillColor.a > 0 || (way->isClosedLoop && way->borderThickness > 0.0f && way->borderColor.a > 0))
 							{
-								v2 boundsTopLeft = ToV2Fromd(MapProject(app->view.projection, way->nodeBounds.TopLeft, mapScreenRec));
-								v2 boundsBottomRight = ToV2Fromd(MapProject(app->view.projection, AddV2d(way->nodeBounds.TopLeft, way->nodeBounds.Size), mapScreenRec));
-								rec boundsRec = NewRecBetweenV(boundsTopLeft, boundsBottomRight);
-								if (boundsRec.X + boundsRec.Width >= 0 && boundsRec.Y + boundsRec.Height >= 0 &&
-									boundsRec.X <= screenSize.Width && boundsRec.Y <= screenSize.Height)
+								if (way->isClosedLoop)
 								{
-									if (boundsRec.Width * boundsRec.Height < 50)
+									v2 boundsTopLeft = ToV2Fromd(MapProject(app->view.projection, way->nodeBounds.TopLeft, mapScreenRec));
+									v2 boundsBottomRight = ToV2Fromd(MapProject(app->view.projection, AddV2d(way->nodeBounds.TopLeft, way->nodeBounds.Size), mapScreenRec));
+									rec boundsRec = NewRecBetweenV(boundsTopLeft, boundsBottomRight);
+									if (boundsRec.X + boundsRec.Width >= 0 && boundsRec.Y + boundsRec.Height >= 0 &&
+										boundsRec.X <= screenSize.Width && boundsRec.Y <= screenSize.Height)
 									{
-										Color32 smallColor = (way->borderThickness > 0.0f && way->borderColor.a > 0) ? way->borderColor : way->fillColor;
-										#if 0
-										r32 radius = LengthV2(boundsRec.Size) / 2.0f;
-										DrawCircle(NewCircleV(AddV2(boundsRec.TopLeft, ShrinkV2(boundsRec.Size, 2)), radius), smallColor);
-										#else
-										DrawRectangle(boundsRec, smallColor);
-										#endif
-									}
-									else
-									{
-										UpdateOsmWayTriangulation(&app->map, way);
-										Color32 fillColor = way->isSelected ? MonokaiGreen : (way->isHovered ? ColorLerpSimple(way->fillColor, MonokaiOrange, 0.2f) : way->fillColor);
-										Color32 borderColor = (way->isSelected || way->isHovered) ? Transparent : way->borderColor;
-										RenderWayFilled(way, mapScreenRec, boundsRec, fillColor, way->borderThickness, borderColor);
+										if (boundsRec.Width * boundsRec.Height < 50)
+										{
+											Color32 smallColor = (way->borderThickness > 0.0f && way->borderColor.a > 0) ? way->borderColor : way->fillColor;
+											#if 0
+											r32 radius = LengthV2(boundsRec.Size) / 2.0f;
+											DrawCircle(NewCircleV(AddV2(boundsRec.TopLeft, ShrinkV2(boundsRec.Size, 2)), radius), smallColor);
+											#else
+											DrawRectangle(boundsRec, smallColor);
+											#endif
+										}
+										else
+										{
+											UpdateOsmWayTriangulation(&app->map, way);
+											Color32 fillColor = way->isSelected ? MonokaiGreen : (way->isHovered ? ColorLerpSimple(way->fillColor, MonokaiOrange, 0.2f) : way->fillColor);
+											Color32 borderColor = (way->isSelected || way->isHovered) ? Transparent : way->borderColor;
+											RenderWayFilled(way, mapScreenRec, boundsRec, fillColor, way->borderThickness, borderColor);
+										}
 									}
 								}
-							}
-							
-							if (!way->isClosedLoop && way->lineThickness > 0.0f)
-							{
-								v2d prevPos = V2d_Zero;
-								VarArrayLoop(&way->nodes, nIndex)
+								
+								if (!way->isClosedLoop && way->lineThickness > 0.0f)
 								{
-									VarArrayLoopGet(OsmNodeRef, nodeRef, &way->nodes, nIndex);
-									v2d nodePos = MapProject(app->view.projection, nodeRef->pntr->location, mapScreenRec);
-									if (nIndex > 0)
+									v2d prevPos = V2d_Zero;
+									VarArrayLoop(&way->nodes, nIndex)
 									{
-										DrawLine(ToV2Fromd(prevPos), ToV2Fromd(nodePos), way->lineThickness, way->fillColor);
+										VarArrayLoopGet(OsmNodeRef, nodeRef, &way->nodes, nIndex);
+										v2d nodePos = MapProject(app->view.projection, nodeRef->pntr->location, mapScreenRec);
+										if (nIndex > 0)
+										{
+											DrawLine(ToV2Fromd(prevPos), ToV2Fromd(nodePos), way->lineThickness, way->fillColor);
+										}
+										prevPos = nodePos;
 									}
-									prevPos = nodePos;
 								}
 							}
 						}
-					}
-					
-					if (currentLayer == OsmRenderLayer_Selection && (way->isSelected || way->isHovered))
-					{
-						Color32 borderColor = (way->isSelected ? CartoTextGreen : CartoTextOrange);
 						
-						v2d prevPos = V2d_Zero;
-						VarArrayLoop(&way->nodes, nIndex)
+						if (currentLayer == OsmRenderLayer_Selection && (way->isSelected || way->isHovered))
 						{
-							VarArrayLoopGet(OsmNodeRef, nodeRef, &way->nodes, nIndex);
-							v2d nodePos = MapProject(app->view.projection, nodeRef->pntr->location, mapScreenRec);
-							if (nIndex > 0)
+							Color32 borderColor = (way->isSelected ? CartoTextGreen : CartoTextOrange);
+							
+							v2d prevPos = V2d_Zero;
+							VarArrayLoop(&way->nodes, nIndex)
 							{
-								DrawLine(ToV2Fromd(prevPos), ToV2Fromd(nodePos), 2.0f, borderColor);
+								VarArrayLoopGet(OsmNodeRef, nodeRef, &way->nodes, nIndex);
+								v2d nodePos = MapProject(app->view.projection, nodeRef->pntr->location, mapScreenRec);
+								if (nIndex > 0)
+								{
+									DrawLine(ToV2Fromd(prevPos), ToV2Fromd(nodePos), 2.0f, borderColor);
+								}
+								prevPos = nodePos;
 							}
-							prevPos = nodePos;
 						}
 					}
 				}
@@ -759,66 +776,67 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 			// +==============================+
 			// |         Render Nodes         |
 			// +==============================+
-			#if 1
-			VarArrayLoop(&app->map.nodes, nIndex)
+			if (!isOverDisplayLimit)
 			{
-				VarArrayLoopGet(OsmNode, node, &app->map.nodes, nIndex);
-				
-				Str8 populationStr = GetOsmNodeTagValue(node, StrLit("population"), Str8_Empty);
-				u64 population = 0; TryParseU64(populationStr, &population, nullptr);
-				r32 populationLerp = InverseLerpClampR32(Thousand(50), Thousand(500), (r32)population);
-				r32 radius = (!IsEmptyStr(populationStr)) ? LerpR32(1.0, 10.0f, populationLerp) : 0.0f;
-				if (app->map.ways.length == 0 && radius == 0.0f) { radius = 1.0f; } //Show all nodes when now ways were found
-				
-				Str8 radiusStr = GetOsmNodeTagValue(node, StrLit("radius"), Str8_Empty);
-				if (!IsEmptyStr(radiusStr)) { TryParseR32(radiusStr, &radius, nullptr); }
-				
-				if (node->isSelected) { radius = 3.0f; }
-				else if (node->isHovered) { radius = 2.0f; }
-				
-				if (radius > 0.0f)
+				VarArrayLoop(&app->map.nodes, nIndex)
 				{
-					Color32 outlineColor = Transparent;
-					Color32 nodeColor = (population < Thousand(50)) ? MonokaiGray2 : ColorLerpSimple(CartoTextOrange, CartoTextGreen, populationLerp);
-					Str8 colorStr = GetOsmNodeTagValue(node, StrLit("color"), Str8_Empty);
-					if (!IsEmptyStr(colorStr)) { TryParseColor(colorStr, &nodeColor, nullptr); }
+					VarArrayLoopGet(OsmNode, node, &app->map.nodes, nIndex);
 					
-					if (node->isSelected) { nodeColor = MonokaiGreen; outlineColor = CartoTextGreen; }
-					else if (node->isHovered) { nodeColor = MonokaiOrange; outlineColor = CartoTextOrange; }
+					Str8 populationStr = GetOsmNodeTagValue(node, StrLit("population"), Str8_Empty);
+					u64 population = 0; TryParseU64(populationStr, &population, nullptr);
+					r32 populationLerp = InverseLerpClampR32(Thousand(50), Thousand(500), (r32)population);
+					r32 radius = (!IsEmptyStr(populationStr)) ? LerpR32(1.0, 10.0f, populationLerp) : 0.0f;
+					if (app->map.ways.length == 0 && radius == 0.0f) { radius = 1.0f; } //Show all nodes when now ways were found
 					
-					v2d nodePos = MapProject(app->view.projection, node->location, mapScreenRec);
-					AlignV2d(&nodePos);
-					if (outlineColor.a > 0) { DrawCircle(NewCircleV(ToV2Fromd(nodePos), radius + 1), outlineColor); }
-					DrawCircle(NewCircleV(ToV2Fromd(nodePos), radius), nodeColor);
+					Str8 radiusStr = GetOsmNodeTagValue(node, StrLit("radius"), Str8_Empty);
+					if (!IsEmptyStr(radiusStr)) { TryParseR32(radiusStr, &radius, nullptr); }
 					
-					Str8 japaneseNameStr = GetOsmNodeTagValue(node, StrLit("name:ja"), Str8_Empty);
-					if (IsEmptyStr(japaneseNameStr)) { japaneseNameStr = GetOsmNodeTagValue(node, StrLit("name"), Str8_Empty); }
-					Str8 englishNameStr = GetOsmNodeTagValue(node, StrLit("name:es"), Str8_Empty);
-					if (IsEmptyStr(englishNameStr)) { englishNameStr = GetOsmNodeTagValue(node, StrLit("name:en"), Str8_Empty); }
+					if (node->isSelected) { radius = 3.0f; }
+					else if (node->isHovered) { radius = 2.0f; }
 					
-					Color32 textColor = (outlineColor.a > 0) ? outlineColor : nodeColor;
-					v2 namePos = AddV2(ToV2Fromd(nodePos), NewV2(0, -(radius + 5)));
-					if (!IsEmptyStr(japaneseNameStr))
+					if (radius > 0.0f)
 					{
-						TextMeasure nameMeasure = MeasureTextEx(&app->mapFont, app->mapFontSize, MAP_FONT_STYLE, false, 0.0f, japaneseNameStr);
-						BindFontEx(&app->mapFont, app->mapFontSize, MAP_FONT_STYLE);
-						v2 textPos = AddV2(namePos, NewV2(-nameMeasure.Width/2, 0));
-						// DrawText(japaneseNameStr, AddV2(textPos, NewV2(0, 2)), ColorLerpSimple(textColor, Black, 0.75f));
-						DrawText(japaneseNameStr, textPos, textColor);
-						namePos.Y -= nameMeasure.Height + 5;
-					}
-					if (!IsEmptyStr(englishNameStr))
-					{
-						TextMeasure nameMeasure = MeasureTextEx(&app->mapFont, app->mapFontSize, MAP_FONT_STYLE, false, 0.0f, englishNameStr);
-						BindFontEx(&app->mapFont, app->mapFontSize, MAP_FONT_STYLE);
-						v2 textPos = AddV2(namePos, NewV2(-nameMeasure.Width/2, 0));
-						DrawText(englishNameStr, AddV2(textPos, NewV2(0, 2)), ColorLerpSimple(textColor, Black, 0.75f));
-						DrawText(englishNameStr, textPos, textColor);
-						namePos.Y -= nameMeasure.Height + 5;
+						Color32 outlineColor = Transparent;
+						Color32 nodeColor = (population < Thousand(50)) ? MonokaiGray2 : ColorLerpSimple(CartoTextOrange, CartoTextGreen, populationLerp);
+						Str8 colorStr = GetOsmNodeTagValue(node, StrLit("color"), Str8_Empty);
+						if (!IsEmptyStr(colorStr)) { TryParseColor(colorStr, &nodeColor, nullptr); }
+						
+						if (node->isSelected) { nodeColor = MonokaiGreen; outlineColor = CartoTextGreen; }
+						else if (node->isHovered) { nodeColor = MonokaiOrange; outlineColor = CartoTextOrange; }
+						
+						v2d nodePos = MapProject(app->view.projection, node->location, mapScreenRec);
+						AlignV2d(&nodePos);
+						if (outlineColor.a > 0) { DrawCircle(NewCircleV(ToV2Fromd(nodePos), radius + 1), outlineColor); }
+						DrawCircle(NewCircleV(ToV2Fromd(nodePos), radius), nodeColor);
+						
+						Str8 japaneseNameStr = GetOsmNodeTagValue(node, StrLit("name:ja"), Str8_Empty);
+						if (IsEmptyStr(japaneseNameStr)) { japaneseNameStr = GetOsmNodeTagValue(node, StrLit("name"), Str8_Empty); }
+						Str8 englishNameStr = GetOsmNodeTagValue(node, StrLit("name:es"), Str8_Empty);
+						if (IsEmptyStr(englishNameStr)) { englishNameStr = GetOsmNodeTagValue(node, StrLit("name:en"), Str8_Empty); }
+						
+						Color32 textColor = (outlineColor.a > 0) ? outlineColor : nodeColor;
+						v2 namePos = AddV2(ToV2Fromd(nodePos), NewV2(0, -(radius + 5)));
+						if (!IsEmptyStr(japaneseNameStr))
+						{
+							TextMeasure nameMeasure = MeasureTextEx(&app->mapFont, app->mapFontSize, MAP_FONT_STYLE, false, 0.0f, japaneseNameStr);
+							BindFontEx(&app->mapFont, app->mapFontSize, MAP_FONT_STYLE);
+							v2 textPos = AddV2(namePos, NewV2(-nameMeasure.Width/2, 0));
+							// DrawText(japaneseNameStr, AddV2(textPos, NewV2(0, 2)), ColorLerpSimple(textColor, Black, 0.75f));
+							DrawText(japaneseNameStr, textPos, textColor);
+							namePos.Y -= nameMeasure.Height + 5;
+						}
+						if (!IsEmptyStr(englishNameStr))
+						{
+							TextMeasure nameMeasure = MeasureTextEx(&app->mapFont, app->mapFontSize, MAP_FONT_STYLE, false, 0.0f, englishNameStr);
+							BindFontEx(&app->mapFont, app->mapFontSize, MAP_FONT_STYLE);
+							v2 textPos = AddV2(namePos, NewV2(-nameMeasure.Width/2, 0));
+							DrawText(englishNameStr, AddV2(textPos, NewV2(0, 2)), ColorLerpSimple(textColor, Black, 0.75f));
+							DrawText(englishNameStr, textPos, textColor);
+							namePos.Y -= nameMeasure.Height + 5;
+						}
 					}
 				}
 			}
-			#endif
 			
 			v2 boundsTopLeft = ToV2Fromd(MapProject(app->view.projection, app->map.bounds.TopLeft, mapScreenRec));
 			v2 boundsBottomRight = ToV2Fromd(MapProject(app->view.projection, AddV2d(app->map.bounds.TopLeft, app->map.bounds.Size), mapScreenRec));
@@ -882,13 +900,14 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 							if (openResult == Result_Success)
 							{
 								OpenOsmMap(selectedFilePath);
+								isOverDisplayLimit = (app->map.nodes.length > DISPLAY_NODE_COUNT_LIMIT || app->map.ways.length > DISPLAY_WAY_COUNT_LIMIT);
 							}
 							else if (openResult != Result_Canceled) { PrintLine_E("OpenFileDialog failed: %s", GetResultStr(openResult)); }
 						} Clay__CloseElement();
 						
 						if (ClayBtn("Close File", "Ctrl+W", true, nullptr))
 						{
-							//TODO: Implement me!
+							FreeOsmMap(&app->map);
 						} Clay__CloseElement();
 						
 						Clay__CloseElement();
@@ -939,6 +958,22 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 									.userData = { .contraction = TextContraction_ClipRight },
 								})
 							);
+							
+							if (isOverDisplayLimit)
+							{
+								CLAY({ .layout = { .sizing = { .width=CLAY_SIZING_FIXED(UI_R32(10)) } } }) {}
+								CLAY_TEXT(
+									StrLit("Over Display Limit!"),
+									CLAY_TEXT_CONFIG({
+										.fontId = app->clayUiFontId,
+										.fontSize = (u16)app->uiFontSize,
+										.textColor = ERROR_RED,
+										.wrapMode = CLAY_TEXT_WRAP_NONE,
+										.textAlignment = CLAY_TEXT_ALIGN_SHRINK,
+										.userData = { .contraction = TextContraction_ClipRight },
+									})
+								);
+							}
 						}
 						else
 						{
@@ -1093,6 +1128,41 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 									})
 								);
 							}
+							
+							#if 1
+							{
+								Str8 stdHeapText = PrintInArenaStr(uiArena, "Std: %llu used", stdHeap->used);
+								CLAY_TEXT(
+									stdHeapText,
+									CLAY_TEXT_CONFIG({
+										.fontId = app->clayUiFontId,
+										.fontSize = (u16)app->uiFontSize,
+										.textColor = TEXT_WHITE,
+										.wrapMode = CLAY_TEXT_WRAP_NONE,
+										.textAlignment = CLAY_TEXT_ALIGN_SHRINK,
+										.userData = { .contraction = TextContraction_ClipRight },
+									})
+								);
+								for (uxx sIndex = 0; sIndex < NUM_SCRATCH_ARENAS_PER_THREAD; sIndex++)
+								{
+									Arena* scratchArena = scratch;
+									if (sIndex == 1) { scratchArena = scratch2; }
+									else if (sIndex == 2) { scratchArena = scratch3; }
+									Str8 scratchText = PrintInArenaStr(uiArena, "Scratch[%llu]: %llu/%llu", sIndex, scratchArena->committed, scratchArena->size);
+									CLAY_TEXT(
+										scratchText,
+										CLAY_TEXT_CONFIG({
+											.fontId = app->clayUiFontId,
+											.fontSize = (u16)app->uiFontSize,
+											.textColor = TEXT_WHITE,
+											.wrapMode = CLAY_TEXT_WRAP_NONE,
+											.textAlignment = CLAY_TEXT_ALIGN_SHRINK,
+											.userData = { .contraction = TextContraction_ClipRight },
+										})
+									);
+								}
+							}
+							#endif
 						}
 					}
 					DoUiResizableSplitSection(sidebarSplitSection, Right)
