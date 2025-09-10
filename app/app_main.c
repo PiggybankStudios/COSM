@@ -77,6 +77,7 @@ static Arena* stdHeap = nullptr;
 #include "app_clay_helpers.c"
 #include "app_recent_files.c"
 #include "app_helpers.c"
+#include "map_tiles.c"
 #include "map_view.c"
 #include "app_clay.c"
 
@@ -145,6 +146,8 @@ EXPORT_FUNC APP_INIT_DEF(AppInit)
 	InitRandomSeriesDefault(&app->random);
 	SeedRandomSeriesU64(&app->random, OsGetCurrentTimestamp(false));
 	
+	OsInitHttpRequestManager(stdHeap, &app->httpManager);
+	
 	InitCompiledShader(&app->mainShader, stdHeap, main2d);
 	LoadMapBackTexture();
 	
@@ -167,6 +170,7 @@ EXPORT_FUNC APP_INIT_DEF(AppInit)
 	InitUiResizableSplit(stdHeap, StrLit("SidebarSplit"), true, 0, 0.20f, &app->sidebarSplit);
 	InitUiResizableSplit(stdHeap, StrLit("InfoLayersSplit"), false, 0, 0.50f, &app->infoLayersSplit);
 	
+	InitMapTiles();
 	InitMapView(&app->view, MapProjection_Mercator);
 	
 	#if 0
@@ -388,12 +392,16 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 	v2 mousePos = appIn->mouse.position;
 	bool isMouseOverMainViewport = IsMouseOverClay(CLAY_ID("MainViewport"));
 	bool isOverDisplayLimit = (app->map.nodes.length > DISPLAY_NODE_COUNT_LIMIT || app->map.ways.length > DISPLAY_WAY_COUNT_LIMIT);
+	bool isHoveringMapPrimitive = false;
 	
 	TracyCZoneN(Zone_Update, "Update", true);
 	// +==============================+
 	// |            Update            |
 	// +==============================+
 	{
+		UpdateMapTiles();
+		OsUpdateHttpRequestManager(&app->httpManager, appIn->programTime);
+		
 		// +==============================+
 		// |  Check Recent Files Changed  |
 		// +==============================+
@@ -418,69 +426,39 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 			isOverDisplayLimit = (app->map.nodes.length > DISPLAY_NODE_COUNT_LIMIT || app->map.ways.length > DISPLAY_WAY_COUNT_LIMIT);
 		}
 		
-		// +==============================+
-		// |       Test XML Parsers       |
-		// +==============================+
-		if (IsKeyboardKeyPressed(&appIn->keyboard, Key_Enter, false))
+		// +==================================+
+		// | Space Centered Selected Item(s)  |
+		// +==================================+
+		if (IsKeyboardKeyPressed(&appIn->keyboard, Key_Space, true) && app->map.selectedItems.length > 0)
 		{
-			TracyCZoneN(_TestXML, "TestXML", true);
-			TracyCMessageL("Enter Pressed");
-			
-			Str8 xmlFileContents = Str8_Empty;
-			bool readSuccess = OsReadTextFile(FilePathLit(TEST_OSM_FILE), scratch, &xmlFileContents);
-			if (readSuccess)
+			v2d averageLocation = V2d_Zero;
+			uxx averageCount = 0;
+			VarArrayLoop(&app->map.selectedItems, sIndex)
 			{
-				#if 0
-				hoxml_context_t context;
-				char* buffer = AllocMem(scratch, xmlFileContents.length);
-				hoxml_init(&context, buffer, xmlFileContents.length);
-				
-				u64 codeIndex = 0;
-				hoxml_code_t xmlCode;
-				while ((xmlCode = hoxml_parse(&context, xmlFileContents.chars, xmlFileContents.length)) != HOXML_END_OF_DOCUMENT)
+				VarArrayLoopGet(OsmSelectedItem, selectedItem, &app->map.selectedItems, sIndex);
+				if (selectedItem->type == OsmPrimitiveType_Node)
 				{
-					switch (xmlCode)
+					averageLocation = AddV2d(averageLocation, selectedItem->nodePntr->location);
+					averageCount++;
+				}
+				else if (selectedItem->type == OsmPrimitiveType_Way)
+				{
+					//TODO: This isn't a great way to find the center of an arbitrary polygon! Sides with more vertices are weighted heavier. Should we find the center of mass?
+					v2d wayAverageLocation = V2d_Zero;
+					uxx wayAverageCount = 0;
+					VarArrayLoop(&selectedItem->wayPntr->nodes, nIndex)
 					{
-						case HOXML_ELEMENT_BEGIN:
-						{
-							PrintLine_D("Opened <%s>", context.tag);
-							bool foundSrlInfo = false;
-							for (u64 sIndex = 0; sIndex < ArrayCount(xOsmSrlInfos); sIndex++)
-							{
-								const SrlInfo* info = &xOsmSrlInfos[sIndex];
-								if (StrExactEquals(StrLit(context.tag), StrLit(info->serializedName)))
-								{
-									PrintLine_D("\tShould have %llu members!", info->numMembers);
-									foundSrlInfo = true;
-									break;
-								}
-							}
-							if (!foundSrlInfo)
-							{
-								WriteLine_W("\tUnknown type!");
-							}
-						} break;
-						case HOXML_ELEMENT_END:   PrintLine_D("Closed <%s>", context.tag); break;
-						case HOXML_ATTRIBUTE: PrintLine_D("Attribute \"%s\" of <%s> has value: %s", context.attribute, context.tag, context.value); break;
-						default: PrintLine_D("HoxmlCode[%llu]: %s", codeIndex, GetHoxmlCodeStr(xmlCode));
+						VarArrayLoopGet(OsmNodeRef, nodeRef, &selectedItem->wayPntr->nodes, nIndex);
+						wayAverageLocation = AddV2d(wayAverageLocation, nodeRef->pntr->location);
+						wayAverageCount++;
 					}
-					if (xmlCode == HOXML_ERROR_INSUFFICIENT_MEMORY) { break; }
-					codeIndex++;
+					wayAverageLocation = ShrinkV2d(wayAverageLocation, (r64)wayAverageCount);
+					averageLocation = AddV2d(averageLocation, wayAverageLocation);
+					averageCount++;
 				}
-				#endif
-				
-				#if HOXML_ENABLED
-				XmlFile xmlFile = ZEROED;
-				Result parseResult = TryParseXml(xmlFileContents, scratch, &xmlFile);
-				if (parseResult == Result_Success)
-				{
-					PrintLine_I("Parsed xml file, %llu root elements, %llu total elements", xmlFile.roots.length, xmlFile.numElements);
-				}
-				else { PrintLine_E("Failed to parse XML file: %s", GetResultStr(parseResult)); }
-				#endif
 			}
-			
-			TracyCZoneEnd(_TestXML);
+			averageLocation = ShrinkV2d(averageLocation, (r64)averageCount);
+			app->view.position = MapProject(app->view.projection, averageLocation, app->view.mapRec);
 		}
 		
 		// +==================================+
@@ -643,6 +621,8 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 					}
 				}
 				
+				isHoveringMapPrimitive = (hoveredWay != nullptr || hoveredNode != nullptr);
+				
 				if (IsMouseBtnPressed(&appIn->mouse, MouseBtn_Left))
 				{
 					if (!IsKeyboardKeyDown(&appIn->keyboard, Key_Shift) && !IsKeyboardKeyDown(&appIn->keyboard, Key_Control)) { ClearMapSelection(&app->map); }
@@ -721,11 +701,15 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 		// |          Render Map          |
 		// +==============================+
 		rec mainViewportRec = GetClayElementDrawRecNt("MainViewport");
+		i32 tileLevelZ = 0;
+		i32 tileGridSize = 1;
+		r64 tileLongSize = 360.0;
 		if (mainViewportRec.Width > 0 && mainViewportRec.Height > 0)
 		{
 			app->view.minZoom = MinR64(mainViewportRec.Width / app->view.mapRec.Width, mainViewportRec.Height / app->view.mapRec.Height);
 			if (app->view.zoom == 0.0) { app->view.zoom = app->view.minZoom; }
 			recd mapScreenRec = GetMapScreenRec(&app->view);
+			while (tileLevelZ < MAX_MAP_TILE_DEPTH && mapScreenRec.Width * (tileLongSize / MERCATOR_LONGITUDE_RANGE) > MAP_TILE_IMAGE_SIZE) { tileLevelZ++; tileLongSize /= 2.0; tileGridSize *= 2; }
 			
 			v2 backSize = ToV2Fromi(app->mapBackTexture.size);
 			rec backSourceRec = NewRec(
@@ -733,6 +717,89 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 				1 * backSize.Width, 1.0f * backSize.Height
 			);
 			DrawTexturedRectangleEx(ToRecFromd(mapScreenRec), White, &app->mapBackTexture, backSourceRec);
+			
+			// +==============================+
+			// |       Render Map Tiles       |
+			// +==============================+
+			if (app->renderTiles)
+			{
+				v2 tileScreenSize = V2_Zero;
+				tileScreenSize.Width = (r32)(mapScreenRec.Width/(r64)tileGridSize);
+				tileScreenSize.Height = (r32)(mapScreenRec.Height/(r64)tileGridSize);
+				i32 minTileX = ClampI32((i32)FloorR64i(((mainViewportRec.X - mapScreenRec.X) / mapScreenRec.Width) * (r64)tileGridSize), 0, tileGridSize-1);
+				i32 minTileY = ClampI32((i32)FloorR64i(((mainViewportRec.Y - mapScreenRec.Y) / mapScreenRec.Height) * (r64)tileGridSize), 0, tileGridSize-1);
+				TracyCZoneN(_RenderTiles, "RenderTiles", true);
+				for (i32 tileY = minTileY; tileY < tileGridSize; tileY++)
+				{
+					r32 tileScreenY = (r32)(mapScreenRec.Y + ((r64)tileScreenSize.Height * tileY));
+					if (tileScreenY >= screenSize.Height) { break; }
+					
+					for (i32 tileX = minTileX; tileX < tileGridSize; tileX++)
+					{
+						r32 tileScreenX = (r32)(mapScreenRec.X + ((r64)tileScreenSize.Width * tileX));
+						if (tileScreenX >= screenSize.Width) { break; }
+						
+						rec tileRec = NewRec(tileScreenX, tileScreenY, tileScreenSize.Width, tileScreenSize.Height);
+						if (tileRec.X + tileRec.Width > 0 && tileRec.Y + tileRec.Height > 0)
+						{
+							bool isMouseHovered = (isMouseOverMainViewport && IsInsideRec(tileRec, appIn->mouse.position) && !isHoveringMapPrimitive);
+							bool shouldDownload = (isMouseHovered && IsMouseBtnPressed(&appIn->mouse, MouseBtn_Left) && IsKeyboardKeyDown(&appIn->keyboard, Key_Control));
+							TracyCZoneN(_GetMapTileTexture, "GetMapTileTexture", true);
+							Texture* tileTexture = GetMapTileTexture(NewV3i(tileX, tileY, tileLevelZ), true, shouldDownload);
+							TracyCZoneEnd(_GetMapTileTexture);
+							bool hadDesiredTile = (tileTexture != nullptr);
+							if (tileTexture != nullptr)
+							{
+								TracyCZoneN(_DrawTexturedRectangle, "DrawTexturedRectangle", true);
+								DrawTexturedRectangle(tileRec, White, tileTexture);
+								TracyCZoneEnd(_DrawTexturedRectangle);
+							}
+							else
+							{
+								//If we don't have the actual tile we want to render, then lets walk up the layers and find a tile that we can render a portion from
+								i32 upperLevelZ = tileLevelZ;
+								i32 upperGridSize = tileGridSize;
+								v2i upperTileCoord = NewV2i(tileX, tileY);
+								i32 innerLevelZ = 0;
+								i32 innerGridSize = 1;
+								v2i innerTileCoord = V2i_Zero;
+								TracyCZoneN(_FindUpperTile, "FindUpperTile", true);
+								while (upperLevelZ > 0 && tileTexture == nullptr)
+								{
+									upperLevelZ--;
+									upperGridSize /= 2;
+									innerLevelZ++;
+									innerGridSize *= 2;
+									if ((upperTileCoord.X % 2) != 0) { innerTileCoord.X += innerGridSize/2; }
+									if ((upperTileCoord.Y % 2) != 0) { innerTileCoord.Y += innerGridSize/2; }
+									upperTileCoord.X /= 2;
+									upperTileCoord.Y /= 2;
+									tileTexture = GetMapTileTexture(NewV3i(upperTileCoord.X, upperTileCoord.Y, upperLevelZ), true, false);
+								}
+								TracyCZoneEnd(_FindUpperTile);
+								if (tileTexture != nullptr)
+								{
+									rec sourceRec = NewRec(
+										innerTileCoord.X * (256.0f / (r32)innerGridSize),
+										innerTileCoord.Y * (256.0f / (r32)innerGridSize),
+										(256.0f / (r32)innerGridSize), (256.0f / (r32)innerGridSize)
+									);
+									TracyCZoneN(_DrawTexturedRectangle2, "DrawTexturedRectangle2", true);
+									DrawTexturedRectangleEx(tileRec, White, tileTexture, sourceRec);
+									TracyCZoneEnd(_DrawTexturedRectangle2);
+								}
+							}
+							
+							if (!hadDesiredTile && isMouseHovered && IsKeyboardKeyDown(&appIn->keyboard, Key_Control))
+							{
+								DrawRectangleOutlineEx(tileRec, 2, ColorWithAlpha(MonokaiPurple, 0.5f), false);
+								DrawRectangle(tileRec, ColorWithAlpha(MonokaiPurple, 0.25f));
+							}
+						}
+					}
+				}
+				TracyCZoneEnd(_RenderTiles);
+			}
 			
 			DrawRectangleOutlineEx(ToRecFromd(mapScreenRec), 4.0f, MonokaiPurple, false);
 			
@@ -1096,6 +1163,24 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 									})
 								);
 							}
+							
+							#if 1
+							{
+								CLAY({ .layout = { .sizing = { .width=CLAY_SIZING_FIXED(UI_R32(10)) } } }) {}
+								Str8 tileInfoStr = PrintInArenaStr(uiArena, "Z: %d (%dx%d)", tileLevelZ, tileGridSize, tileGridSize);
+								CLAY_TEXT(
+									tileInfoStr,
+									CLAY_TEXT_CONFIG({
+										.fontId = app->clayUiFontId,
+										.fontSize = (u16)app->uiFontSize,
+										.textColor = TEXT_WHITE,
+										.wrapMode = CLAY_TEXT_WRAP_NONE,
+										.textAlignment = CLAY_TEXT_ALIGN_SHRINK,
+										.userData = { .contraction = TextContraction_ClipRight },
+									})
+								);
+							}
+							#endif
 						}
 						else
 						{
@@ -1151,6 +1236,17 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 								{
 									CLAY({ .layout = { .sizing = { .width=CLAY_SIZING_GROW(0), .height=CLAY_SIZING_GROW(0) }, .layoutDirection = CLAY_TOP_TO_BOTTOM } })
 									{
+										CLAY({ .layout = { .sizing = { .height=CLAY_SIZING_FIXED(UI_R32(5)) } } }) { }
+										Str8 renderTilesStr = StrLit("Render Tiles");
+										if (app->renderTiles)
+										{
+											uxx numTilesLoaded = 0;
+											for (uxx tIndex = 0; tIndex < app->mapTiles.length; tIndex++) { if ((BktArrayGet(MapTile, &app->mapTiles, tIndex))->isLoaded) { numTilesLoaded++; } }
+											renderTilesStr = PrintInArenaStr(uiArena, "%.*s (%llu/%llu)", StrPrint(renderTilesStr), numTilesLoaded, app->mapTiles.length);
+										}
+										DoUiCheckbox(&uiContext, StrLit("RenderTilesCheckbox"), &app->renderTiles, UI_R32(16), nullptr, renderTilesStr, Dir2_Right, &app->uiFont, app->uiFontSize, UI_FONT_STYLE);
+										CLAY({ .layout = { .sizing = { .height=CLAY_SIZING_FIXED(UI_R32(10)) } } }) { }
+										
 										CLAY({ .id = CLAY_ID("InfoPanelTitle"),
 											.layout = {
 												.sizing = { .width=CLAY_SIZING_GROW(0), .height=CLAY_SIZING_FIT(0) },

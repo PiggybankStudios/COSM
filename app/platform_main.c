@@ -268,8 +268,8 @@ void PlatSappInit(void)
 	
 	InitSokolGraphics((sg_desc){
 		.buffer_pool_size = 65535,
-		// .image_pool_size = ?, //int
-		// .sampler_pool_size = ?, //int
+		.image_pool_size = 256, //int
+		.sampler_pool_size = 256, //int
 		// .shader_pool_size = ?, //int
 		// .pipeline_pool_size = ?, //int
 		// .attachments_pool_size = ?, //int
@@ -396,6 +396,10 @@ sapp_desc sokol_main(int argc, char* argv[])
 	TracyCSetThreadName("main");
 	Str8 projectName = StrLit(PROJECT_READABLE_NAME_STR);
 	TracyCAppInfo(projectName.chars, projectName.length);
+	#endif
+	
+	#if TARGET_HAS_THREADING
+	MainThreadId = OsGetCurrentThreadId();
 	#endif
 	
 	Arena stdHeapLocal = ZEROED;

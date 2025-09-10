@@ -8,6 +8,7 @@ Date:   02\25\2025
 #define _DEFINES_H
 
 #define RECENT_FILES_SAVE_FILEPATH        "recent_files.txt"
+#define TILES_FOLDERPATH                  "tiles" //inside the AppData folder
 #define RECENT_FILES_MAX_LENGTH           16 //files
 #define CHECK_RECENT_FILES_CHANGED_PERIOD 1000 //ms
 #define RECENT_FILES_RELOAD_DELAY         100 //ms
@@ -62,12 +63,23 @@ Date:   02\25\2025
 #define DISPLAY_NODE_COUNT_LIMIT     Thousand(100)
 #define DISPLAY_WAY_COUNT_LIMIT      Thousand(30)
 
-#define MAP_BACKGROUND_TEXTURE_PATH "resources/image/mercator_6734px.png"
+// #define MAP_BACKGROUND_TEXTURE_PATH "resources/image/mercator_tile_0_0_0.png"
+#define MAP_BACKGROUND_TEXTURE_PATH "resources/image/mercator_osm_2048px.png"
+// #define MAP_BACKGROUND_TEXTURE_PATH "resources/image/mercator_6734px.png"
 // #define MAP_BACKGROUND_TEXTURE_PATH "resources/image/mercator_countries_1027px.png"
 // #define MAP_BACKGROUND_TEXTURE_PATH "resources/image/mercator_countries_1200px.png"
 // #define MAP_BACKGROUND_TEXTURE_PATH "resources/image/mercator_geography_2044px.png"
 
 #define DEFAULT_WINDOW_SIZE   NewV2(800, 600)
 #define MIN_WINDOW_SIZE       NewV2(150, 100)
+
+#define MERCATOR_LONGITUDE_RANGE  360 //degrees
+
+#define OSM_TILE_API_URL_FORMAT_STR "https://tile.openstreetmap.org/%d/%d/%d.png"
+#define OSM_TILE_API_USER_AGENT     "COSM/1.0"
+
+#define MAX_MAP_TILE_DEPTH        18 //layer
+#define MAP_TILE_IMAGE_SIZE       256 //px
+#define MAX_LOADED_MAP_TILES      128 //textures
 
 #endif //  _DEFINES_H

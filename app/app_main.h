@@ -26,12 +26,27 @@ plex RecentFile
 	bool fileExists;
 };
 
+typedef plex MapTile MapTile;
+plex MapTile
+{
+	v3i coord;
+	bool isOnDisk;
+	Str8 fileName;
+	bool isLoaded;
+	bool isDownloading;
+	uxx downloadRequestId;
+	bool failedToDownload;
+	u64 lastUsedTime;
+	Texture texture;
+};
+
 typedef plex AppData AppData;
 plex AppData
 {
 	bool initialized;
 	RandomSeries random;
 	AppResources resources;
+	HttpRequestManager httpManager;
 	
 	Shader mainShader;
 	PigFont uiFont;
@@ -64,6 +79,8 @@ plex AppData
 	
 	Str8 mapFilePath;
 	OsmMap map;
+	bool renderTiles;
+	BktArray mapTiles; //MapTile
 	MapView view;
 };
 

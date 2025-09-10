@@ -11,9 +11,10 @@
 	[X] Parse Relations
 	[X] Drag and drop to load file
 	[X] Recent files list
+	[X] Manually download tiles from "https://tile.openstreetmap.org/{zoom}/{x}/{y}.png" "https://operations.osmfoundation.org/policies/tiles/"
+	[!] Async loading of background image
 	[!] Serialize to .osm or .pbf
 	[!] Filter by tags UI, render if filtered items are below limit, save only filtered items
-	[ ] Async loading of background image
 	[ ] Choose which background image to use
 	[ ] ResizableSplit based on px not percent
 	[ ] Proper hover/selection behavior for ways
