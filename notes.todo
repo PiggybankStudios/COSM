@@ -12,9 +12,15 @@
 	[X] Drag and drop to load file
 	[X] Recent files list
 	[X] Manually download tiles from "https://tile.openstreetmap.org/{zoom}/{x}/{y}.png" "https://operations.osmfoundation.org/policies/tiles/"
-	[!] Async loading of background image
 	[!] Serialize to .osm or .pbf
-	[!] Filter by tags UI, render if filtered items are below limit, save only filtered items
+		[ ] Parse relations in .osm
+		[ ] Parse non-dense nodes in .pbf
+		[ ] Serialize to .pbf
+		[?] Option to dump directly to file through DataStream for TwoPassPrint functions
+	[!] Async loading of background image (single worker thread?)
+	[ ] Add notification system from CSwitch
+	[ ] Add confirmation dialog system from CSwitch
+	[ ] Filter by tags UI, render if filtered items are below limit, save only filtered items
 	[ ] Choose which background image to use
 	[ ] ResizableSplit based on px not percent
 	[ ] Proper hover/selection behavior for ways

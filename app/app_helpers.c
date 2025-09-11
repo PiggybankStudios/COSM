@@ -335,6 +335,66 @@ void FindInternationalCodepointsInMapNames(OsmMap* map, VarArray* codepointsOut)
 	}
 }
 
+Result TryParseMapFile(Arena* arena, FilePath filePath, OsmMap* mapOut)
+{
+	ScratchBegin1(scratch, arena);
+	Result parseResult = Result_None;
+	
+	if (StrAnyCaseEndsWith(filePath, StrLit(".pbf")))
+	{
+		#if 1
+		OsFile pbfFile = ZEROED;
+		TracyCZoneN(_OsOpenFile, "OsOpenFile", true);
+		bool openedSelectedFile = OsOpenFile(scratch, filePath, OsOpenFileMode_Read, false, &pbfFile);
+		TracyCZoneEnd(_OsOpenFile);
+		if (openedSelectedFile)
+		{
+			PrintLine_I("Opened binary \"%.*s\"", StrPrint(filePath));
+			DataStream fileStream = ToDataStreamFromFile(&pbfFile);
+			parseResult = TryParsePbfMap(stdHeap, &fileStream, mapOut);
+			OsCloseFile(&pbfFile);
+			if (parseResult != Result_Success) { PrintLine_E("Failed to parse as OpenStreetMaps Protobuf data! Error: %s", GetResultStr(parseResult)); }
+		}
+		else { PrintLine_E("Failed to open \"%.*s\"", StrPrint(filePath)); }
+		#else
+		Slice fileContents = Slice_Empty;
+		TracyCZoneN(_ReadBinFile, "OsReadBinFile", true);
+		bool openedSelectedFile = OsReadBinFile(filePath, scratch, &fileContents);
+		TracyCZoneEnd(_ReadBinFile);
+		if (openedSelectedFile)
+		{
+			PrintLine_I("Opened binary \"%.*s\", %llu bytes", StrPrint(filePath), fileContents.length);
+			DataStream fileStream = ToDataStreamFromBuffer(fileContents);
+			parseResult = TryParsePbfMap(stdHeap, &fileStream, mapOut);
+			if (parseResult != Result_Success) { PrintLine_E("Failed to parse as OpenStreetMaps Protobuf data! Error: %s", GetResultStr(parseResult)); }
+		}
+		else { PrintLine_E("Failed to open \"%.*s\"", StrPrint(filePath)); }
+		#endif
+	}
+	else if (StrAnyCaseEndsWith(filePath, StrLit(".osm")))
+	{
+		Str8 fileContents = Str8_Empty;
+		TracyCZoneN(_ReadTextFile, "OsReadTextFile", true);
+		bool openedSelectedFile = OsReadTextFile(filePath, scratch, &fileContents);
+		TracyCZoneEnd(_ReadTextFile);
+		if (openedSelectedFile)
+		{
+			PrintLine_I("Opened text \"%.*s\", %llu bytes", StrPrint(filePath), fileContents.length);
+			parseResult = TryParseOsmMap(stdHeap, fileContents, mapOut);
+			if (parseResult != Result_Success) { PrintLine_E("Failed to parse as OpenStreetMaps XML data! Error: %s", GetResultStr(parseResult)); }
+		}
+		else { PrintLine_E("Failed to open \"%.*s\"", StrPrint(filePath)); }
+	}
+	else
+	{
+		PrintLine_E("Unknown file extension \"%.*s\", expected .osm or .pbf files!", StrPrint(GetFileNamePart(filePath, true)));
+		parseResult = Result_UnsupportedFileFormat;
+	}
+	
+	ScratchEnd(scratch);
+	return parseResult;
+}
+
 void OpenOsmMap(FilePath filePath)
 {
 	TracyCZoneN(funcZone, "OpenOsmMap", true);
