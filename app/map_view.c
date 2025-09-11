@@ -69,7 +69,6 @@ void UpdateMapView(MapView* view, bool isMouseOverMainViewport, MouseState* mous
 		{
 			if (IsMouseBtnDown(mouse, MouseBtn_Middle))
 			{
-				v2d posBefore = view->position;
 				v2 screenCenter = AddV2(mainViewportRec.TopLeft, ShrinkV2(mainViewportRec.Size, 2.0f));
 				view->position.X = (screenCenter.X - (mouse->position.X - view->dragPanningPos.X * screenMapRec.Width)) / view->zoom;
 				view->position.Y = (screenCenter.Y - (mouse->position.Y - view->dragPanningPos.Y * screenMapRec.Height)) / view->zoom;

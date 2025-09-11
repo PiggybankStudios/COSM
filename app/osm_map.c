@@ -129,6 +129,36 @@ OsmNode* FindOsmNode(OsmMap* map, u64 nodeId)
 	TracyCZoneEnd(funcZone);
 	return nullptr;
 }
+OsmWay* FindOsmWay(OsmMap* map, u64 wayId)
+{
+	TracyCZoneN(funcZone, "FindOsmWay", true);
+	if (map->areWaysSorted)
+	{
+		uxx foundIndex = BinarySearchVarArrayUintMember(OsmWay, id, &map->ways, &wayId);
+		if (foundIndex < map->ways.length) { TracyCZoneEnd(funcZone); return VarArrayGet(OsmWay, &map->ways, foundIndex); }
+	}
+	else
+	{
+		VarArrayLoop(&map->ways, wIndex)
+		{
+			VarArrayLoopGet(OsmWay, way, &map->ways, wIndex);
+			if (way->id == wayId) { TracyCZoneEnd(funcZone); return way; }
+		}
+	}
+	TracyCZoneEnd(funcZone);
+	return nullptr;
+}
+OsmRelation* FindOsmRelation(OsmMap* map, u64 relationId)
+{
+	TracyCZoneN(funcZone, "FindOsmRelation", true);
+	VarArrayLoop(&map->relations, rIndex)
+	{
+		VarArrayLoopGet(OsmRelation, relation, &map->relations, rIndex);
+		if (relation->id == relationId) { TracyCZoneEnd(funcZone); return relation; }
+	}
+	TracyCZoneEnd(funcZone);
+	return nullptr;
+}
 
 OsmNode* AddOsmNode(OsmMap* map, v2d location, u64 id)
 {
@@ -194,6 +224,28 @@ OsmRelation* AddOsmRelation(OsmMap* map, u64 id, uxx numMembersExpected)
 	InitVarArrayWithInitial(OsmRelationMember, &result->members, map->arena, numMembersExpected);
 	TracyCZoneEnd(funcZone);
 	return result;
+}
+
+void UpdateOsmRelationPntrs(OsmMap* map, OsmRelation* relation)
+{
+	NotNull(map);
+	NotNull(relation);
+	VarArrayLoop(&relation->members, mIndex)
+	{
+		VarArrayLoopGet(OsmRelationMember, member, &relation->members, mIndex);
+		if (member->type == OsmRelationMemberType_Node)
+		{
+			member->nodePntr = FindOsmNode(map, member->id);
+		}
+		else if (member->type == OsmRelationMemberType_Way)
+		{
+			member->wayPntr = FindOsmWay(map, member->id);
+		}
+		else if (member->type == OsmRelationMemberType_Relation)
+		{
+			member->relationPntr = FindOsmRelation(map, member->id);
+		}
+	}
 }
 
 Str8 GetOsmNodeTagValue(OsmNode* node, Str8 tagKey, Str8 defaultValue)

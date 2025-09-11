@@ -13,11 +13,14 @@
 	[X] Recent files list
 	[X] Manually download tiles from "https://tile.openstreetmap.org/{zoom}/{x}/{y}.png" "https://operations.osmfoundation.org/policies/tiles/"
 	[!] Serialize to .osm or .pbf
-		[ ] Parse relations in .osm
+		[X] Parse relations in .osm
+		[X] Better XML errors in .osm parsing
+		[ ] Make parsing tolerant of missing nodes (or at least return an error rather than crashing)
 		[ ] Parse non-dense nodes in .pbf
 		[ ] Serialize to .pbf
 		[?] Option to dump directly to file through DataStream for TwoPassPrint functions
 	[!] Async loading of background image (single worker thread?)
+	[!] String interning for tag keys/values
 	[ ] Add notification system from CSwitch
 	[ ] Add confirmation dialog system from CSwitch
 	[ ] Filter by tags UI, render if filtered items are below limit, save only filtered items

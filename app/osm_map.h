@@ -146,12 +146,80 @@ const char* GetOsmRelationMemberTypeXmlStr(OsmRelationMemberType enumValue)
 	}
 }
 
+typedef enum OsmRelationMemberRole OsmRelationMemberRole;
+enum OsmRelationMemberRole
+{
+	OsmRelationMemberRole_None = 0,
+	OsmRelationMemberRole_Outer,
+	OsmRelationMemberRole_Inner,
+	OsmRelationMemberRole_Label,
+	OsmRelationMemberRole_North,
+	OsmRelationMemberRole_South,
+	OsmRelationMemberRole_East,
+	OsmRelationMemberRole_West,
+	OsmRelationMemberRole_From,
+	OsmRelationMemberRole_To,
+	OsmRelationMemberRole_Backward,
+	OsmRelationMemberRole_Forward,
+	OsmRelationMemberRole_Platform,
+	OsmRelationMemberRole_Stop,
+	OsmRelationMemberRole_Via,
+	OsmRelationMemberRole_AdminCentre,
+	OsmRelationMemberRole_Count,
+};
+const char* GetOsmRelationMemberRoleStr(OsmRelationMemberRole enumValue)
+{
+	switch (enumValue)
+	{
+		case OsmRelationMemberRole_None:        return "None";
+		case OsmRelationMemberRole_Outer:       return "Outer";
+		case OsmRelationMemberRole_Inner:       return "Inner";
+		case OsmRelationMemberRole_Label:       return "Label";
+		case OsmRelationMemberRole_North:       return "North";
+		case OsmRelationMemberRole_South:       return "South";
+		case OsmRelationMemberRole_East:        return "East";
+		case OsmRelationMemberRole_West:        return "West";
+		case OsmRelationMemberRole_From:        return "From";
+		case OsmRelationMemberRole_To:          return "To";
+		case OsmRelationMemberRole_Backward:    return "Backward";
+		case OsmRelationMemberRole_Forward:     return "Forward";
+		case OsmRelationMemberRole_Platform:    return "Platform";
+		case OsmRelationMemberRole_Stop:        return "Stop";
+		case OsmRelationMemberRole_Via:         return "Via";
+		case OsmRelationMemberRole_AdminCentre: return "AdminCentre";
+		default: return UNKNOWN_STR;
+	}
+}
+
+const char* GetOsmRelationMemberRoleXmlStr(OsmRelationMemberRole enumValue)
+{
+	switch (enumValue)
+	{
+		case OsmRelationMemberRole_Outer:       return "outer";
+		case OsmRelationMemberRole_Inner:       return "inner";
+		case OsmRelationMemberRole_Label:       return "label";
+		case OsmRelationMemberRole_North:       return "north";
+		case OsmRelationMemberRole_South:       return "south";
+		case OsmRelationMemberRole_East:        return "east";
+		case OsmRelationMemberRole_West:        return "west";
+		case OsmRelationMemberRole_From:        return "from";
+		case OsmRelationMemberRole_To:          return "to";
+		case OsmRelationMemberRole_Backward:    return "backward";
+		case OsmRelationMemberRole_Forward:     return "forward";
+		case OsmRelationMemberRole_Platform:    return "platform";
+		case OsmRelationMemberRole_Stop:        return "stop";
+		case OsmRelationMemberRole_Via:         return "via";
+		case OsmRelationMemberRole_AdminCentre: return "admin_centre";
+		default: return "";
+	}
+}
+
 typedef plex OsmRelationMember OsmRelationMember;
 plex OsmRelationMember
 {
 	u64 id;
-	u32 role;
 	OsmRelationMemberType type;
+	OsmRelationMemberRole role;
 	VarArray locations; //v2d
 	union { void* pntr; OsmNode* nodePntr; OsmWay* wayPntr; plex OsmRelation* relationPntr; };
 };
@@ -166,6 +234,7 @@ plex OsmRelation
 	Str8 timestampStr;
 	Str8 user;
 	u64 uid;
+	recd bounds;
 	
 	VarArray tags; //OsmTag
 	VarArray members; //OsmRelationMember

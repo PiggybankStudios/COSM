@@ -31,6 +31,8 @@ plex XmlFile
 	u64 numElements;
 	VarArray roots; //XmlElement
 	Result error;
+	XmlElement* errorElement;
+	Str8 errorStr;
 };
 
 #endif //  _PARSE_XML_H

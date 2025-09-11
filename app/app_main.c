@@ -543,9 +543,9 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 				}
 				
 				OsmWay* closestWay = nullptr;
-				r64 closestWayDistanceSqr = 0.0f;
 				v2d closestWayPoint = V2d_Zero;
 				#if 0
+				r64 closestWayDistanceSqr = 0.0f;
 				//TODO; This doesn't seem to be working super well
 				VarArrayLoop(&app->map.ways, wIndex)
 				{

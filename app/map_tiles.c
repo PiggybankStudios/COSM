@@ -262,7 +262,7 @@ Texture* GetMapTileTexture(v3i coord, bool loadFromDisk, bool download)
 		resultTile->coord = coord;
 		resultTile->fileName = PrintInArenaStr(stdHeap, "tile_%04d_%04d_%04d.png", coord.Z, coord.X, coord.Y);
 	}
-	if (resultTile != nullptr && resultTile->isOnDisk && !resultTile->isLoaded)
+	if (resultTile != nullptr && resultTile->isOnDisk && !resultTile->isLoaded && loadFromDisk)
 	{
 		ScratchBegin(scratch);
 		FilePath settingsFolderPath = OsGetSettingsSavePath(scratch, Str8_Empty, StrLit(PROJECT_FOLDER_NAME_STR), false); //TODO: This should really be like a "temporary" folder, not a "settings" folder

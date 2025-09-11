@@ -150,11 +150,11 @@ XmlElement* XmlGetOneChild(XmlFile* file, XmlElement* parent, Str8 type)
 		VarArrayLoopGet(XmlElement, child, childArray, cIndex);
 		if (StrExactEquals(child->type, type))
 		{
-			if (result != nullptr) { file->error = Result_Duplicate; return nullptr; }
+			if (result != nullptr) { file->error = Result_Duplicate; file->errorElement = parent; file->errorStr = type; return nullptr; }
 			result = child;
 		}
 	}
-	if (result == nullptr) { file->error = Result_NotFound; }
+	if (result == nullptr) { file->error = Result_ElementNotFound; file->errorElement = parent; file->errorStr = type; }
 	return result;
 }
 
@@ -209,7 +209,9 @@ Str8 XmlGetAttribute(XmlFile* file, XmlElement* element, Str8 attributeName)
 		VarArrayLoopGet(XmlAttribute, attribute, &element->attributes, aIndex);
 		if (StrExactEquals(attribute->key, attributeName)) { return attribute->value; }
 	}
-	file->error = Result_NotFound;
+	file->error = Result_AttributeNotFound;
+	file->errorElement = element;
+	file->errorStr = attributeName;
 	return Str8_Empty;
 }
 
@@ -238,10 +240,12 @@ r32 XmlGetAttributeR32(XmlFile* file, XmlElement* element, Str8 attributeName)
 			r32 valueR32 = 0.0f;
 			Result error = Result_None;
 			if (TryParseR32(attribute->value, &valueR32, &error)) { return valueR32; }
-			else { file->error = Result_FloatParseFailure; return 0.0f; }
+			else { file->error = Result_InvalidAttributeValue; file->errorElement = element; file->errorStr = attributeName; return 0.0f; }
 		}
 	}
-	file->error = Result_NotFound;
+	file->error = Result_AttributeNotFound;
+	file->errorElement = element;
+	file->errorStr = attributeName;
 	return 0.0f;
 }
 r32 XmlGetAttributeR32OrDefault(XmlFile* file, XmlElement* element, Str8 attributeName, r32 defaultValue)
@@ -256,7 +260,7 @@ r32 XmlGetAttributeR32OrDefault(XmlFile* file, XmlElement* element, Str8 attribu
 			r32 valueR32 = 0.0f;
 			Result error = Result_None;
 			if (TryParseR32(attribute->value, &valueR32, &error)) { return valueR32; }
-			else { file->error = Result_FloatParseFailure; return defaultValue; }
+			else { file->error = Result_InvalidAttributeValue; file->errorElement = element; file->errorStr = attributeName; return defaultValue; }
 		}
 	}
 	return defaultValue;
@@ -274,10 +278,12 @@ r64 XmlGetAttributeR64(XmlFile* file, XmlElement* element, Str8 attributeName)
 			r64 valueR64 = 0.0;
 			Result error = Result_None;
 			if (TryParseR64(attribute->value, &valueR64, &error)) { return valueR64; }
-			else { file->error = Result_FloatParseFailure; return 0.0; }
+			else { file->error = Result_InvalidAttributeValue; file->errorElement = element; file->errorStr = attributeName; return 0.0; }
 		}
 	}
-	file->error = Result_NotFound;
+	file->error = Result_AttributeNotFound;
+	file->errorElement = element;
+	file->errorStr = attributeName;
 	return 0.0;
 }
 r64 XmlGetAttributeR64OrDefault(XmlFile* file, XmlElement* element, Str8 attributeName, r64 defaultValue)
@@ -292,7 +298,7 @@ r64 XmlGetAttributeR64OrDefault(XmlFile* file, XmlElement* element, Str8 attribu
 			r64 valueR64 = 0.0;
 			Result error = Result_None;
 			if (TryParseR64(attribute->value, &valueR64, &error)) { return valueR64; }
-			else { file->error = Result_FloatParseFailure; return defaultValue; }
+			else { file->error = Result_InvalidAttributeValue; file->errorElement = element; file->errorStr = attributeName; return defaultValue; }
 		}
 	}
 	return defaultValue;
@@ -310,10 +316,12 @@ u64 XmlGetAttributeU64(XmlFile* file, XmlElement* element, Str8 attributeName)
 			u64 valueU64 = 0;
 			Result error = Result_None;
 			if (TryParseU64(attribute->value, &valueU64, &error)) { return valueU64; }
-			else { file->error = Result_FloatParseFailure; return 0; }
+			else { file->error = Result_InvalidAttributeValue; file->errorElement = element; file->errorStr = attributeName; return 0; }
 		}
 	}
-	file->error = Result_NotFound;
+	file->error = Result_AttributeNotFound;
+	file->errorElement = element;
+	file->errorStr = attributeName;
 	return 0;
 }
 u64 XmlGetAttributeU64OrDefault(XmlFile* file, XmlElement* element, Str8 attributeName, u64 defaultValue)
@@ -328,7 +336,7 @@ u64 XmlGetAttributeU64OrDefault(XmlFile* file, XmlElement* element, Str8 attribu
 			u64 valueU64 = 0;
 			Result error = Result_None;
 			if (TryParseU64(attribute->value, &valueU64, &error)) { return valueU64; }
-			else { file->error = Result_FloatParseFailure; return defaultValue; }
+			else { file->error = Result_InvalidAttributeValue; file->errorElement = element; file->errorStr = attributeName; return defaultValue; }
 		}
 	}
 	return defaultValue;

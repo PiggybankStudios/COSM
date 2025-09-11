@@ -408,9 +408,10 @@ void OpenOsmMap(FilePath filePath)
 		FreeOsmMap(&app->map);
 		MyMemCopy(&app->map, &newMap, sizeof(OsmMap));
 		app->mapFilePath = AllocStr8(stdHeap, filePath);
-		PrintLine_I("Parsed map! %llu node%s, %llu way%s",
+		PrintLine_I("Parsed map! %llu node%s, %llu way%s, %llu relation%s",
 			app->map.nodes.length, Plural(app->map.nodes.length, "s"),
-			app->map.ways.length, Plural(app->map.ways.length, "s")
+			app->map.ways.length, Plural(app->map.ways.length, "s"),
+			app->map.relations.length, Plural(app->map.relations.length, "s")
 		);
 		AppRememberRecentFile(filePath);
 		

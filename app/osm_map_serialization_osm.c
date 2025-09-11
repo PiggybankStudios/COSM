@@ -51,6 +51,9 @@ Result TryParseOsmMap(Arena* arena, Str8 xmlFileContents, OsmMap* mapOut)
 		u64 prevWayId = 0;
 		bool areWaysSorted = true;
 		
+		// +==============================+
+		// |         Parse Nodes          |
+		// +==============================+
 		XmlElement* xmlNode = nullptr;
 		while ((xmlNode = XmlGetNextChild(&xml, root, StrLit("node"), xmlNode)) != nullptr)
 		{
@@ -99,6 +102,9 @@ Result TryParseOsmMap(Arena* arena, Str8 xmlFileContents, OsmMap* mapOut)
 		}
 		if (xml.error != Result_None) { break; }
 		
+		// +==============================+
+		// |          Sort Nodes          |
+		// +==============================+
 		if (!mapOut->areNodesSorted || !areNodesSorted)
 		{
 			TracyCZoneN(Zone_SortNodes, "SortNodes", true);
@@ -107,6 +113,9 @@ Result TryParseOsmMap(Arena* arena, Str8 xmlFileContents, OsmMap* mapOut)
 			TracyCZoneEnd(Zone_SortNodes);
 		}
 		
+		// +==============================+
+		// |          Parse Ways          |
+		// +==============================+
 		XmlElement* xmlWay = nullptr;
 		while ((xmlWay = XmlGetNextChild(&xml, root, StrLit("way"), xmlWay)) != nullptr)
 		{
@@ -142,10 +151,10 @@ Result TryParseOsmMap(Arena* arena, Str8 xmlFileContents, OsmMap* mapOut)
 			i32 version = 0;
 			u64 changeset = 0;
 			u64 uid = 0;
-			if (!IsEmptyStr(visibleStr)   && !TryParseBool(visibleStr,  &visible,   nullptr)) { PrintLine_W("Failed to parse visible attribute as bool on node %llu: \"%.*s\"", id, StrPrint(visibleStr)); }
-			if (!IsEmptyStr(versionStr)   && !TryParseI32(versionStr,   &version,   nullptr)) { PrintLine_W("Failed to parse version attribute as i32 on node %llu: \"%.*s\"", id, StrPrint(versionStr)); }
-			if (!IsEmptyStr(changesetStr) && !TryParseU64(changesetStr, &changeset, nullptr)) { PrintLine_W("Failed to parse changeset attribute as u64 on node %llu: \"%.*s\"", id, StrPrint(changesetStr)); }
-			if (!IsEmptyStr(uidStr)       && !TryParseU64(uidStr,       &uid,       nullptr)) { PrintLine_W("Failed to parse uid attribute as u64 on node %llu: \"%.*s\"", id, StrPrint(uidStr)); }
+			if (!IsEmptyStr(visibleStr)   && !TryParseBool(visibleStr,  &visible,   nullptr)) { PrintLine_W("Failed to parse visible attribute as bool on way %llu: \"%.*s\"", id, StrPrint(visibleStr)); }
+			if (!IsEmptyStr(versionStr)   && !TryParseI32(versionStr,   &version,   nullptr)) { PrintLine_W("Failed to parse version attribute as i32 on way %llu: \"%.*s\"", id, StrPrint(versionStr)); }
+			if (!IsEmptyStr(changesetStr) && !TryParseU64(changesetStr, &changeset, nullptr)) { PrintLine_W("Failed to parse changeset attribute as u64 on way %llu: \"%.*s\"", id, StrPrint(changesetStr)); }
+			if (!IsEmptyStr(uidStr)       && !TryParseU64(uidStr,       &uid,       nullptr)) { PrintLine_W("Failed to parse uid attribute as u64 on way %llu: \"%.*s\"", id, StrPrint(uidStr)); }
 			
 			if (id <= prevWayId) { areWaysSorted = false; }
 			prevWayId = id;
@@ -176,6 +185,9 @@ Result TryParseOsmMap(Arena* arena, Str8 xmlFileContents, OsmMap* mapOut)
 		}
 		if (xml.error != Result_None) { break; }
 		
+		// +==============================+
+		// |          Sort Ways           |
+		// +==============================+
 		if (!mapOut->areWaysSorted || !areWaysSorted)
 		{
 			TracyCZoneN(Zone_SortWays, "SortWays", true);
@@ -184,10 +196,143 @@ Result TryParseOsmMap(Arena* arena, Str8 xmlFileContents, OsmMap* mapOut)
 			TracyCZoneEnd(Zone_SortWays);
 		}
 		
+		// +==============================+
+		// |       Parse Relations        |
+		// +==============================+
+		XmlElement* xmlRelation = nullptr;
+		while ((xmlRelation = XmlGetNextChild(&xml, root, StrLit("relation"), xmlRelation)) != nullptr)
+		{
+			u64 id = XmlGetAttributeU64OrBreak(&xml, xmlRelation, StrLit("id"));
+			Str8 visibleStr   = XmlGetAttributeOrDefault(&xml, xmlRelation, StrLit("visible"),   Str8_Empty);
+			Str8 versionStr   = XmlGetAttributeOrDefault(&xml, xmlRelation, StrLit("version"),   Str8_Empty);
+			Str8 changesetStr = XmlGetAttributeOrDefault(&xml, xmlRelation, StrLit("changeset"), Str8_Empty);
+			Str8 timestampStr = XmlGetAttributeOrDefault(&xml, xmlRelation, StrLit("timestamp"), Str8_Empty);
+			Str8 userStr      = XmlGetAttributeOrDefault(&xml, xmlRelation, StrLit("user"),      Str8_Empty);
+			Str8 uidStr       = XmlGetAttributeOrDefault(&xml, xmlRelation, StrLit("uid"),       Str8_Empty);
+			bool visible = true;
+			i32 version = 0;
+			u64 changeset = 0;
+			u64 uid = 0;
+			if (!IsEmptyStr(visibleStr)   && !TryParseBool(visibleStr,  &visible,   nullptr)) { PrintLine_W("Failed to parse visible attribute as bool on relation %llu: \"%.*s\"", id, StrPrint(visibleStr)); }
+			if (!IsEmptyStr(versionStr)   && !TryParseI32(versionStr,   &version,   nullptr)) { PrintLine_W("Failed to parse version attribute as i32 on relation %llu: \"%.*s\"", id, StrPrint(versionStr)); }
+			if (!IsEmptyStr(changesetStr) && !TryParseU64(changesetStr, &changeset, nullptr)) { PrintLine_W("Failed to parse changeset attribute as u64 on relation %llu: \"%.*s\"", id, StrPrint(changesetStr)); }
+			if (!IsEmptyStr(uidStr)       && !TryParseU64(uidStr,       &uid,       nullptr)) { PrintLine_W("Failed to parse uid attribute as u64 on relation %llu: \"%.*s\"", id, StrPrint(uidStr)); }
+			XmlElement* xmlRelationBounds = XmlGetChild(&xml, xmlRelation, StrLit("bounds"), 0);
+			
+			u64 numMembersInRelation = 0;
+			VarArrayLoop(&xmlRelation->children, cIndex)
+			{
+				VarArrayLoopGet(XmlElement, xmlChild, &xmlRelation->children, cIndex);
+				if (StrExactEquals(xmlChild->type, StrLit("member"))) { numMembersInRelation++; }
+			}
+			
+			OsmRelation* newRelation = AddOsmRelation(mapOut, id, numMembersInRelation);
+			if (xmlRelationBounds != nullptr)
+			{
+				r64 relationBoundsMinLon = XmlGetAttributeR64OrBreak(&xml, xmlRelationBounds, StrLit("minlon"));
+				r64 relationBoundsMinLat = XmlGetAttributeR64OrBreak(&xml, xmlRelationBounds, StrLit("minlat"));
+				r64 relationBoundsMaxLon = XmlGetAttributeR64OrBreak(&xml, xmlRelationBounds, StrLit("maxlon"));
+				r64 relationBoundsMaxLat = XmlGetAttributeR64OrBreak(&xml, xmlRelationBounds, StrLit("maxlat"));
+				newRelation->bounds = NewRecdBetween(relationBoundsMinLon, relationBoundsMinLat, relationBoundsMaxLon, relationBoundsMaxLat);
+			}
+			newRelation->visible = visible;
+			newRelation->version = version;
+			newRelation->changeset = changeset;
+			newRelation->timestampStr = (!IsEmptyStr(timestampStr) ? AllocStr8(arena, timestampStr) : Str8_Empty);
+			newRelation->user = (!IsEmptyStr(userStr) ? AllocStr8(arena, userStr) : Str8_Empty);
+			newRelation->uid = uid;
+			
+			XmlElement* xmlMember = nullptr;
+			while ((xmlMember = XmlGetNextChild(&xml, xmlRelation, StrLit("member"), xmlMember)) != nullptr)
+			{
+				Str8 typeStr = XmlGetAttributeOrBreak(&xml, xmlMember, StrLit("type"));
+				u64 refId = XmlGetAttributeU64OrBreak(&xml, xmlMember, StrLit("ref"));
+				Str8 roleStr = XmlGetAttributeOrBreak(&xml, xmlMember, StrLit("role"));
+				r64 latitude = XmlGetAttributeR64OrDefault(&xml, xmlMember, StrLit("lat"), INFINITY);
+				r64 longitude = XmlGetAttributeR64OrDefault(&xml, xmlMember, StrLit("lon"), INFINITY);
+				
+				OsmRelationMemberType type = OsmRelationMemberType_None;
+				for (uxx eIndex = 1; eIndex < OsmRelationMemberType_Count; eIndex++)
+				{
+					const char* enumValueStrNt = GetOsmRelationMemberTypeXmlStr((OsmRelationMemberType)eIndex);
+					if (StrAnyCaseEquals(typeStr, StrLit(enumValueStrNt)))
+					{
+						type = (OsmRelationMemberType)eIndex;
+						break;
+					}
+				}
+				if (type == OsmRelationMemberType_None) { xml.error = Result_InvalidType; xml.errorStr = typeStr; xml.errorElement = xmlRelation; break; }
+				OsmRelationMemberRole role = OsmRelationMemberRole_None;
+				if (!IsEmptyStr(roleStr))
+				{
+					for (uxx eIndex = 1; eIndex < OsmRelationMemberRole_Count; eIndex++)
+					{
+						const char* enumValueStrNt = GetOsmRelationMemberRoleXmlStr((OsmRelationMemberRole)eIndex);
+						if (StrAnyCaseEquals(roleStr, StrLit(enumValueStrNt)))
+						{
+							role = (OsmRelationMemberRole)eIndex;
+							break;
+						}
+					}
+					if (role == OsmRelationMemberRole_None) { xml.error = Result_InvalidRole; xml.errorStr = roleStr; xml.errorElement = xmlRelation; break; }
+				}
+				
+				OsmRelationMember* newMember = VarArrayAdd(OsmRelationMember, &newRelation->members);
+				NotNull(newMember);
+				ClearPointer(newMember);
+				newMember->id = refId;
+				newMember->type = type;
+				newMember->role = role;
+				
+				if (newMember->type == OsmRelationMemberType_Node && !IsInfiniteOrNanR64(latitude) && !IsInfiniteOrNanR64(longitude))
+				{
+					InitVarArrayWithInitial(v2d, &newMember->locations, arena, 1);
+					VarArrayAddValue(v2d, &newMember->locations, NewV2d(longitude, latitude));
+				}
+				else if (newMember->type == OsmRelationMemberType_Way)
+				{
+					uxx numNodeLocations = 0;
+					VarArrayLoop(&xmlMember->children, cIndex)
+					{
+						VarArrayLoopGet(XmlElement, xmlChild, &xmlMember->children, cIndex);
+						if (StrExactEquals(xmlChild->type, StrLit("nd"))) { numNodeLocations++; }
+					}
+					
+					InitVarArrayWithInitial(v2d, &newMember->locations, arena, numNodeLocations);
+					XmlElement* xmlNodeLocation = nullptr;
+					while ((xmlNodeLocation = XmlGetNextChild(&xml, xmlMember, StrLit("nd"), xmlNodeLocation)) != nullptr)
+					{
+						r64 nodeLatitude = XmlGetAttributeR64OrBreak(&xml, xmlNodeLocation, StrLit("lat"));
+						r64 nodeLongitude = XmlGetAttributeR64OrBreak(&xml, xmlNodeLocation, StrLit("lon"));
+						VarArrayAddValue(v2d, &newMember->locations, NewV2d(nodeLongitude, nodeLatitude));
+					}
+					if (xml.error != Result_None) { break; }
+				}
+			}
+			if (xml.error != Result_None) { break; }
+			
+			UpdateOsmRelationPntrs(mapOut, newRelation);
+			
+			XmlElement* xmlTag = nullptr;
+			while ((xmlTag = XmlGetNextChild(&xml, xmlRelation, StrLit("tag"), xmlTag)) != nullptr)
+			{
+				Str8 keyStr = XmlGetAttributeOrBreak(&xml, xmlTag, StrLit("k"));
+				Str8 valueStr = XmlGetAttributeOrBreak(&xml, xmlTag, StrLit("v"));
+				OsmTag* newTag = VarArrayAdd(OsmTag, &newRelation->tags);
+				NotNull(newTag);
+				ClearPointer(newTag);
+				newTag->key = AllocStr8(arena, keyStr);
+				newTag->value = AllocStr8(arena, valueStr);
+			}
+			if (xml.error != Result_None) { break; }
+		}
+		if (xml.error != Result_None) { break; }
 	} while(false);
 	
-	if (xml.error)
+	if (xml.error != Result_None)
 	{
+		NotNull(xml.errorElement);
+		PrintLine_E("XML Parsing Error: %s \"%.*s\" on \"%.*s\" element", GetResultStr(xml.error), StrPrint(xml.errorStr), StrPrint(xml.errorElement->type));
 		FreeOsmMap(mapOut);
 	}
 	
@@ -248,7 +393,7 @@ Str8 SerializeOsmMap(Arena* arena, OsmMap* map)
 				VarArrayLoop(&way->nodes, nIndex)
 				{
 					VarArrayLoopGet(OsmNodeRef, nodeRef, &way->nodes, nIndex);
-					TwoPassPrint(&result, "\t\t<nd ref=\"%llu\"/>", nodeRef->id);
+					TwoPassPrint(&result, "\t\t<nd ref=\"%llu\"/>\n", nodeRef->id);
 				}
 				VarArrayLoop(&way->tags, tIndex)
 				{
@@ -277,7 +422,7 @@ Str8 SerializeOsmMap(Arena* arena, OsmMap* map)
 				{
 					VarArrayLoopGet(OsmRelationMember, member, &relation->members, mIndex);
 					//TODO: Add role!
-					TwoPassPrint(&result, "\t\t<member type=\"%s\" ref=\"%llu\"/>", GetOsmRelationMemberTypeXmlStr(member->type), member->id);
+					TwoPassPrint(&result, "\t\t<member type=\"%s\" ref=\"%llu\"/>\n", GetOsmRelationMemberTypeXmlStr(member->type), member->id);
 				}
 				VarArrayLoop(&relation->tags, tIndex)
 				{
