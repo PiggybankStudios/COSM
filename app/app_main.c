@@ -1094,6 +1094,25 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 							if (ClayBtn("Open Recent >", "", false, nullptr)) { } Clay__CloseElement();
 						}
 						
+						if (ClayBtn("Save As...", "Ctrl+Shift+S", (app->map.arena != nullptr), nullptr))
+						{
+							Str8Pair extensions[] = {
+								{ StrLit("All Files"), StrLit("*.*") },
+								{ StrLit("OpenStreetMap XML"), StrLit("*.osm") },
+								{ StrLit("OpenStreetMap Protobuf"), StrLit("*.osm.pbf") },
+							};
+							FilePath saveFilePath = FilePath_Empty;
+							Result dialogResult = OsDoSaveFileDialog(ArrayCount(extensions), &extensions[0], 1, scratch, &saveFilePath);
+							if (dialogResult == Result_Success)
+							{
+								if (SaveOsmMap(saveFilePath))
+								{
+									FreeStr8(stdHeap, &app->mapFilePath);
+									app->mapFilePath = AllocStr8(stdHeap, saveFilePath);
+								}
+							}
+						} Clay__CloseElement();
+						
 						if (ClayBtn("Close File", "Ctrl+W", true, nullptr))
 						{
 							FreeOsmMap(&app->map);
@@ -1136,8 +1155,10 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 					{
 						if (!IsEmptyStr(app->mapFilePath))
 						{
+							Str8 mapFileName = GetFileNamePart(app->mapFilePath, true);
+							mapFileName = AllocStr8(uiArena, mapFileName);
 							CLAY_TEXT(
-								GetFileNamePart(app->mapFilePath, true),
+								mapFileName,
 								CLAY_TEXT_CONFIG({
 									.fontId = app->clayUiFontId,
 									.fontSize = (u16)app->uiFontSize,
@@ -1269,6 +1290,8 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 											);
 										}
 										
+										#define INFO_PANEL_TEXT(idNt, idIndex, text, color) DoUiLabel(&uiContext, StrLit(idNt), (idIndex), (text), (color), &app->uiFont, app->uiFontSize, UI_FONT_STYLE, true, nullptr);
+										
 										CLAY({ .id = CLAY_ID("InfoPanel"),
 											.layout = {
 												.sizing = { .width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_GROW(0) },
@@ -1302,12 +1325,24 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 													VarArrayLoopGet(OsmSelectedItem, selectedItem, &app->map.selectedItems, sIndex);
 													u64 itemId = 0;
 													Str8 nameTag = Str8_Empty;
+													bool visible = true;
+													i32 version = 0;
+													u64 changeset = 0;
+													Str8 timestampStr = Str8_Empty;
+													Str8 user = Str8_Empty;
+													u64 uid = 0;
 													VarArray* tagsArray = nullptr;
 													if (selectedItem->type == OsmPrimitiveType_Node)
 													{
 														itemId = selectedItem->nodePntr->id;
 														nameTag = GetOsmNodeTagValue(selectedItem->nodePntr, StrLit("name:en"), Str8_Empty);
 														if (IsEmptyStr(nameTag)) { nameTag = GetOsmNodeTagValue(selectedItem->nodePntr, StrLit("name"), Str8_Empty); }
+														visible = selectedItem->nodePntr->visible;
+														version = selectedItem->nodePntr->version;
+														changeset = selectedItem->nodePntr->changeset;
+														timestampStr = selectedItem->nodePntr->timestampStr;
+														user = selectedItem->nodePntr->user;
+														uid = selectedItem->nodePntr->uid;
 														tagsArray = &selectedItem->nodePntr->tags;
 													}
 													else if (selectedItem->type == OsmPrimitiveType_Way)
@@ -1315,32 +1350,46 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 														itemId = selectedItem->wayPntr->id;
 														nameTag = GetOsmWayTagValue(selectedItem->wayPntr, StrLit("name:en"), Str8_Empty);
 														if (IsEmptyStr(nameTag)) { nameTag = GetOsmWayTagValue(selectedItem->wayPntr, StrLit("name"), Str8_Empty); }
+														visible = selectedItem->wayPntr->visible;
+														version = selectedItem->wayPntr->version;
+														changeset = selectedItem->wayPntr->changeset;
+														timestampStr = selectedItem->wayPntr->timestampStr;
+														user = selectedItem->wayPntr->user;
+														uid = selectedItem->wayPntr->uid;
 														tagsArray = &selectedItem->wayPntr->tags;
 													}
-													Str8 displayName = PrintInArenaStr(uiArena, "> %s %llu \"%.*s\"", GetOsmPrimitiveTypeStr(selectedItem->type), itemId, StrPrint(nameTag));
-													CLAY_TEXT(
-														displayName,
-														CLAY_TEXT_CONFIG({
-															.fontId = app->clayUiFontId,
-															.fontSize = (u16)app->uiFontSize,
-															.textColor = MonokaiGreen,
-															.wrapMode = CLAY_TEXT_WRAP_WORDS,
-															.textAlignment = CLAY_TEXT_ALIGN_LEFT,
-														})
-													);
+													Str8 displayName = PrintInArenaStr(uiArena, "> %s %llu \"%.*s\"%s", GetOsmPrimitiveTypeStr(selectedItem->type), itemId, StrPrint(nameTag), visible ? "" : " (visible=false)");
+													INFO_PANEL_TEXT("Label_DisplayName", sIndex, displayName, MonokaiGreen);
 													if (selectedItem->type == OsmPrimitiveType_Way)
 													{
 														Str8 wayMetaStr = PrintInArenaStr(uiArena, "    %llu nodes%s", selectedItem->wayPntr->nodes.length, selectedItem->wayPntr->isClosedLoop ? " closed loop" : "");
-														CLAY_TEXT(
-															wayMetaStr,
-															CLAY_TEXT_CONFIG({
-																.fontId = app->clayUiFontId,
-																.fontSize = (u16)app->uiFontSize,
-																.textColor = TEXT_GRAY,
-																.wrapMode = CLAY_TEXT_WRAP_WORDS,
-																.textAlignment = CLAY_TEXT_ALIGN_LEFT,
-															})
-														);
+														INFO_PANEL_TEXT("Label_WayMeta", sIndex, wayMetaStr, TEXT_GRAY);
+													}
+													
+													if (version != 0)
+													{
+														Str8 versionStr = PrintInArenaStr(uiArena, "    version: %d", version);
+														INFO_PANEL_TEXT("Label_Version", sIndex, versionStr, TEXT_GRAY);
+													}
+													if (changeset != 0)
+													{
+														Str8 changesetStr = PrintInArenaStr(uiArena, "    changeset: %llu", changeset);
+														INFO_PANEL_TEXT("Label_Changeset", sIndex, changesetStr, TEXT_GRAY);
+													}
+													if (!IsEmptyStr(timestampStr))
+													{
+														Str8 timestampDisplayStr = PrintInArenaStr(uiArena, "    timestampStr: %.*s", StrPrint(timestampStr));
+														INFO_PANEL_TEXT("Label_Timestamp", sIndex, timestampDisplayStr, TEXT_GRAY);
+													}
+													if (!IsEmptyStr(user))
+													{
+														Str8 userDisplayStr = PrintInArenaStr(uiArena, "    user: %.*s", StrPrint(user));
+														INFO_PANEL_TEXT("Label_User", sIndex, userDisplayStr, TEXT_GRAY);
+													}
+													if (uid != 0)
+													{
+														Str8 uidStr = PrintInArenaStr(uiArena, "    uid: %llu", uid);
+														INFO_PANEL_TEXT("Label_UID", sIndex, uidStr, TEXT_GRAY);
 													}
 													
 													if (tagsArray != nullptr)
@@ -1348,68 +1397,28 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 														VarArrayLoop(tagsArray, tIndex)
 														{
 															VarArrayLoopGet(OsmTag, tag, tagsArray, tIndex);
-															Str8 tagStr = PrintInArenaStr(uiArena, "  [bold][size=%g]%.*s[size][bold] = \"%.*s\"", app->uiFontSize+2, StrPrint(tag->key), StrPrint(tag->value));
-															CLAY_TEXT(
-																tagStr,
-																CLAY_TEXT_CONFIG({
-																	.fontId = app->clayUiFontId,
-																	.fontSize = (u16)app->uiFontSize,
-																	.textColor = TEXT_WHITE,
-																	.wrapMode = CLAY_TEXT_WRAP_WORDS,
-																	.textAlignment = CLAY_TEXT_ALIGN_LEFT,
-																	.userData = { .richText = true },
-																})
-															);
+															Str8 tagStr = PrintInArenaStr(uiArena, "  %.*s = \"%.*s\"", StrPrint(tag->key), StrPrint(tag->value));
+															INFO_PANEL_TEXT("Label_Tag", sIndex*Million(1) + tIndex, tagStr, TEXT_WHITE);
 														}
 													}
 												}
 											}
 											else
 											{
-												CLAY_TEXT(
-													StrLit("No items selected..."),
-													CLAY_TEXT_CONFIG({
-														.fontId = app->clayUiFontId,
-														.fontSize = (u16)app->uiFontSize,
-														.textColor = TEXT_WHITE,
-														.wrapMode = CLAY_TEXT_WRAP_NONE,
-														.textAlignment = CLAY_TEXT_ALIGN_SHRINK,
-														.userData = { .contraction = TextContraction_ClipRight },
-													})
-												);
+												INFO_PANEL_TEXT("Lable_NothingSelected", 0, StrLit("No items selected..."), TEXT_WHITE);
 											}
 											
 											#if 0
 											{
 												Str8 stdHeapText = PrintInArenaStr(uiArena, "Std: %llu used", stdHeap->used);
-												CLAY_TEXT(
-													stdHeapText,
-													CLAY_TEXT_CONFIG({
-														.fontId = app->clayUiFontId,
-														.fontSize = (u16)app->uiFontSize,
-														.textColor = TEXT_WHITE,
-														.wrapMode = CLAY_TEXT_WRAP_NONE,
-														.textAlignment = CLAY_TEXT_ALIGN_SHRINK,
-														.userData = { .contraction = TextContraction_ClipRight },
-													})
-												);
+												INFO_PANEL_TEXT("Label_StdHeap", 0, stdHeapText, TEXT_WHITE);
 												for (uxx sIndex = 0; sIndex < NUM_SCRATCH_ARENAS_PER_THREAD; sIndex++)
 												{
 													Arena* scratchArena = scratch;
 													if (sIndex == 1) { scratchArena = scratch2; }
 													else if (sIndex == 2) { scratchArena = scratch3; }
 													Str8 scratchText = PrintInArenaStr(uiArena, "Scratch[%llu]: %llu/%llu", sIndex, scratchArena->committed, scratchArena->size);
-													CLAY_TEXT(
-														scratchText,
-														CLAY_TEXT_CONFIG({
-															.fontId = app->clayUiFontId,
-															.fontSize = (u16)app->uiFontSize,
-															.textColor = TEXT_WHITE,
-															.wrapMode = CLAY_TEXT_WRAP_NONE,
-															.textAlignment = CLAY_TEXT_ALIGN_SHRINK,
-															.userData = { .contraction = TextContraction_ClipRight },
-														})
-													);
+													INFO_PANEL_TEXT("Label_Scratch", sIndex, scratchText, TEXT_WHITE);
 												}
 											}
 											#endif

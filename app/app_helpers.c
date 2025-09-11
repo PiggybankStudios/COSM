@@ -417,6 +417,37 @@ void OpenOsmMap(FilePath filePath)
 	TracyCZoneEnd(funcZone);
 }
 
+bool SaveOsmMap(FilePath filePath)
+{
+	ScratchBegin(scratch);
+	bool result = false;
+	if (StrAnyCaseEndsWith(filePath, StrLit(".osm")))
+	{
+		Str8 xmlFileContents = SerializeOsmMap(scratch, &app->map);
+		if (!IsEmptyStr(xmlFileContents))
+		{
+			if (OsWriteTextFile(filePath, xmlFileContents))
+			{
+				PrintLine_I("Successfully saved %llu byte XML to \"%.*s\"", xmlFileContents.length, StrPrint(filePath));
+				result = true;
+			}
+			else { PrintLine_I("Failed to write %llu byte XML to \"%.*s\"!", xmlFileContents.length, StrPrint(filePath)); }
+		}
+		else { WriteLine_E("Failed to serialize map to OpenStreetMap XML format!"); }
+	}
+	// else if (StrAnyCaseEndsWith(filePath, StrLit(".pbf")))
+	// {
+	// 	Unimplemented(); //TODO: Implement me!
+	// }
+	else
+	{
+		Str8 fileName = GetFileNamePart(filePath, true);
+		PrintLine_E("Unsupported extension \"%.*s\"", StrPrint(fileName));
+	}
+	ScratchEnd(scratch);
+	return result;
+}
+
 void UpdateOsmWayColorChoice(OsmWay* way)
 {
 	if (!way->colorsChosen)

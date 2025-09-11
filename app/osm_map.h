@@ -135,6 +135,16 @@ const char* GetOsmRelationMemberTypeStr(OsmRelationMemberType enumValue)
 		default: return UNKNOWN_STR;
 	}
 }
+const char* GetOsmRelationMemberTypeXmlStr(OsmRelationMemberType enumValue)
+{
+	switch (enumValue)
+	{
+		case OsmRelationMemberType_Node:     return "node";
+		case OsmRelationMemberType_Way:      return "way";
+		case OsmRelationMemberType_Relation: return "relation";
+		default: return "";
+	}
+}
 
 typedef plex OsmRelationMember OsmRelationMember;
 plex OsmRelationMember
@@ -174,6 +184,11 @@ plex OsmMap
 {
 	Arena* arena;
 	recd bounds;
+	Str8 versionStr;
+	Str8 generatorStr;
+	Str8 copyrightStr;
+	Str8 attributionStr;
+	Str8 licenseStr;
 	
 	bool areNodesSorted;
 	u64 nextNodeId;
