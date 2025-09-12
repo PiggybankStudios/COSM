@@ -78,6 +78,7 @@ plex AppData
 	VarArray recentFiles; //RecentFile
 	
 	Str8 mapFilePath;
+	bool renderNodes;
 	OsmMap map;
 	bool renderTiles;
 	BktArray mapTiles; //MapTile

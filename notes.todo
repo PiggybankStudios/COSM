@@ -12,6 +12,7 @@
 	[X] Drag and drop to load file
 	[X] Recent files list
 	[X] Manually download tiles from "https://tile.openstreetmap.org/{zoom}/{x}/{y}.png" "https://operations.osmfoundation.org/policies/tiles/"
+	[X] Back-links from nodes to ways (and nodes/ways/relations to relations)
 	[!] Serialize to .osm or .pbf
 		[X] Parse relations in .osm
 		[X] Better XML errors in .osm parsing

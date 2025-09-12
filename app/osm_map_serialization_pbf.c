@@ -556,7 +556,17 @@ Result TryParsePbfMap(Arena* arena, DataStream* protobufStream, OsmMap* mapOut)
 	
 	if (result != Result_None) { PrintLine_E("Got through %llu blobs before encountering: %s", blobIndex, GetResultStr(result)); }
 	if (!foundOsmData) { result = foundOsmHeader ? (foundUnkownBlobTypes ? Result_WrongInternalFormat : Result_MissingData) : Result_MissingHeader; }
-	if (result == Result_None) { result = Result_Success; }
+	if (result == Result_None)
+	{
+		result = Result_Success;
+		VarArrayLoop(&mapOut->relations, rIndex)
+		{
+			VarArrayLoopGet(OsmRelation, relation, &mapOut->relations, rIndex);
+			UpdateOsmRelationPntrs(mapOut, relation);
+		}
+		UpdateOsmNodeWayBackPntrs(mapOut);
+		UpdateOsmRelationBackPntrs(mapOut);
+	}
 	else if (foundOsmHeader) { FreeOsmMap(mapOut); }
 	ScratchEnd(scratch);
 	TracyCZoneEnd(Zone_Func);

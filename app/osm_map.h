@@ -47,6 +47,8 @@ plex OsmNode
 	u64 uid;
 	v2d location;
 	VarArray tags; //OsmTag
+	VarArray wayPntrs; //OsmWay*
+	VarArray relationPntrs; //OsmRelation*
 	
 	bool isSelected;
 	bool isHovered;
@@ -96,6 +98,7 @@ plex OsmWay
 	
 	VarArray nodes; //OsmNodeRef
 	VarArray tags; //OsmTag
+	VarArray relationPntrs; //OsmRelation*
 	recd nodeBounds;
 	
 	bool colorsChosen;
@@ -238,6 +241,7 @@ plex OsmRelation
 	
 	VarArray tags; //OsmTag
 	VarArray members; //OsmRelationMember
+	VarArray relationPntrs; //OsmRelation*
 };
 
 typedef plex OsmSelectedItem OsmSelectedItem;
@@ -262,10 +266,14 @@ plex OsmMap
 	bool areNodesSorted;
 	u64 nextNodeId;
 	VarArray nodes; //OsmNode
+	
 	bool areWaysSorted;
+	bool waysMissingNodes;
 	u64 nextWayId;
 	VarArray ways; //OsmWay
+	
 	bool areRelationsSorted;
+	bool relationsMissingMembers;
 	u64 nextRelationId;
 	VarArray relations; //OsmRelation
 	

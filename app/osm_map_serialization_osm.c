@@ -311,8 +311,6 @@ Result TryParseOsmMap(Arena* arena, Str8 xmlFileContents, OsmMap* mapOut)
 			}
 			if (xml.error != Result_None) { break; }
 			
-			UpdateOsmRelationPntrs(mapOut, newRelation);
-			
 			XmlElement* xmlTag = nullptr;
 			while ((xmlTag = XmlGetNextChild(&xml, xmlRelation, StrLit("tag"), xmlTag)) != nullptr)
 			{
@@ -329,7 +327,17 @@ Result TryParseOsmMap(Arena* arena, Str8 xmlFileContents, OsmMap* mapOut)
 		if (xml.error != Result_None) { break; }
 	} while(false);
 	
-	if (xml.error != Result_None)
+	if (xml.error == Result_None)
+	{
+		VarArrayLoop(&mapOut->relations, rIndex)
+		{
+			VarArrayLoopGet(OsmRelation, relation, &mapOut->relations, rIndex);
+			UpdateOsmRelationPntrs(mapOut, relation);
+		}
+		UpdateOsmNodeWayBackPntrs(mapOut);
+		UpdateOsmRelationBackPntrs(mapOut);
+	}
+	else
 	{
 		NotNull(xml.errorElement);
 		PrintLine_E("XML Parsing Error: %s \"%.*s\" on \"%.*s\" element", GetResultStr(xml.error), StrPrint(xml.errorStr), StrPrint(xml.errorElement->type));

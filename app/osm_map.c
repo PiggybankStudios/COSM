@@ -27,7 +27,28 @@ void FreeOsmNode(Arena* arena, OsmNode* node)
 		FreeOsmTag(arena, tag);
 	}
 	FreeVarArray(&node->tags);
+	if (node->wayPntrs.arena != nullptr) { FreeVarArray(&node->wayPntrs); }
+	if (node->wayPntrs.arena != nullptr) { FreeVarArray(&node->relationPntrs); }
 	ClearPointer(node);
+}
+
+void FreeOsmWay(Arena* arena, OsmWay* way)
+{
+	NotNull(arena);
+	NotNull(way);
+	FreeStr8(arena, &way->timestampStr);
+	FreeStr8(arena, &way->user);
+	FreeVarArray(&way->nodes);
+	VarArrayLoop(&way->tags, tIndex)
+	{
+		VarArrayLoopGet(OsmTag, tag, &way->tags, tIndex);
+		FreeOsmTag(arena, tag);
+	}
+	FreeVarArray(&way->tags);
+	if (way->relationPntrs.arena != nullptr) { FreeVarArray(&way->relationPntrs); }
+	if (way->triIndices != nullptr) { FreeArray(uxx, arena, way->numTriIndices, way->triIndices); }
+	FreeVertBuffer(&way->triVertBuffer);
+	ClearPointer(way);
 }
 
 void FreeOsmRelation(Arena* arena, OsmRelation* relation)
@@ -48,25 +69,8 @@ void FreeOsmRelation(Arena* arena, OsmRelation* relation)
 		FreeVarArray(&member->locations);
 	}
 	FreeVarArray(&relation->members);
+	if (relation->relationPntrs.arena != nullptr) { FreeVarArray(&relation->relationPntrs); }
 	ClearPointer(relation);
-}
-
-void FreeOsmWay(Arena* arena, OsmWay* way)
-{
-	NotNull(arena);
-	NotNull(way);
-	FreeStr8(arena, &way->timestampStr);
-	FreeStr8(arena, &way->user);
-	FreeVarArray(&way->nodes);
-	VarArrayLoop(&way->tags, tIndex)
-	{
-		VarArrayLoopGet(OsmTag, tag, &way->tags, tIndex);
-		FreeOsmTag(arena, tag);
-	}
-	FreeVarArray(&way->tags);
-	if (way->triIndices != nullptr) { FreeArray(uxx, arena, way->numTriIndices, way->triIndices); }
-	FreeVertBuffer(&way->triVertBuffer);
-	ClearPointer(way);
 }
 
 void FreeOsmMap(OsmMap* map)
@@ -185,12 +189,14 @@ OsmWay* AddOsmWay(OsmMap* map, u64 id, u64 numNodes, u64* nodeIds)
 	NotNull(map->arena);
 	Assert(numNodes == 0 || nodeIds != nullptr);
 	OsmWay* result = VarArrayAdd(OsmWay, &map->ways);
+	NotNull(result);
 	ClearPointer(result);
 	result->id = (id == 0) ? map->nextWayId : id;
 	if (id == 0) { map->nextWayId++; }
 	else if (map->nextWayId <= id) { map->nextWayId = id+1; }
 	result->visible = true;
 	InitVarArrayWithInitial(OsmNodeRef, &result->nodes, map->arena, numNodes);
+	bool foundFirstNode = false;
 	for (u64 nIndex = 0; nIndex < numNodes; nIndex++)
 	{
 		OsmNodeRef* newRef = VarArrayAdd(OsmNodeRef, &result->nodes);
@@ -198,9 +204,12 @@ OsmWay* AddOsmWay(OsmMap* map, u64 id, u64 numNodes, u64* nodeIds)
 		ClearPointer(newRef);
 		newRef->id = nodeIds[nIndex];
 		newRef->pntr = FindOsmNode(map, newRef->id);
-		NotNull(newRef->pntr);
-		if (nIndex == 0) { result->nodeBounds = NewRecd(newRef->pntr->location.Lon, newRef->pntr->location.Lat, 0, 0); }
-		else { result->nodeBounds = BothRecd(result->nodeBounds, NewRecdV(newRef->pntr->location, V2d_Zero)); }
+		if (newRef->pntr == nullptr) { map->waysMissingNodes = true; }
+		else
+		{
+			if (!foundFirstNode) { result->nodeBounds = NewRecd(newRef->pntr->location.Lon, newRef->pntr->location.Lat, 0, 0); foundFirstNode = true; }
+			else { result->nodeBounds = BothRecd(result->nodeBounds, NewRecdV(newRef->pntr->location, V2d_Zero)); }
+		}
 	}
 	result->isClosedLoop = (numNodes >= 3 && nodeIds[0] == nodeIds[numNodes-1]);
 	InitVarArray(OsmTag, &result->tags, map->arena);
@@ -236,14 +245,83 @@ void UpdateOsmRelationPntrs(OsmMap* map, OsmRelation* relation)
 		if (member->type == OsmRelationMemberType_Node)
 		{
 			member->nodePntr = FindOsmNode(map, member->id);
+			if (member->nodePntr != nullptr) { map->relationsMissingMembers = true; }
 		}
 		else if (member->type == OsmRelationMemberType_Way)
 		{
 			member->wayPntr = FindOsmWay(map, member->id);
+			if (member->wayPntr != nullptr) { map->relationsMissingMembers = true; }
 		}
 		else if (member->type == OsmRelationMemberType_Relation)
 		{
 			member->relationPntr = FindOsmRelation(map, member->id);
+			if (member->relationPntr != nullptr) { map->relationsMissingMembers = true; }
+		}
+	}
+}
+
+void UpdateOsmNodeWayBackPntrs(OsmMap* map)
+{
+	VarArrayLoop(&map->nodes, nIndex)
+	{
+		VarArrayLoopGet(OsmNode, node, &map->nodes, nIndex);
+		if (node->wayPntrs.arena != nullptr) { VarArrayClear(&node->wayPntrs); }
+	}
+	
+	VarArrayLoop(&map->ways, wIndex)
+	{
+		VarArrayLoopGet(OsmWay, way, &map->ways, wIndex);
+		VarArrayLoop(&way->nodes, nIndex)
+		{
+			VarArrayLoopGet(OsmNodeRef, nodeRef, &way->nodes, nIndex);
+			if (nodeRef->pntr != nullptr)
+			{
+				if (nodeRef->pntr->wayPntrs.arena == nullptr) { InitVarArray(OsmWay*, &nodeRef->pntr->wayPntrs, map->arena); }
+				VarArrayAddValue(OsmWay*, &nodeRef->pntr->wayPntrs, way);
+			}
+		}
+	}
+}
+
+void UpdateOsmRelationBackPntrs(OsmMap* map)
+{
+	VarArrayLoop(&map->nodes, nIndex)
+	{
+		VarArrayLoopGet(OsmNode, node, &map->nodes, nIndex);
+		if (node->relationPntrs.arena != nullptr) { VarArrayClear(&node->relationPntrs); }
+	}
+	VarArrayLoop(&map->ways, wIndex)
+	{
+		VarArrayLoopGet(OsmWay, way, &map->ways, wIndex);
+		if (way->relationPntrs.arena != nullptr) { VarArrayClear(&way->relationPntrs); }
+	}
+	VarArrayLoop(&map->relations, rIndex)
+	{
+		VarArrayLoopGet(OsmRelation, relation, &map->relations, rIndex);
+		if (relation->relationPntrs.arena != nullptr) { VarArrayClear(&relation->relationPntrs); }
+	}
+	
+	VarArrayLoop(&map->relations, rIndex)
+	{
+		VarArrayLoopGet(OsmRelation, relation, &map->relations, rIndex);
+		VarArrayLoop(&relation->members, mIndex)
+		{
+			VarArrayLoopGet(OsmRelationMember, member, &relation->members, mIndex);
+			if (member->type == OsmRelationMemberType_Node && member->nodePntr != nullptr)
+			{
+				if (member->nodePntr->relationPntrs.arena == nullptr) { InitVarArray(OsmRelation*, &member->nodePntr->relationPntrs, map->arena); }
+				VarArrayAddValue(OsmRelation*, &member->nodePntr->relationPntrs, relation);
+			}
+			else if (member->type == OsmRelationMemberType_Way && member->wayPntr != nullptr)
+			{
+				if (member->wayPntr->relationPntrs.arena == nullptr) { InitVarArray(OsmRelation*, &member->wayPntr->relationPntrs, map->arena); }
+				VarArrayAddValue(OsmRelation*, &member->wayPntr->relationPntrs, relation);
+			}
+			else if (member->type == OsmRelationMemberType_Relation && member->relationPntr != nullptr)
+			{
+				if (member->relationPntr->relationPntrs.arena == nullptr) { InitVarArray(OsmRelation*, &member->relationPntr->relationPntrs, map->arena); }
+				VarArrayAddValue(OsmRelation*, &member->relationPntr->relationPntrs, relation);
+			}
 		}
 	}
 }
@@ -264,6 +342,16 @@ Str8 GetOsmWayTagValue(OsmWay* way, Str8 tagKey, Str8 defaultValue)
 	VarArrayLoop(&way->tags, tIndex)
 	{
 		VarArrayLoopGet(OsmTag, tag, &way->tags, tIndex);
+		if (StrAnyCaseEquals(tag->key, tagKey)) { return tag->value; }
+	}
+	return defaultValue;
+}
+Str8 GetOsmRelationTagValue(OsmRelation* relation, Str8 tagKey, Str8 defaultValue)
+{
+	if (relation == nullptr) { return defaultValue; }
+	VarArrayLoop(&relation->tags, tIndex)
+	{
+		VarArrayLoopGet(OsmTag, tag, &relation->tags, tIndex);
 		if (StrAnyCaseEquals(tag->key, tagKey)) { return tag->value; }
 	}
 	return defaultValue;

@@ -924,6 +924,7 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 					r32 populationLerp = InverseLerpClampR32(Thousand(50), Thousand(500), (r32)population);
 					r32 radius = (!IsEmptyStr(populationStr)) ? LerpR32(1.0, 10.0f, populationLerp) : 0.0f;
 					if (app->map.ways.length == 0 && radius == 0.0f) { radius = 1.0f; } //Show all nodes when now ways were found
+					if (app->renderNodes && radius == 0.0f && node->wayPntrs.length == 0) { radius = 1.0f; } //Show nodes that aren't part of ways
 					
 					Str8 radiusStr = GetOsmNodeTagValue(node, StrLit("radius"), Str8_Empty);
 					if (!IsEmptyStr(radiusStr)) { TryParseR32(radiusStr, &radius, nullptr); }
@@ -1185,11 +1186,42 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 									})
 								);
 							}
+							if (app->map.waysMissingNodes)
+							{
+								CLAY({ .layout = { .sizing = { .width=CLAY_SIZING_FIXED(UI_R32(10)) } } }) {}
+								CLAY_TEXT(
+									StrLit("Some ways are missing nodes!"),
+									CLAY_TEXT_CONFIG({
+										.fontId = app->clayUiFontId,
+										.fontSize = (u16)app->uiFontSize,
+										.textColor = ERROR_RED,
+										.wrapMode = CLAY_TEXT_WRAP_NONE,
+										.textAlignment = CLAY_TEXT_ALIGN_SHRINK,
+										.userData = { .contraction = TextContraction_ClipRight },
+									})
+								);
+							}
+							// if (app->map.relationsMissingMembers)
+							// {
+							// 	CLAY({ .layout = { .sizing = { .width=CLAY_SIZING_FIXED(UI_R32(10)) } } }) {}
+							// 	CLAY_TEXT(
+							// 		StrLit("Some relations are missing members!"),
+							// 		CLAY_TEXT_CONFIG({
+							// 			.fontId = app->clayUiFontId,
+							// 			.fontSize = (u16)app->uiFontSize,
+							// 			.textColor = ERROR_RED,
+							// 			.wrapMode = CLAY_TEXT_WRAP_NONE,
+							// 			.textAlignment = CLAY_TEXT_ALIGN_SHRINK,
+							// 			.userData = { .contraction = TextContraction_ClipRight },
+							// 		})
+							// 	);
+							// }
 							
 							#if 1
 							{
 								CLAY({ .layout = { .sizing = { .width=CLAY_SIZING_FIXED(UI_R32(10)) } } }) {}
-								Str8 tileInfoStr = PrintInArenaStr(uiArena, "Z: %d (%dx%d)", tileLevelZ, tileGridSize, tileGridSize);
+								// Str8 tileInfoStr = PrintInArenaStr(uiArena, "Z: %d (%dx%d)", tileLevelZ, tileGridSize, tileGridSize);
+								Str8 tileInfoStr = PrintInArenaStr(uiArena, "Z: %d", tileLevelZ);
 								CLAY_TEXT(
 									tileInfoStr,
 									CLAY_TEXT_CONFIG({
@@ -1267,6 +1299,7 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 											renderTilesStr = PrintInArenaStr(uiArena, "%.*s (%llu/%llu)", StrPrint(renderTilesStr), numTilesLoaded, app->mapTiles.length);
 										}
 										DoUiCheckbox(&uiContext, StrLit("RenderTilesCheckbox"), &app->renderTiles, UI_R32(16), nullptr, renderTilesStr, Dir2_Right, &app->uiFont, app->uiFontSize, UI_FONT_STYLE);
+										DoUiCheckbox(&uiContext, StrLit("RenderNodesCheckbox"), &app->renderNodes, UI_R32(16), nullptr, StrLit("Render Nodes"), Dir2_Right, &app->uiFont, app->uiFontSize, UI_FONT_STYLE);
 										CLAY({ .layout = { .sizing = { .height=CLAY_SIZING_FIXED(UI_R32(10)) } } }) { }
 										
 										CLAY({ .id = CLAY_ID("InfoPanelTitle"),
@@ -1333,6 +1366,8 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 													Str8 user = Str8_Empty;
 													u64 uid = 0;
 													VarArray* tagsArray = nullptr;
+													VarArray* wayPntrsArray = nullptr;
+													VarArray* relationPntrsArray = nullptr;
 													if (selectedItem->type == OsmPrimitiveType_Node)
 													{
 														itemId = selectedItem->nodePntr->id;
@@ -1345,6 +1380,8 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 														user = selectedItem->nodePntr->user;
 														uid = selectedItem->nodePntr->uid;
 														tagsArray = &selectedItem->nodePntr->tags;
+														wayPntrsArray = &selectedItem->nodePntr->wayPntrs;
+														relationPntrsArray = &selectedItem->nodePntr->relationPntrs;
 													}
 													else if (selectedItem->type == OsmPrimitiveType_Way)
 													{
@@ -1358,6 +1395,7 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 														user = selectedItem->wayPntr->user;
 														uid = selectedItem->wayPntr->uid;
 														tagsArray = &selectedItem->wayPntr->tags;
+														relationPntrsArray = &selectedItem->wayPntr->relationPntrs;
 													}
 													Str8 displayName = PrintInArenaStr(uiArena, "> %s %llu \"%.*s\"%s", GetOsmPrimitiveTypeStr(selectedItem->type), itemId, StrPrint(nameTag), visible ? "" : " (visible=false)");
 													INFO_PANEL_TEXT("Label_DisplayName", sIndex, displayName, MonokaiGreen);
@@ -1393,6 +1431,24 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 														INFO_PANEL_TEXT("Label_UID", sIndex, uidStr, TEXT_GRAY);
 													}
 													
+													if (relationPntrsArray != nullptr)
+													{
+														VarArrayLoop(relationPntrsArray, rIndex)
+														{
+															VarArrayLoopGetValue(OsmRelation*, relation, relationPntrsArray, rIndex);
+															Str8 relationName = GetOsmRelationTagValue(relation, StrLit("name"), Str8_Empty);
+															uxx memberIndex = UINTXX_MAX;
+															OsmRelationMemberRole role = OsmRelationMemberRole_None;
+															VarArrayLoop(&relation->members, mIndex)
+															{
+																VarArrayLoopGet(OsmRelationMember, member, &relation->members, mIndex);
+																if (member->id == itemId) { memberIndex = mIndex; role = member->role; break; }
+															}
+															DebugAssert(memberIndex != UINTXX_MAX);
+															Str8 relationStr = PrintInArenaStr(uiArena, "  In relation %llu \"%.*s\" [%llu/%llu] as %s", relation->id, StrPrint(relationName), memberIndex, relation->members.length, GetOsmRelationMemberRoleStr(role));
+															INFO_PANEL_TEXT("Label_Relation", sIndex*Million(1) + rIndex, relationStr, MonokaiPurple);
+														}
+													}
 													if (tagsArray != nullptr)
 													{
 														VarArrayLoop(tagsArray, tIndex)
