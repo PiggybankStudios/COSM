@@ -679,6 +679,7 @@ void UpdateOsmWayTriangulation(OsmMap* map, OsmWay* way)
 	if (!way->isClosedLoop) { return; }
 	if (way->triIndices == nullptr && !way->attemptedTriangulation)
 	{
+		TracyCZoneN(_TriangulatingWay, "TriangulatingWay", true);
 		ScratchBegin(scratch);
 		way->attemptedTriangulation = true;
 		
@@ -687,8 +688,10 @@ void UpdateOsmWayTriangulation(OsmMap* map, OsmWay* way)
 		VarArrayLoop(&way->nodes, nIndex)
 		{
 			VarArrayLoopGet(OsmNodeRef, nodeRef, &way->nodes, nIndex);
+			if (nodeRef->pntr == nullptr) { way->attemptedTriangulation = true; TracyCZoneEnd(_TriangulatingWay); return; }
 			polygonVerts[nIndex] = nodeRef->pntr->location;
 		}
+		PrintLine_D("Triangulating way %llu (%llu nodes)", way->id, way->nodes.length);
 		way->triIndices = Triangulate2DEarClipR64(map->arena, numPolygonVerts, polygonVerts, &way->numTriIndices);
 		if (way->triIndices == nullptr)
 		{
@@ -697,7 +700,9 @@ void UpdateOsmWayTriangulation(OsmMap* map, OsmWay* way)
 			{
 				SwapValues(v2d, polygonVerts[vIndex], polygonVerts[numPolygonVerts-1 - vIndex]);
 			}
+			PrintLine_D("Triangulating reversed way %llu (%llu nodes)", way->id, way->nodes.length);
 			way->triIndices = Triangulate2DEarClipR64(map->arena, numPolygonVerts, polygonVerts, &way->numTriIndices);
+			if (way->triIndices == nullptr) { PrintLine_W("Failed to triangulate way %llu", way->id); }
 		}
 		
 		if (way->triIndices != nullptr && way->numTriIndices > 0)
@@ -725,10 +730,56 @@ void UpdateOsmWayTriangulation(OsmMap* map, OsmWay* way)
 			way->triVertBuffer = InitVertBuffer2D(map->arena, StrLit("Way_TriVertBuffer"), VertBufferUsage_Static, numBufferVertices, bufferVertices, false);
 		}
 		ScratchEnd(scratch);
+		TracyCZoneEnd(_TriangulatingWay);
 	}
 }
 
-void RenderWayFilled(OsmWay* way, recd mapRec, rec wayOnScreenBoundsRec, Color32 fillColor, r32 borderThickness, Color32 borderColor)
+void RenderWayLine(OsmWay* way, recd mapScreenRec, r32 thickness, Color32 color)
+{
+	#if 1
+	TracyCZoneN(funcZone, "RenderWayLine", true);
+	ScratchBegin(scratch);
+	SimpPolygonR64 simpPoly = ZEROED;
+	simpPoly.numVertices = way->nodes.length;
+	simpPoly.vertices = AllocArray(SimpPolyVertR64, scratch, simpPoly.numVertices);
+	VarArrayLoop(&way->nodes, nIndex)
+	{
+		VarArrayLoopGet(OsmNodeRef, nodeRef, &way->nodes, nIndex);
+		if (nodeRef->pntr == nullptr) { ScratchEnd(scratch); TracyCZoneEnd(funcZone); return; }
+		simpPoly.vertices[nIndex].state = 0;
+		simpPoly.vertices[nIndex].pos = nodeRef->pntr->location;
+	}
+	r64 epsilonDegrees = ((r64)WAY_SIMPLIFYING_EPSILON_PX / mapScreenRec.Width) * MERCATOR_LONGITUDE_RANGE;
+	TracyCZoneN(_SimplifyPolygonR64, "SimplifyPolygonR64", true);
+	SimplifyPolygonR64(&simpPoly, epsilonDegrees);
+	TracyCZoneEnd(_SimplifyPolygonR64);
+	v2d prevPos = V2d_Zero;
+	uxx drawIndex = 0;
+	for (uxx vIndex = 0; vIndex < simpPoly.numVertices; vIndex++)
+	{
+		if (simpPoly.vertices[vIndex].state > 0)
+		{
+			v2d nodePos = MapProject(app->view.projection, simpPoly.vertices[vIndex].pos, mapScreenRec);
+			if (drawIndex > 0) { DrawLine(ToV2Fromd(prevPos), ToV2Fromd(nodePos), thickness, color); }
+			prevPos = nodePos;
+			drawIndex++;
+		}
+	}
+	ScratchEnd(scratch);
+	TracyCZoneEnd(funcZone);
+	#else
+	v2d prevPos = V2d_Zero;
+	VarArrayLoop(&way->nodes, nIndex)
+	{
+		VarArrayLoopGet(OsmNodeRef, nodeRef, &way->nodes, nIndex);
+		v2d nodePos = MapProject(app->view.projection, nodeRef->pntr->location, mapScreenRec);
+		if (nIndex > 0) { DrawLine(ToV2Fromd(prevPos), ToV2Fromd(nodePos), thickness, color); }
+		prevPos = nodePos;
+	}
+	#endif
+}
+
+void RenderWayFilled(OsmWay* way, recd mapScreenRec, rec wayOnScreenBoundsRec, Color32 fillColor, r32 borderThickness, Color32 borderColor)
 {
 	bool renderedFill = false;
 	if (way->triVertBuffer.arena != nullptr && way->triVertBuffer.numVertices > 0)
@@ -751,133 +802,21 @@ void RenderWayFilled(OsmWay* way, recd mapRec, rec wayOnScreenBoundsRec, Color32
 			OsmNodeRef* node0 = VarArrayGet(OsmNodeRef, &way->nodes, way->triIndices[iIndex+0]);
 			OsmNodeRef* node1 = VarArrayGet(OsmNodeRef, &way->nodes, way->triIndices[iIndex+1]);
 			OsmNodeRef* node2 = VarArrayGet(OsmNodeRef, &way->nodes, way->triIndices[iIndex+2]);
-			v2 vert0 = ToV2Fromd(MapProject(app->view.projection, node0->pntr->location, mapRec));
-			v2 vert1 = ToV2Fromd(MapProject(app->view.projection, node1->pntr->location, mapRec));
-			v2 vert2 = ToV2Fromd(MapProject(app->view.projection, node2->pntr->location, mapRec));
+			v2 vert0 = ToV2Fromd(MapProject(app->view.projection, node0->pntr->location, mapScreenRec));
+			v2 vert1 = ToV2Fromd(MapProject(app->view.projection, node1->pntr->location, mapScreenRec));
+			v2 vert2 = ToV2Fromd(MapProject(app->view.projection, node2->pntr->location, mapScreenRec));
 			DrawLine(vert0, vert1, 2.0f, fillColor);
 			DrawLine(vert1, vert2, 2.0f, fillColor);
 			DrawLine(vert2, vert0, 2.0f, fillColor);
 		}
 		renderedFill = true;
 	}
-	bool needToRenderOutlineAsFill = (way->attemptedTriangulation && !renderedFill);
-	if (needToRenderOutlineAsFill || (borderThickness > 0 && borderColor.a > 0))
+	if (way->attemptedTriangulation && !renderedFill)
 	{
-		r32 actualBorderThickness = (needToRenderOutlineAsFill) ? 2.0f : borderThickness;
-		Color32 actualBorderColor = (needToRenderOutlineAsFill) ? fillColor : borderColor;
-		v2d prevPos = V2d_Zero;
-		VarArrayLoop(&way->nodes, nIndex)
-		{
-			VarArrayLoopGet(OsmNodeRef, nodeRef, &way->nodes, nIndex);
-			v2d nodePos = MapProject(app->view.projection, nodeRef->pntr->location, mapRec);
-			if (nIndex > 0) { DrawLine(ToV2Fromd(prevPos), ToV2Fromd(nodePos), actualBorderThickness, actualBorderColor); }
-			prevPos = nodePos;
-		}
+		RenderWayLine(way, mapScreenRec, 2.0f, fillColor);
 	}
-}
-
-void Test_FreeSimplifiedPolygons()
-{
-	VarArrayLoop(&app->testPolygons, pIndex)
+	else if (borderThickness > 0 && borderColor.a > 0)
 	{
-		VarArrayLoopGet(Vec2R64Slice, slice, &app->testPolygons, pIndex);
-		FreeArray(v2d, stdHeap, slice->length, slice->vectors);
+		RenderWayLine(way, mapScreenRec, borderThickness, borderColor);
 	}
-	VarArrayClear(&app->testPolygons);
-}
-
-void Test_SimplifyPolygon()
-{
-	TracyCZoneN(funcZone, "Test_SimplifyPolygon", true);
-	Test_FreeSimplifiedPolygons();
-	
-	v2d firstVertLocation = (app->drawingPolyVerts.length > 0) ? VarArrayGetFirstValue(v2d, &app->drawingPolyVerts) : V2d_Zero;
-	app->testPolyBounds = NewRecd(firstVertLocation.X, firstVertLocation.Y, 0, 0);
-	VarArrayLoop(&app->drawingPolyVerts, vIndex)
-	{
-		VarArrayLoopGetValue(v2d, vertPos, &app->drawingPolyVerts, vIndex);
-		app->testPolyBounds = BothRecd(app->testPolyBounds, NewRecdV(vertPos, V2d_Zero));
-	}
-	#if 0
-	if (app->testPolyBounds.Width > app->testPolyBounds.Height)
-	{
-		app->testPolyBounds.Y += app->testPolyBounds.Height/2.0;
-		app->testPolyBounds.Height = app->testPolyBounds.Width;
-		app->testPolyBounds.Y -= app->testPolyBounds.Height/2.0;
-	}
-	else if (app->testPolyBounds.Height > app->testPolyBounds.Width)
-	{
-		app->testPolyBounds.X += app->testPolyBounds.Width/2.0;
-		app->testPolyBounds.Width = app->testPolyBounds.Height;
-		app->testPolyBounds.X -= app->testPolyBounds.Width/2.0;
-	}
-	#endif
-	
-	#if 0
-	SimpPolygonR64 basePolygon = ZEROED;
-	basePolygon.numVertices = app->drawingPolyVerts.length;
-	basePolygon.vertices = AllocArray(SimpPolyVertR64, stdHeap, basePolygon.numVertices);
-	for (uxx vIndex = 0; vIndex < basePolygon.numVertices; vIndex++)
-	{
-		// v2d vertLocation = VarArrayGetValue(v2d, &app->drawingPolyVerts, vIndex);
-		// basePolygon.vertices[vIndex].pos = NewV2(
-		// 	(r32)InverseLerpClampR64(app->testPolyBounds.Lon, app->testPolyBounds.Lon + app->testPolyBounds.SizeLon, vertLocation.Lon),
-		// 	(r32)InverseLerpClampR64(app->testPolyBounds.Lat, app->testPolyBounds.Lat + app->testPolyBounds.SizeLat, vertLocation.Lat)
-		// );
-		basePolygon.vertices[vIndex].pos = VarArrayGetValue(v2d, &app->drawingPolyVerts, vIndex);
-		basePolygon.vertices[vIndex].state = 0;
-	}
-	#endif
-	
-	recd mapScreenRec = GetMapScreenRec(&app->view);
-	// r64 maxEpsilon = (100.0 / mapScreenRec.Width) * MERCATOR_LONGITUDE_RANGE;
-	r64 maxEpsilon = 2;
-	
-	const uxx numSimplifications = 10;
-	for (uxx sIndex = 0; sIndex < numSimplifications; sIndex++)
-	{
-		r64 epsilon = LerpR64(0.0, maxEpsilon, (r64)(sIndex+1)/(r64)numSimplifications);
-		
-		#if 1
-		// Vec2R64Slice SimplifyPolygonInArenaR64(Arena* arena, uxx numPolyVerts, const v2d* polyVerts, r64 epsilon)
-		// #define VarArrayGetFirstSoft(type, arrayPntr)
-		TracyCZoneN(_SimplifyPolygon, "SimplifyPolygon", true);
-		Vec2R64Slice simplifiedVerts = SimplifyPolygonInArenaR64(stdHeap, app->drawingPolyVerts.length, VarArrayGetFirstSoft(v2d, &app->drawingPolyVerts), epsilon);
-		TracyCZoneEnd(_SimplifyPolygon);
-		if (simplifiedVerts.length > 0)
-		{
-			NotNull(simplifiedVerts.vectors);
-			VarArrayAddValue(Vec2R64Slice, &app->testPolygons, simplifiedVerts);
-		}
-		#else
-		ScratchBegin(scratch);
-		SimpPolygonR64 localPoly = ZEROED;
-		localPoly.numVertices = basePolygon.numVertices;
-		localPoly.vertices = AllocArray(SimpPolyVertR64, scratch, basePolygon.numVertices);
-		MyMemCopy(localPoly.vertices, basePolygon.vertices, sizeof(SimpPolyVertR64) * basePolygon.numVertices);
-		TracyCZoneN(_SimplifyPolygonR64, "SimplifyPolygonR64", true);
-		uxx numVerticesLeft = SimplifyPolygonR64(&localPoly, epsilon);
-		TracyCZoneEnd(_SimplifyPolygonR64);
-		SimpPolygonR64* newPoly = VarArrayAdd(SimpPolygonR64, &app->testPolygons);
-		NotNull(newPoly);
-		ClearPointer(newPoly);
-		newPoly->numVertices = numVerticesLeft;
-		newPoly->vertices = AllocArray(SimpPolyVertR64, stdHeap, numVerticesLeft);
-		uxx writeIndex = 0;
-		for (uxx vIndex = 0; vIndex < localPoly.numVertices; vIndex++)
-		{
-			if (localPoly.vertices[vIndex].state > 0)
-			{
-				Assert(writeIndex < numVerticesLeft);
-				newPoly->vertices[writeIndex].pos = localPoly.vertices[vIndex].pos;
-				newPoly->vertices[writeIndex].state = 1;
-				writeIndex++;
-			}
-		}
-		Assert(writeIndex == numVerticesLeft);
-		ScratchEnd(scratch);
-		#endif
-	}
-	
-	TracyCZoneEnd(funcZone);
 }

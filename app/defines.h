@@ -82,4 +82,6 @@ Date:   02\25\2025
 #define MAP_TILE_IMAGE_SIZE       256 //px
 #define MAX_LOADED_MAP_TILES      128 //textures
 
+#define WAY_SIMPLIFYING_EPSILON_PX   2 //px
+
 #endif //  _DEFINES_H

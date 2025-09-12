@@ -342,6 +342,7 @@
 			"UNICODE_PRINTABLE_ASCII_COUNT",
 			"UNICODE_PRINTABLE_ASCII_END",
 			"UNICODE_PRINTABLE_ASCII_START",
+			"WAY_SIMPLIFYING_EPSILON_PX",
 		],
 		"custom_functions":
 		[
@@ -1294,6 +1295,7 @@
 			"void OsUpdateHttpRequestManager(HttpRequestManager* manager, u64 programTime)",
 			"void RemoveAttachedTtfFile(PigFont* font)",
 			"void RenderWayFilled(OsmWay* way, recd mapRec, rec wayOnScreenBoundsRec, Color32 fillColor, r32 borderThickness, Color32 borderColor)",
+			"void RenderWayLine(OsmWay* way, recd mapScreenRec, r32 thickness, Color32 color)",
 			"void SetClayContext(ClayUI* clay)",
 			"void SetMapItemSelected(OsmMap* map, OsmPrimitiveType type, void* itemPntr, bool selected)",
 			"void SetMapNodeSelected(OsmMap* map, OsmNode* node, bool selected)",
