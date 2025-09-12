@@ -83,6 +83,10 @@ plex AppData
 	bool renderTiles;
 	BktArray mapTiles; //MapTile
 	MapView view;
+	
+	VarArray drawingPolyVerts; //v2d
+	recd testPolyBounds;
+	VarArray testPolygons; //Vec2R64Slice
 };
 
 #endif //  _APP_MAIN_H

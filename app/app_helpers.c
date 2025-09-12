@@ -775,3 +775,109 @@ void RenderWayFilled(OsmWay* way, recd mapRec, rec wayOnScreenBoundsRec, Color32
 		}
 	}
 }
+
+void Test_FreeSimplifiedPolygons()
+{
+	VarArrayLoop(&app->testPolygons, pIndex)
+	{
+		VarArrayLoopGet(Vec2R64Slice, slice, &app->testPolygons, pIndex);
+		FreeArray(v2d, stdHeap, slice->length, slice->vectors);
+	}
+	VarArrayClear(&app->testPolygons);
+}
+
+void Test_SimplifyPolygon()
+{
+	TracyCZoneN(funcZone, "Test_SimplifyPolygon", true);
+	Test_FreeSimplifiedPolygons();
+	
+	v2d firstVertLocation = (app->drawingPolyVerts.length > 0) ? VarArrayGetFirstValue(v2d, &app->drawingPolyVerts) : V2d_Zero;
+	app->testPolyBounds = NewRecd(firstVertLocation.X, firstVertLocation.Y, 0, 0);
+	VarArrayLoop(&app->drawingPolyVerts, vIndex)
+	{
+		VarArrayLoopGetValue(v2d, vertPos, &app->drawingPolyVerts, vIndex);
+		app->testPolyBounds = BothRecd(app->testPolyBounds, NewRecdV(vertPos, V2d_Zero));
+	}
+	#if 0
+	if (app->testPolyBounds.Width > app->testPolyBounds.Height)
+	{
+		app->testPolyBounds.Y += app->testPolyBounds.Height/2.0;
+		app->testPolyBounds.Height = app->testPolyBounds.Width;
+		app->testPolyBounds.Y -= app->testPolyBounds.Height/2.0;
+	}
+	else if (app->testPolyBounds.Height > app->testPolyBounds.Width)
+	{
+		app->testPolyBounds.X += app->testPolyBounds.Width/2.0;
+		app->testPolyBounds.Width = app->testPolyBounds.Height;
+		app->testPolyBounds.X -= app->testPolyBounds.Width/2.0;
+	}
+	#endif
+	
+	#if 0
+	SimpPolygonR64 basePolygon = ZEROED;
+	basePolygon.numVertices = app->drawingPolyVerts.length;
+	basePolygon.vertices = AllocArray(SimpPolyVertR64, stdHeap, basePolygon.numVertices);
+	for (uxx vIndex = 0; vIndex < basePolygon.numVertices; vIndex++)
+	{
+		// v2d vertLocation = VarArrayGetValue(v2d, &app->drawingPolyVerts, vIndex);
+		// basePolygon.vertices[vIndex].pos = NewV2(
+		// 	(r32)InverseLerpClampR64(app->testPolyBounds.Lon, app->testPolyBounds.Lon + app->testPolyBounds.SizeLon, vertLocation.Lon),
+		// 	(r32)InverseLerpClampR64(app->testPolyBounds.Lat, app->testPolyBounds.Lat + app->testPolyBounds.SizeLat, vertLocation.Lat)
+		// );
+		basePolygon.vertices[vIndex].pos = VarArrayGetValue(v2d, &app->drawingPolyVerts, vIndex);
+		basePolygon.vertices[vIndex].state = 0;
+	}
+	#endif
+	
+	recd mapScreenRec = GetMapScreenRec(&app->view);
+	// r64 maxEpsilon = (100.0 / mapScreenRec.Width) * MERCATOR_LONGITUDE_RANGE;
+	r64 maxEpsilon = 2;
+	
+	const uxx numSimplifications = 10;
+	for (uxx sIndex = 0; sIndex < numSimplifications; sIndex++)
+	{
+		r64 epsilon = LerpR64(0.0, maxEpsilon, (r64)(sIndex+1)/(r64)numSimplifications);
+		
+		#if 1
+		// Vec2R64Slice SimplifyPolygonInArenaR64(Arena* arena, uxx numPolyVerts, const v2d* polyVerts, r64 epsilon)
+		// #define VarArrayGetFirstSoft(type, arrayPntr)
+		TracyCZoneN(_SimplifyPolygon, "SimplifyPolygon", true);
+		Vec2R64Slice simplifiedVerts = SimplifyPolygonInArenaR64(stdHeap, app->drawingPolyVerts.length, VarArrayGetFirstSoft(v2d, &app->drawingPolyVerts), epsilon);
+		TracyCZoneEnd(_SimplifyPolygon);
+		if (simplifiedVerts.length > 0)
+		{
+			NotNull(simplifiedVerts.vectors);
+			VarArrayAddValue(Vec2R64Slice, &app->testPolygons, simplifiedVerts);
+		}
+		#else
+		ScratchBegin(scratch);
+		SimpPolygonR64 localPoly = ZEROED;
+		localPoly.numVertices = basePolygon.numVertices;
+		localPoly.vertices = AllocArray(SimpPolyVertR64, scratch, basePolygon.numVertices);
+		MyMemCopy(localPoly.vertices, basePolygon.vertices, sizeof(SimpPolyVertR64) * basePolygon.numVertices);
+		TracyCZoneN(_SimplifyPolygonR64, "SimplifyPolygonR64", true);
+		uxx numVerticesLeft = SimplifyPolygonR64(&localPoly, epsilon);
+		TracyCZoneEnd(_SimplifyPolygonR64);
+		SimpPolygonR64* newPoly = VarArrayAdd(SimpPolygonR64, &app->testPolygons);
+		NotNull(newPoly);
+		ClearPointer(newPoly);
+		newPoly->numVertices = numVerticesLeft;
+		newPoly->vertices = AllocArray(SimpPolyVertR64, stdHeap, numVerticesLeft);
+		uxx writeIndex = 0;
+		for (uxx vIndex = 0; vIndex < localPoly.numVertices; vIndex++)
+		{
+			if (localPoly.vertices[vIndex].state > 0)
+			{
+				Assert(writeIndex < numVerticesLeft);
+				newPoly->vertices[writeIndex].pos = localPoly.vertices[vIndex].pos;
+				newPoly->vertices[writeIndex].state = 1;
+				writeIndex++;
+			}
+		}
+		Assert(writeIndex == numVerticesLeft);
+		ScratchEnd(scratch);
+		#endif
+	}
+	
+	TracyCZoneEnd(funcZone);
+}

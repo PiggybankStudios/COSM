@@ -1,16 +1,18 @@
 // raddbg 0.9.21 project file
 
+recent_file: path: "core/misc/misc_poly_simplify.h"
+recent_file: path: "app/app_helpers.c"
+recent_file: path: "core/struct/struct_vectors.h"
+recent_file: path: "app/app_main.c"
 recent_file: path: "core/struct/struct_var_array.h"
 recent_file: path: "app/osm_map.c"
 recent_file: path: "app/osm_map_serialization_osm.c"
 recent_file: path: "core/misc/misc_printing.h"
-recent_file: path: "app/app_helpers.c"
 recent_file: path: "app/map_tiles.c"
 recent_file: path: "core/os/os_http.h"
 recent_file: path: "core/cross/cross_os_font_and_gfx_font.h"
 recent_file: path: "core/gfx/gfx_font.h"
 recent_file: path: "core/third_party/sokol/sokol_gfx.h"
-recent_file: path: "app/app_main.c"
 recent_file: path: "core/third_party/protobuf_c/protobuf-c/protobuf-c.c"
 recent_file: path: "app/osm_pbf.pb-c.c"
 recent_file: path: "core/third_party/stb/stb_truetype.h"
@@ -35,3 +37,29 @@ type_view:
   expr: "rows($, $.chars, $.length)"
 }
 theme: Naysayer
+type_view:
+{
+  type: HMM_Vec2
+  expr: "rows($, $.X, $.Y)"
+}
+type_view:
+{
+  type: Vec2R64
+  expr: "rows($, $.X, $.Y)"
+}
+type_view:
+{
+  type: SimpPolyVert
+  expr: "rows($, $.state, $.pos)"
+}
+type_view:
+{
+  type: SimpPolyVertR64
+  expr: "rows($, $.state, $.pos)"
+}
+breakpoint:
+{
+  source_location: "core/misc/misc_poly_simplify.h:184:1"
+  hit_count: 0
+  enabled: 1
+}

@@ -171,6 +171,11 @@ EXPORT_FUNC APP_INIT_DEF(AppInit)
 	InitUiResizableSplit(stdHeap, StrLit("SidebarSplit"), true, 0, 0.20f, &app->sidebarSplit);
 	InitUiResizableSplit(stdHeap, StrLit("InfoLayersSplit"), false, 0, 0.50f, &app->infoLayersSplit);
 	
+	#if 1
+	InitVarArray(v2d, &app->drawingPolyVerts, stdHeap);
+	InitVarArray(Vec2R64Slice, &app->testPolygons, stdHeap);
+	#endif
+	
 	InitMapTiles();
 	InitMapView(&app->view, MapProjection_Mercator);
 	
@@ -203,99 +208,6 @@ EXPORT_FUNC APP_INIT_DEF(AppInit)
 	{
 		RecentFile* mostRecentFile = VarArrayGetLast(RecentFile, &app->recentFiles);
 		OpenOsmMap(mostRecentFile->path);
-	}
-	#endif
-	
-	#if 0
-	Str8 testFileContents = Str8_Empty;
-	bool foundTestFile = OsReadTextFile(FilePathLit(TEST_OSM_FILE), scratch, &testFileContents);
-	if (foundTestFile)
-	{
-		PrintLine_I("Opened test file, %llu bytes", testFileContents.length);
-		Result parseResult = TryParseOsmMap(stdHeap, testFileContents, &app->map);
-		if (parseResult == Result_Success)
-		{
-			#if 0
-			u64 nodeId1  = AddOsmNode(&app->map, NewGeoLoc(47.584399766577576, -122.48176574707033))->id;
-			u64 nodeId2  = AddOsmNode(&app->map, NewGeoLoc(47.581620824334166, -122.49755859375001))->id;
-			u64 nodeId3  = AddOsmNode(&app->map, NewGeoLoc(47.57606249728773,  -122.50030517578126))->id;
-			u64 nodeId4  = AddOsmNode(&app->map, NewGeoLoc(47.573283112482144, -122.52502441406251))->id;
-			u64 nodeId5  = AddOsmNode(&app->map, NewGeoLoc(47.59273570820418,  -122.5353240966797))->id;
-			u64 nodeId6  = AddOsmNode(&app->map, NewGeoLoc(47.59921830048998,  -122.54768371582033))->id;
-			u64 nodeId7  = AddOsmNode(&app->map, NewGeoLoc(47.60431120244565,  -122.54768371582033))->id;
-			u64 nodeId8  = AddOsmNode(&app->map, NewGeoLoc(47.60199630847375,  -122.5572967529297))->id;
-			u64 nodeId9  = AddOsmNode(&app->map, NewGeoLoc(47.593198777144636, -122.56347656250001))->id;
-			u64 nodeId10 = AddOsmNode(&app->map, NewGeoLoc(47.59273570820418,  -122.5737762451172))->id;
-			u64 nodeId11 = AddOsmNode(&app->map, NewGeoLoc(47.60107032220255,  -122.57789611816408))->id;
-			u64 nodeId12 = AddOsmNode(&app->map, NewGeoLoc(47.61356975397398,  -122.57583618164064))->id;
-			u64 nodeId13 = AddOsmNode(&app->map, NewGeoLoc(47.64318610543658,  -122.57789611816408))->id;
-			u64 nodeId14 = AddOsmNode(&app->map, NewGeoLoc(47.66261271615866,  -122.59231567382814))->id;
-			u64 nodeId15 = AddOsmNode(&app->map, NewGeoLoc(47.66492492654025,  -122.58544921875001))->id;
-			u64 nodeId16 = AddOsmNode(&app->map, NewGeoLoc(47.67833372712059,  -122.56896972656251))->id;
-			u64 nodeId17 = AddOsmNode(&app->map, NewGeoLoc(47.66538735632654,  -122.5682830810547))->id;
-			u64 nodeId18 = AddOsmNode(&app->map, NewGeoLoc(47.674172743907384, -122.5627899169922))->id;
-			u64 nodeId19 = AddOsmNode(&app->map, NewGeoLoc(47.692663462837984, -122.56622314453126))->id;
-			u64 nodeId20 = AddOsmNode(&app->map, NewGeoLoc(47.70698926201497,  -122.56416320800783))->id;
-			u64 nodeId21 = AddOsmNode(&app->map, NewGeoLoc(47.72223498082051,  -122.5518035888672))->id;
-			u64 nodeId22 = AddOsmNode(&app->map, NewGeoLoc(47.719001413201916, -122.54287719726564))->id;
-			u64 nodeId23 = AddOsmNode(&app->map, NewGeoLoc(47.7097615426664,   -122.54150390625001))->id;
-			u64 nodeId24 = AddOsmNode(&app->map, NewGeoLoc(47.70375474821553,  -122.53189086914064))->id;
-			u64 nodeId25 = AddOsmNode(&app->map, NewGeoLoc(47.700057915247314, -122.53257751464845))->id;
-			u64 nodeId26 = AddOsmNode(&app->map, NewGeoLoc(47.69682297134991,  -122.54562377929689))->id;
-			u64 nodeId27 = AddOsmNode(&app->map, NewGeoLoc(47.692663462837984, -122.54493713378908))->id;
-			u64 nodeId28 = AddOsmNode(&app->map, NewGeoLoc(47.69820940045469,  -122.52708435058595))->id;
-			u64 nodeId29 = AddOsmNode(&app->map, NewGeoLoc(47.706065135695745, -122.52708435058595))->id;
-			u64 nodeId30 = AddOsmNode(&app->map, NewGeoLoc(47.7032926584311,   -122.50991821289064))->id;
-			u64 nodeId31 = AddOsmNode(&app->map, NewGeoLoc(47.695898664798875, -122.50442504882814))->id;
-			u64 nodeId32 = AddOsmNode(&app->map, NewGeoLoc(47.67602211074509,  -122.50923156738283))->id;
-			u64 nodeId33 = AddOsmNode(&app->map, NewGeoLoc(47.66769944380821,  -122.50854492187501))->id;
-			u64 nodeId34 = AddOsmNode(&app->map, NewGeoLoc(47.66307516642836,  -122.49824523925783))->id;
-			u64 nodeId35 = AddOsmNode(&app->map, NewGeoLoc(47.655675470505955, -122.50854492187501))->id;
-			u64 nodeId36 = AddOsmNode(&app->map, NewGeoLoc(47.65428791076272,  -122.52296447753908))->id;
-			u64 nodeId37 = AddOsmNode(&app->map, NewGeoLoc(47.646886969413,    -122.50854492187501))->id;
-			u64 nodeId38 = AddOsmNode(&app->map, NewGeoLoc(47.63960064341703,  -122.50313758850099))->id;
-			u64 nodeId39 = AddOsmNode(&app->map, NewGeoLoc(47.633470089967,    -122.48961925506593))->id;
-			u64 nodeId40 = AddOsmNode(&app->map, NewGeoLoc(47.62794619237425,  -122.49438285827638))->id;
-			u64 nodeId41 = AddOsmNode(&app->map, NewGeoLoc(47.623752267682875, -122.49468326568605))->id;
-			u64 nodeId42 = AddOsmNode(&app->map, NewGeoLoc(47.62097541515849,  -122.49206542968751))->id;
-			u64 nodeId43 = AddOsmNode(&app->map, NewGeoLoc(47.62164071617851,  -122.49554157257081))->id;
-			u64 nodeId44 = AddOsmNode(&app->map, NewGeoLoc(47.62346301909368,  -122.49670028686525))->id;
-			u64 nodeId45 = AddOsmNode(&app->map, NewGeoLoc(47.6264711261907,   -122.50262260437013))->id;
-			u64 nodeId46 = AddOsmNode(&app->map, NewGeoLoc(47.625140638632644, -122.50717163085939))->id;
-			u64 nodeId47 = AddOsmNode(&app->map, NewGeoLoc(47.621062194032575, -122.51455307006837))->id;
-			u64 nodeId48 = AddOsmNode(&app->map, NewGeoLoc(47.62242171092048,  -122.51631259918214))->id;
-			u64 nodeId49 = AddOsmNode(&app->map, NewGeoLoc(47.62216138063622,  -122.52060413360596))->id;
-			u64 nodeId50 = AddOsmNode(&app->map, NewGeoLoc(47.62036795900684,  -122.52541065216066))->id;
-			u64 nodeId51 = AddOsmNode(&app->map, NewGeoLoc(47.62545880178175,  -122.5300455093384))->id;
-			u64 nodeId52 = AddOsmNode(&app->map, NewGeoLoc(47.62606619877979,  -122.53807067871095))->id;
-			u64 nodeId53 = AddOsmNode(&app->map, NewGeoLoc(47.62190104905555,  -122.53463745117189))->id;
-			u64 nodeId54 = AddOsmNode(&app->map, NewGeoLoc(47.61680985980715,  -122.52021789550783))->id;
-			u64 nodeId55 = AddOsmNode(&app->map, NewGeoLoc(47.616346999837226, -122.50442504882814))->id;
-			u64 nodeId56 = AddOsmNode(&app->map, NewGeoLoc(47.61958693358351,  -122.50030517578126))->id;
-			u64 nodeId57 = AddOsmNode(&app->map, NewGeoLoc(47.61032944737081,  -122.49687194824219))->id;
-			u64 nodeId58 = AddOsmNode(&app->map, NewGeoLoc(47.60523713135211,  -122.50030517578126))->id;
-			u64 nodeId59 = AddOsmNode(&app->map, NewGeoLoc(47.59875528481801,  -122.50167846679689))->id;
-			u64 nodeId60 = AddOsmNode(&app->map, NewGeoLoc(47.595977104737685, -122.5188446044922))->id;
-			u64 nodeId61 = AddOsmNode(&app->map, NewGeoLoc(47.5941249027327,   -122.50373840332033))->id;
-			u64 nodeId62 = AddOsmNode(&app->map, NewGeoLoc(47.589494110887394, -122.49618530273438))->id;
-			u64 nodeId63 = AddOsmNode(&app->map, NewGeoLoc(47.58625231278527,  -122.4858856201172))->id;
-			u64 nodeId64 = AddOsmNode(&app->map, NewGeoLoc(47.584399766577576, -122.48107910156251))->id;
-			u64 nodeId65 = AddOsmNode(&app->map, NewGeoLoc(47.583473468887405, -122.48176574707033))->id;
-			u64 nodeId66 = AddOsmNode(&app->map, NewGeoLoc(47.584399766577576, -122.48107910156251))->id;
-			u64 nodeId67 = AddOsmNode(&app->map, NewGeoLoc(47.58393661978137,  -122.48313903808595))->id;
-			u64 wayIds[] = { nodeId1, nodeId2, nodeId3, nodeId4, nodeId5, nodeId6, nodeId7, nodeId8, nodeId9, nodeId10, nodeId11, nodeId12, nodeId13, nodeId14, nodeId15, nodeId16, nodeId17, nodeId18, nodeId19, nodeId20, nodeId21, nodeId22, nodeId23, nodeId24, nodeId25, nodeId26, nodeId27, nodeId28, nodeId29, nodeId30, nodeId31, nodeId32, nodeId33, nodeId34, nodeId35, nodeId36, nodeId37, nodeId38, nodeId39, nodeId40, nodeId41, nodeId42, nodeId43, nodeId44, nodeId45, nodeId46, nodeId47, nodeId48, nodeId49, nodeId50, nodeId51, nodeId52, nodeId53, nodeId54, nodeId55, nodeId56, nodeId57, nodeId58, nodeId59, nodeId60, nodeId61, nodeId62, nodeId63, nodeId64, nodeId65, nodeId66, nodeId67 };
-			OsmWay* testWay = AddOsmWay(&app->map, ArrayCount(wayIds), &wayIds[0]);
-			app->viewPos = NewV2(159.687271f, 99.153770f);
-			app->view.zoom = 622.0f;
-			#endif
-			
-			PrintLine_I("Parsed test file, %llu node%s %llu way%s", app->map.nodes.length, Plural(app->map.nodes.length, "s"), app->map.ways.length, Plural(app->map.ways.length, "s"));
-		}
-		else { PrintLine_E("Parse failure: %s", GetResultStr(parseResult)); }
-	}
-	else
-	{
-		PrintLine_E("Failed to find test file \"%s\"", TEST_OSM_FILE);
 	}
 	#endif
 	
@@ -671,6 +583,34 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 			LoadMapBackTexture();
 		}
 		
+		// +==============================+
+		// | Test Polygon Simplification  |
+		// +==============================+
+		#if 1
+		if (IsMouseBtnPressed(&appIn->mouse, MouseBtn_Right))
+		{
+			Test_FreeSimplifiedPolygons();
+			VarArrayClear(&app->drawingPolyVerts);
+		}
+		if (IsMouseBtnDown(&appIn->mouse, MouseBtn_Right) && isMouseOverMainViewport)
+		{
+			recd screenMapRec = GetMapScreenRec(&app->view);
+			v2d mouseLocation = MapUnproject(app->view.projection, ToV2dFromf(appIn->mouse.position), screenMapRec);
+			VarArrayAddValue(v2d, &app->drawingPolyVerts, mouseLocation);
+		}
+		if (IsMouseBtnReleased(&appIn->mouse, MouseBtn_Right))
+		{
+			if (app->drawingPolyVerts.length >= 3)
+			{
+				Test_SimplifyPolygon();
+			}
+		}
+		if (IsKeyboardKeyPressed(&appIn->keyboard, Key_P, false) && app->drawingPolyVerts.length >= 3)
+		{
+			Test_SimplifyPolygon();
+		}
+		#endif
+		
 		UpdateMapView(&app->view, isMouseOverMainViewport, &appIn->mouse, &appIn->keyboard);
 	}
 	TracyCZoneEnd(Zone_Update);
@@ -982,6 +922,50 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 			DrawRectangleOutline(boundsRec, 2.0f, MonokaiRed);
 			// DrawCircle(NewCircleV(boundsRec.TopLeft, 5), MonokaiRed);
 			// DrawCircle(NewCircleV(Add(boundsRec.TopLeft, boundsRec.Size), 5), MonokaiOrange);
+			
+			// +======================================+
+			// | Render Test Polygon Simplifications  |
+			// +======================================+
+			#if 1
+			{
+				if (app->testPolygons.length > 0)
+				{
+					uxx drawIndex = ClampUXX((uxx)FloorR32i(OscillateSawBy(appIn->programTime, 0, (r32)app->testPolygons.length, 2000, 0)), 0, app->testPolygons.length-1);
+					VarArrayLoop(&app->testPolygons, pIndex)
+					{
+						VarArrayLoopGet(Vec2R64Slice, slice, &app->testPolygons, pIndex);
+						if (pIndex == drawIndex)
+						{
+							v2 prevVertPos = V2_Zero;
+							for (uxx vIndex = 0; vIndex < slice->length; vIndex++)
+							{
+								v2 vertPos = ToV2Fromd(MapProject(app->view.projection, slice->vectors[vIndex], mapScreenRec));
+								if (vIndex > 0)
+								{
+									// DrawLine(prevVertPos, vertPos, LerpR32(20.0f, 2.0f, (r32)pIndex/(r32)app->testPolygons.length), GetPredefPalColorByIndex(pIndex+3));
+									DrawLine(prevVertPos, vertPos, 3.0f, MonokaiPurple);
+								}
+								DrawCircle(NewCircleV(vertPos, 5.0f), MonokaiLightPurple);
+								prevVertPos = vertPos;
+							}
+						}
+					}
+					v2 polyBoundsTopLeft = ToV2Fromd(MapProject(app->view.projection, app->testPolyBounds.TopLeft, mapScreenRec));
+					v2 polyBoundsBottomRight = ToV2Fromd(MapProject(app->view.projection, AddV2d(app->testPolyBounds.TopLeft, app->testPolyBounds.Size), mapScreenRec));
+					rec polyBounds = NewRecBetweenV(polyBoundsTopLeft, polyBoundsBottomRight);
+					DrawRectangleOutline(polyBounds, 2.0f, ColorWithAlpha(Black, 0.5f));
+				}
+				for (uxx vIndex = 0; vIndex < app->drawingPolyVerts.length; vIndex++)
+				{
+					// v2d location1 = VarArrayGetValue(v2d, &app->drawingPolyVerts, vIndex-1);
+					v2d location2 = VarArrayGetValue(v2d, &app->drawingPolyVerts, vIndex);
+					// v2 screenPos1 = ToV2Fromd(MapProject(app->view.projection, location1, mapScreenRec));
+					v2 screenPos2 = ToV2Fromd(MapProject(app->view.projection, location2, mapScreenRec));
+					// DrawLine(screenPos1, screenPos2, 1.0f, Black);
+					DrawCircle(NewCircleV(screenPos2, 2.0f), Black);
+				}
+			}
+			#endif
 			
 			// +==============================+
 			// |    Render Center Reticle     |
