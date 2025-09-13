@@ -83,8 +83,6 @@ plex AppData
 	bool renderTiles;
 	BktArray mapTiles; //MapTile
 	MapView view;
-	
-	SparseSetV3i testSet;
 };
 
 #endif //  _APP_MAIN_H

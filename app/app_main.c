@@ -120,42 +120,6 @@ void UpdateDllGlobals(PlatformInfo* inPlatformInfo, PlatformApi* inPlatformApi, 
 	appIn = appInput;
 }
 
-void PrintSet(SparseSetV3i* set)
-{
-	PrintLine_D("Set has %llu/%llu slots filled at %p", set->length, set->allocLength, set->slots);
-	for (uxx sIndex = 0; sIndex < set->allocLength; sIndex++)
-	{
-		v3i* slotPntr = (v3i*)SparseSetV3i_GetSlotPntr(set->itemSize, set->itemAlignment, set->slots, sIndex);
-		if (!SparseSetV3i_IsEmpty(*slotPntr))
-		{
-			i32 slotHash = SparseSetV3i_Hash(slotPntr->X, slotPntr->Y, slotPntr->Z);
-			uxx expectedIndex = ((uxx)slotHash % set->allocLength);
-			if (expectedIndex != sIndex)
-			{
-				PrintLine_D("\tSlot[%llu]: (%d, %d, %d) hash=0x%08X (would be at [%llu])", sIndex, slotPntr->X, slotPntr->Y, slotPntr->Z, slotHash, expectedIndex);
-			}
-			else
-			{
-				PrintLine_D("\tSlot[%llu]: (%d, %d, %d) hash=0x%08X", sIndex, slotPntr->X, slotPntr->Y, slotPntr->Z, slotHash);
-			}
-			MapTile* mapTile = (MapTile*)((u8*)slotPntr + SparseSetV3i_HeaderSize + SparseSetV3i_ItemOffset(set->itemAlignment));
-			PrintLine_D("\t\t(%d, %d, %d) \"%.*s\"", mapTile->coord.X, mapTile->coord.Y, mapTile->coord.Z, StrPrint(mapTile->fileName));
-		}
-		else
-		{
-			PrintLine_D("\tSlot[%llu]: Empty", sIndex);
-		}
-	}
-}
-
-typedef plex Stats Stats;
-plex Stats
-{
-	uxx length;
-	uxx allocLength;
-	uxx conflicts;
-};
-
 // +==============================+
 // |           AppInit            |
 // +==============================+
@@ -242,105 +206,11 @@ EXPORT_FUNC APP_INIT_DEF(AppInit)
 	}
 	#endif
 	
-	MapTile tile1 = { .coord = NewV3i(1, 2, 3), .fileName = StrLit("test_1_2_3.png"), };
-	MapTile tile2 = { .coord = NewV3i(2, 2, 2), .fileName = StrLit("something"), };
-	
-	uxx usageBefore = stdHeap->used;
-	InitSparseSetV3i(MapTile, &app->testSet, stdHeap);
-	
-	SparseSetV3iSetValue(MapTile, &app->testSet, tile1.coord, tile1);
-	PrintSet(&app->testSet);
-	SparseSetV3iSetValue(MapTile, &app->testSet, tile2.coord, tile2);
-	tile2.coord = NewV3i(1, 1, 1); SparseSetV3iSetValue(MapTile, &app->testSet, tile2.coord, tile2);
-	tile2.coord = NewV3i(3, 3, 3); SparseSetV3iSetValue(MapTile, &app->testSet, tile2.coord, tile2);
-	// #define SparseSetV3iAdd(type, setPntr, key)
-	MapTile* newTile = SparseSetV3iAdd(MapTile, &app->testSet, NewV3i(4, 4, 4));
-	NotNull(newTile);
-	ClearPointer(newTile);
-	newTile->coord = NewV3i(4, 4, 4);
-	newTile->fileName = StrLit("Added");
-	PrintSet(&app->testSet);
-	for (uxx i = 0; i < 10; i++)
-	{
-		tile1.fileName = StrLit("Loop");
-		tile1.coord.X = GetRandI32(&app->random);
-		tile1.coord.Y = GetRandI32(&app->random);
-		tile1.coord.Z = GetRandI32(&app->random);
-		SparseSetV3iSetValue(MapTile, &app->testSet, tile1.coord, tile1);
-		Assert(AreEqualV3i(SparseSetV3iGet(MapTile, &app->testSet, tile1.coord)->coord, tile1.coord));
-	}
-	PrintSet(&app->testSet);
-	uxx usageDuring = stdHeap->used;
-	FreeSparseSetV3i(&app->testSet);
-	PrintSet(&app->testSet);
-	PrintLine_D("StdHeap usage %llu -> %llu(+%llu) -> %llu(+%llu)", usageBefore, usageDuring, (usageDuring - usageBefore), stdHeap->used, (stdHeap->used - usageBefore));
-	
-	InitSparseSetV3i(MapTile, &app->testSet, stdHeap);
-	#define NUM_ITERS 1000
-	Stats stats[NUM_ITERS] = ZEROED;
-	for (uxx i = 0; i < NUM_ITERS; i++)
-	{
-		tile1.fileName = StrLit("Loop");
-		#if 0
-		tile1.coord.X = GetRandI32(&app->random);
-		tile1.coord.Y = GetRandI32(&app->random);
-		tile1.coord.Z = GetRandI32(&app->random);
-		#else
-		tile1.coord.X = (i32)(i % 10);
-		tile1.coord.Y = (i32)((i % 100) / 10);
-		tile1.coord.Z = (i32)(i / 100);
-		#endif
-		SparseSetV3iAddValue(MapTile, &app->testSet, tile1.coord, tile1);
-		stats[i].length = app->testSet.length;
-		stats[i].allocLength = app->testSet.allocLength;
-		stats[i].conflicts = 0;
-		for (uxx sIndex = 0; sIndex < app->testSet.allocLength; sIndex++)
-		{
-			v3i* slotPntr = (v3i*)SparseSetV3i_GetSlotPntr(app->testSet.itemSize, app->testSet.itemAlignment, app->testSet.slots, sIndex);
-			if (!SparseSetV3i_IsEmpty(*slotPntr))
-			{
-				i32 slotHash = SparseSetV3i_Hash(slotPntr->X, slotPntr->Y, slotPntr->Z);
-				uxx expectedIndex = ((uxx)slotHash % app->testSet.allocLength);
-				if (expectedIndex != sIndex) { stats[i].conflicts++; }
-			}
-		}
-	}
-	for (uxx i = 0; i < NUM_ITERS; i++)
-	{
-		PrintLine_D("[%llu]: %llu/%llu %.0f%% %llu conflicts", i, stats[i].length, stats[i].allocLength, ((r32)stats[i].length / (r32)stats[i].allocLength) * 100.0f, stats[i].conflicts);
-	}
-	PrintSet(&app->testSet);
-	
-	
 	app->initialized = true;
 	ScratchEnd(scratch);
 	ScratchEnd(scratch2);
 	ScratchEnd(scratch3);
 	return (void*)app;
-}
-
-void PrintArray(BktArray* array)
-{
-	PrintLine_D("BktArray: %llu buckets, %llu/%llu items (first=%p, last=%p)", array->numBuckets, array->length, array->allocLength, array->firstBucket, array->lastBucket);
-	BktArrayBkt* bucket = array->firstBucket;
-	uxx bIndex = 0;
-	uxx index = 0;
-	while (bucket != nullptr)
-	{
-		PrintLine_D("Bucket[%llu] %p: %llu/%llu%s%s", bIndex, bucket, bucket->length, bucket->allocLength, (bucket == array->firstBucket) ? " <- FIRST" : "", (bucket == array->lastBucket) ? " <- LAST" : "");
-		for (uxx iIndex = 0; iIndex < bucket->length; iIndex++)
-		{
-			v2* itemPntr = BktArrayGet(v2, array, index + iIndex);
-			NotNull(itemPntr);
-			PrintLine_D("\t[%llu]: (%g, %g)", index + iIndex, itemPntr->X, itemPntr->Y);
-		}
-		
-		index += bucket->length;
-		bIndex++;
-		bucket = bucket->next;
-	}
-	Assert(index == array->length);
-	Assert(bIndex == array->numBuckets);
 }
 
 // +==============================+
