@@ -1,5 +1,6 @@
 // raddbg 0.9.21 project file
 
+recent_file: path: "core/struct/struct_sparse_sets.h"
 recent_file: path: "core/misc/misc_poly_simplify.h"
 recent_file: path: "app/app_helpers.c"
 recent_file: path: "core/struct/struct_vectors.h"
