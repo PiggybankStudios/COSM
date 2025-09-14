@@ -13,21 +13,29 @@
 	[X] Recent files list
 	[X] Manually download tiles from "https://tile.openstreetmap.org/{zoom}/{x}/{y}.png" "https://operations.osmfoundation.org/policies/tiles/"
 	[X] Back-links from nodes to ways (and nodes/ways/relations to relations)
-	[!] Serialize to .osm or .pbf
-		[X] Parse relations in .osm
-		[X] Better XML errors in .osm parsing
-		[ ] Make parsing tolerant of missing nodes (or at least return an error rather than crashing)
+	[X] Parse relations in .osm
+	[X] Better XML errors in .osm parsing
+	[X] Make parsing tolerant of missing nodes (or at least return an error rather than crashing)
+	[X] Load multiple .osm files
+	[ ] Proper hover/selection behavior for ways
+	[ ] Some way to select relations
+	[ ] Copy and Paste behavior!
+	[ ] Combobox widget
+	[ ] Proper JIT glyph baking support in fonts
+	[ ] String interning for tag keys/values
+	[ ] Right click menu widget
+	[ ] Serialize to .pbf
+		[ ] Parse .pbf relations
 		[ ] Parse non-dense nodes in .pbf
 		[ ] Serialize to .pbf
 		[?] Option to dump directly to file through DataStream for TwoPassPrint functions
 	[!] Async loading of background image (single worker thread?)
-	[!] String interning for tag keys/values
 	[ ] Add notification system from CSwitch
 	[ ] Add confirmation dialog system from CSwitch
+	[ ] Load file(s) as layers
 	[ ] Filter by tags UI, render if filtered items are below limit, save only filtered items
 	[ ] Choose which background image to use
 	[ ] ResizableSplit based on px not percent
-	[ ] Proper hover/selection behavior for ways
 	[ ] Store things in dictionaries based on IDs for quick lookup by ID
 	[ ] Caching system with eviction for vertex buffers
 	[ ] Style rules loaded from file
@@ -35,8 +43,6 @@
 	[ ] Add support for choosing color/thickness/radius of selected items
 	[ ] Select similar nodes by tag value
 	[ ] Group items together (layer is separate from groups?)
-	[ ] Load multiple .osm files and display layers
-	[ ] Proper JIT glyph baking support in fonts
 	[ ] Choose which name(s) to display for all nodes
 	[ ] Space partitioning data structure
 	[ ] Layer management panel (create, destroy, duplicate, move between layers, etc.)

@@ -181,6 +181,13 @@ enum OsmRelationMemberRole
 	OsmRelationMemberRole_BackwardStop,
 	OsmRelationMemberRole_ForwardStop,
 	OsmRelationMemberRole_BusStop,
+	OsmRelationMemberRole_Street,
+	OsmRelationMemberRole_Connector,
+	OsmRelationMemberRole_Outline,
+	OsmRelationMemberRole_Both,
+	OsmRelationMemberRole_Part,
+	OsmRelationMemberRole_Defunct,
+	OsmRelationMemberRole_Device,
 	OsmRelationMemberRole_Count,
 };
 const char* GetOsmRelationMemberRoleStr(OsmRelationMemberRole enumValue)
@@ -216,6 +223,13 @@ const char* GetOsmRelationMemberRoleStr(OsmRelationMemberRole enumValue)
 		case OsmRelationMemberRole_BackwardStop:      return "BackwardStop";
 		case OsmRelationMemberRole_ForwardStop:       return "ForwardStop";
 		case OsmRelationMemberRole_BusStop:           return "BusStop";
+		case OsmRelationMemberRole_Street:            return "Street";
+		case OsmRelationMemberRole_Connector:         return "Connector";
+		case OsmRelationMemberRole_Outline:           return "Outline";
+		case OsmRelationMemberRole_Both:              return "Both";
+		case OsmRelationMemberRole_Part:              return "Part";
+		case OsmRelationMemberRole_Defunct:           return "Defunct";
+		case OsmRelationMemberRole_Device:            return "Device";
 		default: return UNKNOWN_STR;
 	}
 }
@@ -252,6 +266,13 @@ const char* GetOsmRelationMemberRoleXmlStr(OsmRelationMemberRole enumValue)
 		case OsmRelationMemberRole_BackwardStop:      return "backward_stop";
 		case OsmRelationMemberRole_ForwardStop:       return "forward_stop";
 		case OsmRelationMemberRole_BusStop:           return "bus_stop";
+		case OsmRelationMemberRole_Street:            return "street";
+		case OsmRelationMemberRole_Connector:         return "connector";
+		case OsmRelationMemberRole_Outline:           return "outline";
+		case OsmRelationMemberRole_Both:              return "both";
+		case OsmRelationMemberRole_Part:              return "part";
+		case OsmRelationMemberRole_Defunct:           return "defunct";
+		case OsmRelationMemberRole_Device:            return "device";
 		default: return "";
 	}
 }

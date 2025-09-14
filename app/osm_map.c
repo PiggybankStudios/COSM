@@ -397,11 +397,11 @@ void OsmAddFromMap(OsmMap* dstMap, const OsmMap* srcMap)
 		}
 		
 		//Sort the nodes if needed
-		// if (!dstMap->areNodesSorted)
-		// {
-		// 	QuickSortVarArrayUintMember(OsmNode, id, &dstMap->nodes);
-		// 	dstMap->areNodesSorted = true;
-		// }
+		if (!dstMap->areNodesSorted)
+		{
+			QuickSortVarArrayUintMember(OsmNode, id, &dstMap->nodes);
+			dstMap->areNodesSorted = true;
+		}
 		
 		//Update NodeRef pntrs for existing ways since we expanded the node array and it may have been reallocated
 		VarArrayLoop(&dstMap->ways, wIndex)
@@ -455,11 +455,11 @@ void OsmAddFromMap(OsmMap* dstMap, const OsmMap* srcMap)
 		}
 		
 		//Sort the ways if needed
-		// if (!dstMap->areWaysSorted)
-		// {
-		// 	QuickSortVarArrayUintMember(OsmWay, id, &dstMap->ways);
-		// 	dstMap->areWaysSorted = true;
-		// }
+		if (!dstMap->areWaysSorted)
+		{
+			QuickSortVarArrayUintMember(OsmWay, id, &dstMap->ways);
+			dstMap->areWaysSorted = true;
+		}
 		
 		UpdateOsmNodeWayBackPntrs(dstMap);
 		
@@ -527,13 +527,13 @@ void OsmAddFromMap(OsmMap* dstMap, const OsmMap* srcMap)
 				}
 			}
 		}
-		// if (!dstMap->areRelationsSorted)
-		// {
-		// 	QuickSortVarArrayUintMember(OsmRelation, id, &dstMap->relations);
-		// 	dstMap->areRelationsSorted = true;
-		// }
 		
-		UpdateOsmRelationBackPntrs(dstMap);
+		//Sort the relations if needed
+		if (!dstMap->areRelationsSorted)
+		{
+			QuickSortVarArrayUintMember(OsmRelation, id, &dstMap->relations);
+			dstMap->areRelationsSorted = true;
+		}
 		
 		//Update Relation Members that are Relation Type
 		VarArrayLoop(&dstMap->relations, rIndex)
@@ -545,6 +545,8 @@ void OsmAddFromMap(OsmMap* dstMap, const OsmMap* srcMap)
 				if (member->type == OsmRelationMemberType_Relation) { member->relationPntr = FindOsmRelation(dstMap, member->id); }
 			}
 		}
+		
+		UpdateOsmRelationBackPntrs(dstMap);
 	}
 	
 	// +==============================+

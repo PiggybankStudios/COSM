@@ -996,6 +996,7 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 						if (ClayBtn("Close File", "Ctrl+W", true, nullptr))
 						{
 							FreeOsmMap(&app->map);
+							FreeStr8(stdHeap, &app->mapFilePath);
 						} Clay__CloseElement();
 						
 						Clay__CloseElement();

@@ -697,7 +697,7 @@ void UpdateOsmWayTriangulation(OsmMap* map, OsmWay* way)
 			if (nodeRef->pntr == nullptr) { way->attemptedTriangulation = true; TracyCZoneEnd(_TriangulatingWay); return; }
 			polygonVerts[nIndex] = nodeRef->pntr->location;
 		}
-		PrintLine_D("Triangulating way %llu (%llu nodes)", way->id, way->nodes.length);
+		// PrintLine_D("Triangulating way %llu (%llu nodes)", way->id, way->nodes.length);
 		way->triIndices = Triangulate2DEarClipR64(map->arena, numPolygonVerts, polygonVerts, &way->numTriIndices);
 		if (way->triIndices == nullptr)
 		{
@@ -706,9 +706,9 @@ void UpdateOsmWayTriangulation(OsmMap* map, OsmWay* way)
 			{
 				SwapValues(v2d, polygonVerts[vIndex], polygonVerts[numPolygonVerts-1 - vIndex]);
 			}
-			PrintLine_D("Triangulating reversed way %llu (%llu nodes)", way->id, way->nodes.length);
+			// PrintLine_D("Triangulating reversed way %llu (%llu nodes)", way->id, way->nodes.length);
 			way->triIndices = Triangulate2DEarClipR64(map->arena, numPolygonVerts, polygonVerts, &way->numTriIndices);
-			if (way->triIndices == nullptr) { PrintLine_W("Failed to triangulate way %llu", way->id); }
+			if (way->triIndices == nullptr) { PrintLine_W("Failed to triangulate way %llu (%llu nodes)", way->id, way->nodes.length); }
 		}
 		
 		if (way->triIndices != nullptr && way->numTriIndices > 0)

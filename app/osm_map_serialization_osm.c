@@ -353,21 +353,31 @@ Str8 SerializeOsmMap(Arena* arena, OsmMap* map)
 {
 	TwoPassStr8Loop(result, arena, false)
 	{
+		ScratchBegin1(scratch, arena);
 		TwoPassStrNt(&result, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
 		TwoPassStrNt(&result, "<osm version=\"0.6\" generator=\"COSM 1.0\" copyright=\"OpenStreetMap and contributors\" attribution=\"http://www.openstreetmap.org/copyright\" license=\"http://opendatacommons.org/licenses/odbl/1-0/\">\n");
 		
 		v2d boundsMin = NewV2d(MinR64(map->bounds.Lon, map->bounds.Lon + map->bounds.SizeLon), MinR64(map->bounds.Lat, map->bounds.Lat + map->bounds.SizeLat));
 		v2d boundsMax = NewV2d(MaxR64(map->bounds.Lon, map->bounds.Lon + map->bounds.SizeLon), MaxR64(map->bounds.Lat, map->bounds.Lat + map->bounds.SizeLat));
-		TwoPassPrint(&result, "\t<bounds minlat=\"%lf\" minlat=\"%lf\" maxlat=\"%lf\" maxlat=\"%lf\"/>\n", boundsMin.Lat, boundsMin.Lon, boundsMax.Lat, boundsMax.Lon);
+		TwoPassPrint(&result, "\t<bounds minlat=\"%lf\" minlon=\"%lf\" maxlat=\"%lf\" maxlon=\"%lf\"/>\n", boundsMin.Lat, boundsMin.Lon, boundsMax.Lat, boundsMax.Lon);
 		
 		VarArrayLoop(&map->nodes, nIndex)
 		{
 			VarArrayLoopGet(OsmNode, node, &map->nodes, nIndex);
+			uxx scratchMark = ArenaGetMark(scratch);
 			TwoPassPrint(&result, "\t<node id=\"%llu\" visible=\"%s\"", node->id, node->visible ? "true" : "false");
 			if (node->version != 0) { TwoPassPrint(&result, " version=\"%d\"", node->version); }
 			if (node->changeset != 0) { TwoPassPrint(&result, " changeset=\"%llu\"", node->changeset); }
-			if (!IsEmptyStr(node->timestampStr)) { TwoPassPrint(&result, " timestamp=\"%.*s\"", StrPrint(node->timestampStr)); }
-			if (!IsEmptyStr(node->user)) { TwoPassPrint(&result, " user=\"%.*s\"", StrPrint(node->user)); }
+			if (!IsEmptyStr(node->timestampStr))
+			{
+				Str8 escapedTimestampStr = EscapeXmlString(scratch, node->timestampStr, false);
+				TwoPassPrint(&result, " timestamp=\"%.*s\"", StrPrint(escapedTimestampStr));
+			}
+			if (!IsEmptyStr(node->user))
+			{
+				Str8 escapedUser = EscapeXmlString(scratch, node->user, false);
+				TwoPassPrint(&result, " user=\"%.*s\"", StrPrint(escapedUser));
+			}
 			if (node->uid != 0) { TwoPassPrint(&result, " uid=\"%llu\"", node->uid); }
 			TwoPassPrint(&result, " lat=\"%lf\" lon=\"%lf\"", node->location.Lat, node->location.Lon);
 			
@@ -377,22 +387,34 @@ Str8 SerializeOsmMap(Arena* arena, OsmMap* map)
 				VarArrayLoop(&node->tags, tIndex)
 				{
 					VarArrayLoopGet(OsmTag, tag, &node->tags, tIndex);
-					TwoPassPrint(&result, "\t\t<tag k=\"%.*s\" v=\"%.*s\"/>\n", StrPrint(tag->key), StrPrint(tag->value));
+					Str8 escapedKey = EscapeXmlString(scratch, tag->key, false);
+					Str8 escapedValue = EscapeXmlString(scratch, tag->value, false);
+					TwoPassPrint(&result, "\t\t<tag k=\"%.*s\" v=\"%.*s\"/>\n", StrPrint(escapedKey), StrPrint(escapedValue));
 				}
 				TwoPassStrNt(&result, "\t</node>\n");
 			}
 			else { TwoPassStrNt(&result, "/>\n"); }
+			ArenaResetToMark(scratch, scratchMark);
 		}
 		
 		
 		VarArrayLoop(&map->ways, wIndex)
 		{
 			VarArrayLoopGet(OsmWay, way, &map->ways, wIndex);
+			uxx scratchMark = ArenaGetMark(scratch);
 			TwoPassPrint(&result, "\t<way id=\"%llu\" visible=\"%s\"", way->id, way->visible ? "true" : "false");
 			if (way->version != 0) { TwoPassPrint(&result, " version=\"%d\"", way->version); }
 			if (way->changeset != 0) { TwoPassPrint(&result, " changeset=\"%llu\"", way->changeset); }
-			if (!IsEmptyStr(way->timestampStr)) { TwoPassPrint(&result, " timestamp=\"%.*s\"", StrPrint(way->timestampStr)); }
-			if (!IsEmptyStr(way->user)) { TwoPassPrint(&result, " user=\"%.*s\"", StrPrint(way->user)); }
+			if (!IsEmptyStr(way->timestampStr))
+			{
+				Str8 escapedTimestampStr = EscapeXmlString(scratch, way->timestampStr, false);
+				TwoPassPrint(&result, " timestamp=\"%.*s\"", StrPrint(escapedTimestampStr));
+			}
+			if (!IsEmptyStr(way->user))
+			{
+				Str8 escapedUser = EscapeXmlString(scratch, way->user, false);
+				TwoPassPrint(&result, " user=\"%.*s\"", StrPrint(escapedUser));
+			}
 			if (way->uid != 0) { TwoPassPrint(&result, " uid=\"%llu\"", way->uid); }
 			
 			if (way->nodes.length > 0 || way->tags.length > 0)
@@ -406,21 +428,33 @@ Str8 SerializeOsmMap(Arena* arena, OsmMap* map)
 				VarArrayLoop(&way->tags, tIndex)
 				{
 					VarArrayLoopGet(OsmTag, tag, &way->tags, tIndex);
-					TwoPassPrint(&result, "\t\t<tag k=\"%.*s\" v=\"%.*s\"/>\n", StrPrint(tag->key), StrPrint(tag->value));
+					Str8 escapedKey = EscapeXmlString(scratch, tag->key, false);
+					Str8 escapedValue = EscapeXmlString(scratch, tag->value, false);
+					TwoPassPrint(&result, "\t\t<tag k=\"%.*s\" v=\"%.*s\"/>\n", StrPrint(escapedKey), StrPrint(escapedValue));
 				}
 				TwoPassStrNt(&result, "\t</way>\n");
 			}
 			else { TwoPassStrNt(&result, "/>\n"); }
+			ArenaResetToMark(scratch, scratchMark);
 		}
 		
 		VarArrayLoop(&map->relations, rIndex)
 		{
 			VarArrayLoopGet(OsmRelation, relation, &map->relations, rIndex);
+			uxx scratchMark = ArenaGetMark(scratch);
 			TwoPassPrint(&result, "\t<relation id=\"%llu\" visible=\"%s\"", relation->id, relation->visible ? "true" : "false");
 			if (relation->version != 0) { TwoPassPrint(&result, " version=\"%d\"", relation->version); }
 			if (relation->changeset != 0) { TwoPassPrint(&result, " changeset=\"%llu\"", relation->changeset); }
-			if (!IsEmptyStr(relation->timestampStr)) { TwoPassPrint(&result, " timestamp=\"%.*s\"", StrPrint(relation->timestampStr)); }
-			if (!IsEmptyStr(relation->user)) { TwoPassPrint(&result, " user=\"%.*s\"", StrPrint(relation->user)); }
+			if (!IsEmptyStr(relation->timestampStr))
+			{
+				Str8 escapedTimestampStr = EscapeXmlString(scratch, relation->timestampStr, false);
+				TwoPassPrint(&result, " timestamp=\"%.*s\"", StrPrint(escapedTimestampStr));
+			}
+			if (!IsEmptyStr(relation->user))
+			{
+				Str8 escapedUser = EscapeXmlString(scratch, relation->user, false);
+				TwoPassPrint(&result, " user=\"%.*s\"", StrPrint(escapedUser));
+			}
 			if (relation->uid != 0) { TwoPassPrint(&result, " uid=\"%llu\"", relation->uid); }
 			
 			if (relation->members.length > 0 || relation->tags.length > 0)
@@ -429,20 +463,24 @@ Str8 SerializeOsmMap(Arena* arena, OsmMap* map)
 				VarArrayLoop(&relation->members, mIndex)
 				{
 					VarArrayLoopGet(OsmRelationMember, member, &relation->members, mIndex);
-					//TODO: Add role!
-					TwoPassPrint(&result, "\t\t<member type=\"%s\" ref=\"%llu\"/>\n", GetOsmRelationMemberTypeXmlStr(member->type), member->id);
+					TwoPassPrint(&result, "\t\t<member type=\"%s\" ref=\"%llu\" role=\"%s\"/>\n", GetOsmRelationMemberTypeXmlStr(member->type), member->id, GetOsmRelationMemberRoleXmlStr(member->role));
+					//TODO: Check if location information is present, either attach as attributes for single location (for node) or as children (for ways)
 				}
 				VarArrayLoop(&relation->tags, tIndex)
 				{
 					VarArrayLoopGet(OsmTag, tag, &relation->tags, tIndex);
-					TwoPassPrint(&result, "\t\t<tag k=\"%.*s\" v=\"%.*s\"/>\n", StrPrint(tag->key), StrPrint(tag->value));
+					Str8 escapedKey = EscapeXmlString(scratch, tag->key, false);
+					Str8 escapedValue = EscapeXmlString(scratch, tag->value, false);
+					TwoPassPrint(&result, "\t\t<tag k=\"%.*s\" v=\"%.*s\"/>\n", StrPrint(escapedKey), StrPrint(escapedValue));
 				}
 				TwoPassStrNt(&result, "\t</relation>\n");
 			}
 			else { TwoPassStrNt(&result, "/>\n"); }
+			ArenaResetToMark(scratch, scratchMark);
 		}
 		
 		TwoPassStrNt(&result, "</osm>\n");
+		ScratchEnd(scratch);
 		TwoPassStr8LoopEnd(&result);
 	}
 	return result.str;

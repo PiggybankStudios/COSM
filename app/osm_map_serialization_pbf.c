@@ -490,10 +490,26 @@ Result TryParsePbfMap(Arena* arena, DataStream* protobufStream, OsmMap* mapOut)
 							i64 prevMemberId = 0;
 							for (size_t mIndex = 0; mIndex < relation->n_memids; mIndex++)
 							{
-								i32 rolesSid = relation->roles_sid[mIndex];
+								Str8 roleStr = GetPbfString(primitiveBlock->stringtable, relation->roles_sid[mIndex]);
 								i64 memberId = prevMemberId + relation->memids[mIndex];
 								prevMemberId = memberId;
 								OSMPBF__Relation__MemberType memberType = relation->types[mIndex];
+								
+								OsmRelationMemberRole role = OsmRelationMemberRole_None;
+								if (!IsEmptyStr(roleStr))
+								{
+									for (uxx roleIndex = 1; roleIndex < OsmRelationMemberRole_Count; roleIndex++)
+									{
+										const char* roleEnumStrNt = GetOsmRelationMemberRoleXmlStr((OsmRelationMemberRole)roleIndex);
+										if (StrAnyCaseEquals(roleStr, StrLit(roleEnumStrNt)))
+										{
+											role = (OsmRelationMemberRole)roleIndex;
+											break;
+										}
+									}
+									if (role == OsmRelationMemberRole_None) { PrintLine_W("Warning: Uknown role type \"%.*s\" on member[%llu] in relation[%zu] in blob[%llu]", StrPrint(roleStr), mIndex, rIndex, blobIndex); }
+								}
+								
 								if (memberId <= 0) { PrintLine_E("Member[%zu] in Relation[%zu] in blob[%llu] has invalid ID %lld", mIndex, rIndex, blobIndex, memberId); result = Result_InvalidID; break; }
 								else
 								{
@@ -501,7 +517,7 @@ Result TryParsePbfMap(Arena* arena, DataStream* protobufStream, OsmMap* mapOut)
 									NotNull(newMember);
 									ClearPointer(newMember);
 									newMember->id = (u64)memberId;
-									newMember->role = (u32)rolesSid;
+									newMember->role = role;
 									newMember->pntr = nullptr; //We'll look it up later
 									switch (memberType)
 									{
