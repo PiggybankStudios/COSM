@@ -81,7 +81,7 @@ plex AppData
 	bool renderNodes;
 	OsmMap map;
 	bool renderTiles;
-	BktArray mapTiles; //MapTile
+	SparseSetV3i mapTiles; //MapTile
 	MapView view;
 };
 

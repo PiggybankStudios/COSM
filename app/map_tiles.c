@@ -6,15 +6,25 @@ Description:
 	** Holds functions that allow us to download rasterized tiles from tile.openstreetmap.org
 */
 
+typedef plex MapTileHttpContext MapTileHttpContext;
+plex MapTileHttpContext
+{
+	SparseSetV3i* mapTiles;
+	v3i coord;
+};
+
 // +==============================+
 // |     MapTileHttpCallback      |
 // +==============================+
 // void MapTileHttpCallback(plex HttpRequest* request)
 HTTP_CALLBACK_DEF(MapTileHttpCallback)
 {
-	NotNull(request->args.contextPntr);
-	MapTile* mapTile = (MapTile*)request->args.contextPntr;
-	DebugAssert(request->args.contextId == BktArrayGetIndexOf(MapTile, &app->mapTiles, mapTile));
+	MapTileHttpContext* context = (MapTileHttpContext*)request->args.contextPntr;
+	NotNull(context);
+	NotNull(context->mapTiles);
+	MapTile* mapTile = SparseSetV3iGet(MapTile, context->mapTiles, context->coord);
+	NotNull(mapTile);
+	FreeType(MapTileHttpContext, stdHeap, context); context = nullptr;
 	
 	bool wasSuccessful = false;
 	if (request->state != HttpRequestState_Success) { PrintLine_E("Request to download MapTile(%d, %d, %d) failed! Status: %u %s Error: %s", mapTile->coord.X, mapTile->coord.Y, mapTile->coord.Z, request->statusCode, GetHttpStatusCodeDescription(request->statusCode), GetResultStr(request->error)); }
@@ -61,19 +71,21 @@ HTTP_CALLBACK_DEF(MapTileHttpCallback)
 
 void ClearMapTiles()
 {
-	for (uxx tIndex = 0; tIndex < app->mapTiles.length; tIndex++)
+	SparseSetV3iLoop(&app->mapTiles, tIndex)
 	{
-		MapTile* mapTile = BktArrayGet(MapTile, &app->mapTiles, tIndex);
-		FreeStr8(stdHeap, &mapTile->fileName);
-		if (mapTile->isLoaded) { FreeTexture(&mapTile->texture); }
+		SparseSetV3iLoopGet(MapTile, mapTile, &app->mapTiles, tIndex)
+		{
+			FreeStr8(stdHeap, &mapTile->fileName);
+			if (mapTile->isLoaded) { FreeTexture(&mapTile->texture); }
+		}
 	}
-	BktArrayClear(&app->mapTiles, false);
+	SparseSetV3iClear(&app->mapTiles);
 }
 
 void InitMapTiles()
 {
 	ScratchBegin(scratch);
-	InitBktArray(MapTile, &app->mapTiles, stdHeap, 16);
+	InitSparseSetV3i(MapTile, &app->mapTiles, stdHeap);
 	
 	FilePath settingsFolderPath = OsGetSettingsSavePath(scratch, Str8_Empty, StrLit(PROJECT_FOLDER_NAME_STR), false); //TODO: This should really be like a "temporary" folder, not a "settings" folder
 	FilePath tileFolderPath = JoinStringsInArena3(scratch,
@@ -123,7 +135,7 @@ void InitMapTiles()
 			if (IsEmptyStr(xStr) || !TryParseI32(xStr, &coord.X, nullptr)) { continue; }
 			if (IsEmptyStr(yStr) || !TryParseI32(yStr, &coord.Y, nullptr)) { continue; }
 			
-			MapTile* tileOnDisk = BktArrayAdd(MapTile, &app->mapTiles);
+			MapTile* tileOnDisk = SparseSetV3iAdd(MapTile, &app->mapTiles, coord);
 			NotNull(tileOnDisk);
 			ClearPointer(tileOnDisk);
 			tileOnDisk->coord = coord;
@@ -140,15 +152,17 @@ bool EvictUnusedLoadedMapTile()
 {
 	MapTile* oldestTile = nullptr;
 	u64 oldestTileTime = 0;
-	for (uxx tIndex = 0; tIndex < app->mapTiles.length; tIndex++)
+	SparseSetV3iLoop(&app->mapTiles, tIndex)
 	{
-		MapTile* mapTile = BktArrayGet(MapTile, &app->mapTiles, tIndex);
-		if (mapTile->isLoaded)
+		SparseSetV3iLoopGet(MapTile, mapTile, &app->mapTiles, tIndex)
 		{
-			if (oldestTile == nullptr || mapTile->lastUsedTime == 0 || TimeSinceBy(appIn->programTime, mapTile->lastUsedTime) > oldestTileTime)
+			if (mapTile->isLoaded)
 			{
-				oldestTile = mapTile;
-				oldestTileTime = (mapTile->lastUsedTime != 0) ? TimeSinceBy(appIn->programTime, mapTile->lastUsedTime) : UINT64_MAX;
+				if (oldestTile == nullptr || mapTile->lastUsedTime == 0 || TimeSinceBy(appIn->programTime, mapTile->lastUsedTime) > oldestTileTime)
+				{
+					oldestTile = mapTile;
+					oldestTileTime = (mapTile->lastUsedTime != 0) ? TimeSinceBy(appIn->programTime, mapTile->lastUsedTime) : UINT64_MAX;
+				}
 			}
 		}
 	}
@@ -168,13 +182,15 @@ void UpdateMapTiles()
 	uxx numLoaded = 0;
 	uxx numOnDiskUnloaded = 0;
 	uxx numNeedingDownload = 0;
-	for (uxx tIndex = 0; tIndex < app->mapTiles.length; tIndex++)
+	SparseSetV3iLoop(&app->mapTiles, tIndex)
 	{
-		MapTile* mapTile = BktArrayGet(MapTile, &app->mapTiles, tIndex);
-		if (mapTile->isDownloading) { numDownloading++; }
-		if (mapTile->isLoaded) { numLoaded++; }
-		else if (mapTile->isOnDisk) { numOnDiskUnloaded++; }
-		else if (!mapTile->isDownloading && !mapTile->failedToDownload && mapTile->lastUsedTime != 0) { numNeedingDownload++; }
+		SparseSetV3iLoopGet(MapTile, mapTile, &app->mapTiles, tIndex)
+		{
+			if (mapTile->isDownloading) { numDownloading++; }
+			if (mapTile->isLoaded) { numLoaded++; }
+			else if (mapTile->isOnDisk) { numOnDiskUnloaded++; }
+			else if (!mapTile->isDownloading && !mapTile->failedToDownload && mapTile->lastUsedTime != 0) { numNeedingDownload++; }
+		}
 	}
 	
 	while (numLoaded > MAX_LOADED_MAP_TILES)
@@ -185,31 +201,30 @@ void UpdateMapTiles()
 	
 	while (numDownloading < 3)
 	{
-		bool foundMostRecentRequest = false;
 		u64 mostRecentRequestTime = 0;
-		uxx mostRecentRequestIndex = 0;
-		for (uxx tIndex = 0; tIndex < app->mapTiles.length; tIndex++)
+		MapTile* mostRecentRequestTile = 0;
+		SparseSetV3iLoop(&app->mapTiles, tIndex2)
 		{
-			MapTile* mapTile = BktArrayGet(MapTile, &app->mapTiles, tIndex);
-			if (!mapTile->isDownloading && !mapTile->isLoaded && !mapTile->isOnDisk && !mapTile->failedToDownload && mapTile->lastUsedTime != 0)
+			SparseSetV3iLoopGet(MapTile, mapTile, &app->mapTiles, tIndex2)
 			{
-				u64 timeSinceUsed = TimeSinceBy(appIn->programTime, mapTile->lastUsedTime);
-				if (!foundMostRecentRequest || timeSinceUsed < mostRecentRequestTime)
+				if (!mapTile->isDownloading && !mapTile->isLoaded && !mapTile->isOnDisk && !mapTile->failedToDownload && mapTile->lastUsedTime != 0)
 				{
-					mostRecentRequestTime = timeSinceUsed;
-					mostRecentRequestIndex = tIndex;
-					foundMostRecentRequest = true;
+					u64 timeSinceUsed = TimeSinceBy(appIn->programTime, mapTile->lastUsedTime);
+					if (mostRecentRequestTile == nullptr || timeSinceUsed < mostRecentRequestTime)
+					{
+						mostRecentRequestTime = timeSinceUsed;
+						mostRecentRequestTile = mapTile;
+					}
 				}
 			}
 		}
 		
-		if (foundMostRecentRequest)
+		if (mostRecentRequestTile != nullptr)
 		{
 			ScratchBegin(scratch);
-			MapTile* mapTile = BktArrayGet(MapTile, &app->mapTiles, mostRecentRequestIndex);
 			HttpRequestArgs args = ZEROED;
 			args.verb = HttpVerb_GET;
-			args.urlStr = PrintInArenaStr(scratch, OSM_TILE_API_URL_FORMAT_STR, mapTile->coord.Z, mapTile->coord.X, mapTile->coord.Y);
+			args.urlStr = PrintInArenaStr(scratch, OSM_TILE_API_URL_FORMAT_STR, mostRecentRequestTile->coord.Z, mostRecentRequestTile->coord.X, mostRecentRequestTile->coord.Y);
 			Str8Pair headers[] = {
 				{ .key=StrLit("User-Agent"), .value=StrLit(OSM_TILE_API_USER_AGENT) },
 			};
@@ -219,20 +234,22 @@ void UpdateMapTiles()
 			args.numContentItems = 0;
 			args.contentItems = nullptr;
 			args.callback = MapTileHttpCallback;
-			args.contextPntr = mapTile;
-			args.contextId = mostRecentRequestIndex;
+			MapTileHttpContext* callbackContext = AllocType(MapTileHttpContext, stdHeap);
+			callbackContext->mapTiles = &app->mapTiles;
+			callbackContext->coord = mostRecentRequestTile->coord;
+			args.contextPntr = (void*)callbackContext;
 			HttpRequest* newRequest = OsMakeHttpRequest(&app->httpManager, &args, appIn->programTime);
 			if (newRequest != nullptr)
 			{
-				PrintLine_D("Downloading MapTile(%d, %d, %d)...", mapTile->coord.X, mapTile->coord.Y, mapTile->coord.Z);
-				mapTile->isDownloading = true;
-				mapTile->downloadRequestId = newRequest->id;
+				PrintLine_D("Downloading MapTile(%d, %d, %d)...", mostRecentRequestTile->coord.X, mostRecentRequestTile->coord.Y, mostRecentRequestTile->coord.Z);
+				mostRecentRequestTile->isDownloading = true;
+				mostRecentRequestTile->downloadRequestId = newRequest->id;
 				numDownloading++;
 			}
 			else
 			{
-				PrintLine_W("Failed to start request to download MapTile(%d, %d, %d)!", mapTile->coord.X, mapTile->coord.Y, mapTile->coord.Z);
-				mapTile->failedToDownload = true;
+				PrintLine_W("Failed to start request to download MapTile(%d, %d, %d)!", mostRecentRequestTile->coord.X, mostRecentRequestTile->coord.Y, mostRecentRequestTile->coord.Z);
+				mostRecentRequestTile->failedToDownload = true;
 				break;
 			}
 			ScratchEnd(scratch);
@@ -244,19 +261,21 @@ void UpdateMapTiles()
 Texture* GetMapTileTexture(v3i coord, bool loadFromDisk, bool download)
 {
 	MapTile* resultTile = nullptr;
-	for (uxx tIndex = 0; tIndex < app->mapTiles.length; tIndex++)
+	SparseSetV3iLoop(&app->mapTiles, tIndex)
 	{
-		MapTile* mapTile = BktArrayGet(MapTile, &app->mapTiles, tIndex);
-		if (AreEqualV3i(mapTile->coord, coord))
+		SparseSetV3iLoopGet(MapTile, mapTile, &app->mapTiles, tIndex)
 		{
-			resultTile = mapTile;
-			break;
+			if (AreEqualV3i(mapTile->coord, coord))
+			{
+				resultTile = mapTile;
+				break;
+			}
 		}
 	}
 	
 	if (resultTile == nullptr && download)
 	{
-		resultTile = BktArrayAdd(MapTile, &app->mapTiles);
+		resultTile = SparseSetV3iAdd(MapTile, &app->mapTiles, coord);
 		NotNull(resultTile);
 		ClearPointer(resultTile);
 		resultTile->coord = coord;

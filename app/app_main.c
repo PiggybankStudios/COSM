@@ -1167,7 +1167,13 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 										if (app->renderTiles)
 										{
 											uxx numTilesLoaded = 0;
-											for (uxx tIndex = 0; tIndex < app->mapTiles.length; tIndex++) { if ((BktArrayGet(MapTile, &app->mapTiles, tIndex))->isLoaded) { numTilesLoaded++; } }
+											SparseSetV3iLoop(&app->mapTiles, tIndex)
+											{
+												SparseSetV3iLoopGet(MapTile, mapTile, &app->mapTiles, tIndex)
+												{
+													if (mapTile->isLoaded) { numTilesLoaded++; }
+												}
+											}
 											renderTilesStr = PrintInArenaStr(uiArena, "%.*s (%llu/%llu)", StrPrint(renderTilesStr), numTilesLoaded, app->mapTiles.length);
 										}
 										DoUiCheckbox(&uiContext, StrLit("RenderTilesCheckbox"), &app->renderTiles, UI_R32(16), nullptr, renderTilesStr, Dir2_Right, &app->uiFont, app->uiFontSize, UI_FONT_STYLE);
