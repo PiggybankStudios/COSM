@@ -17,15 +17,15 @@
 	[X] Better XML errors in .osm parsing
 	[X] Make parsing tolerant of missing nodes (or at least return an error rather than crashing)
 	[X] Load multiple .osm files
+	[X] Parse .pbf relations
+	[X] Copy and Paste behavior!
 	[ ] Proper hover/selection behavior for ways
 	[ ] Some way to select relations
-	[ ] Copy and Paste behavior!
 	[ ] Combobox widget
 	[ ] Proper JIT glyph baking support in fonts
 	[ ] String interning for tag keys/values
 	[ ] Right click menu widget
 	[ ] Serialize to .pbf
-		[ ] Parse .pbf relations
 		[ ] Parse non-dense nodes in .pbf
 		[ ] Serialize to .pbf
 		[?] Option to dump directly to file through DataStream for TwoPassPrint functions

@@ -580,7 +580,7 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 		uiArena = scratch3;
 		FlagSet(uiArena->flags, ArenaFlag_DontPop);
 		uxx uiArenaMark = ArenaGetMark(uiArena);
-		UiWidgetContext uiContext = NewUiWidgetContext(uiArena, &app->clay, &appIn->keyboard, &appIn->mouse, app->uiScale, &app->uiFocusedElement, CursorShape_Default);
+		UiWidgetContext uiContext = NewUiWidgetContext(uiArena, &app->clay, &appIn->keyboard, &appIn->mouse, app->uiScale, &app->uiFocusedElement, CursorShape_Default, platform->GetNativeWindowHandle());
 		
 		// +==============================+
 		// |          Render Map          |

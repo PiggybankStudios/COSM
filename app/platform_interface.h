@@ -45,7 +45,7 @@ plex AppInput
 // +--------------------------------------------------------------+
 // |                         Platform API                         |
 // +--------------------------------------------------------------+
-#define GET_NATIVE_WINDOW_HANDLE_DEF(functionName) const void* functionName()
+#define GET_NATIVE_WINDOW_HANDLE_DEF(functionName) OsWindowHandle functionName()
 typedef GET_NATIVE_WINDOW_HANDLE_DEF(GetNativeWindowHandle_f);
 
 #define REQUEST_QUIT_DEF(functionName) void functionName()
