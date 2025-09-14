@@ -395,7 +395,7 @@ Result TryParseMapFile(Arena* arena, FilePath filePath, OsmMap* mapOut)
 	return parseResult;
 }
 
-void OpenOsmMap(FilePath filePath)
+void OpenOsmMap(FilePath filePath, bool addToMap)
 {
 	TracyCZoneN(funcZone, "OpenOsmMap", true);
 	ScratchBegin(scratch);
@@ -404,50 +404,25 @@ void OpenOsmMap(FilePath filePath)
 	Result parseResult = TryParseMapFile(scratch, filePath, &newMap);
 	if (parseResult == Result_Success)
 	{
-		FreeStr8(stdHeap, &app->mapFilePath);
-		FreeOsmMap(&app->map);
-		MyMemCopy(&app->map, &newMap, sizeof(OsmMap));
-		app->mapFilePath = AllocStr8(stdHeap, filePath);
 		PrintLine_I("Parsed map! %llu node%s, %llu way%s, %llu relation%s",
-			app->map.nodes.length, Plural(app->map.nodes.length, "s"),
-			app->map.ways.length, Plural(app->map.ways.length, "s"),
-			app->map.relations.length, Plural(app->map.relations.length, "s")
+			newMap.nodes.length, Plural(newMap.nodes.length, "s"),
+			newMap.ways.length, Plural(newMap.ways.length, "s"),
+			newMap.relations.length, Plural(newMap.relations.length, "s")
 		);
-		AppRememberRecentFile(filePath);
 		
-		#if 0
-		if (!IsVarArraySortedUintMember(OsmNode, id, &app->map.nodes))
+		if (addToMap && app->map.arena != nullptr)
 		{
-			TracyCZoneN(_SortOsmNodes, "SortOsmNodes", true);
-			PrintLine_D("Sorting %llu nodes...", app->map.nodes.length);
-			// VarArrayLoop(&app->map.nodes, nIndex) { VarArrayLoopGet(OsmNode, node, &app->map.nodes, nIndex); PrintLine_D("Before Node[%llu]: ID %llu", nIndex, node->id); if (nIndex >= 10) { break; } }
-			QuickSortVarArrayUintMember(OsmNode, id, &app->map.nodes);
-			app->map.areNodesSorted = true;
-			// VarArrayLoop(&app->map.nodes, nIndex) { VarArrayLoopGet(OsmNode, node, &app->map.nodes, nIndex); PrintLine_D("After Node[%llu]: ID %llu", nIndex, node->id); if (nIndex >= 10) { break; } }
-			TracyCZoneEnd(_SortOsmNodes);
-			
-			
-			TracyCZoneN(_FixNodeRefs, "FixNodeRefs", true);
-			VarArrayLoop(&app->map.ways, wIndex)
-			{
-				VarArrayLoopGet(OsmWay, way, &app->map.ways, wIndex);
-				VarArrayLoop(&way->nodes, nIndex)
-				{
-					VarArrayLoopGet(OsmNodeRef, nodeRef, &way->nodes, nIndex);
-					nodeRef->pntr = FindOsmNode(&app->map, nodeRef->id);
-				}
-			}
-			TracyCZoneEnd(_FixNodeRefs);
+			OsmAddFromMap(&app->map, &newMap);
+			FreeOsmMap(&newMap);
 		}
-		else { PrintLine_D("%llu nodes are already sorted!", app->map.nodes.length); }
-		
-		TracyCZoneN(_SortOsmWays, "SortOsmWays", true);
-		PrintLine_D("Sorting %llu ways...", app->map.ways.length);
-		// VarArrayLoop(&app->map.ways, wIndex) { VarArrayLoopGet(OsmWay, way, &app->map.ways, wIndex); PrintLine_D("Before Way[%llu]: ID %llu", wIndex, way->id); if (wIndex >= 10) { break; } }
-		QuickSortVarArrayIntMember(OsmWay, id, &app->map.ways);
-		// VarArrayLoop(&app->map.ways, wIndex) { VarArrayLoopGet(OsmWay, way, &app->map.ways, wIndex); PrintLine_D("After Way[%llu]: ID %llu", wIndex, way->id); if (wIndex >= 10) { break; } }
-		TracyCZoneEnd(_SortOsmWays);
-		#endif
+		else
+		{
+			FreeStr8(stdHeap, &app->mapFilePath);
+			FreeOsmMap(&app->map);
+			MyMemCopy(&app->map, &newMap, sizeof(OsmMap));
+			app->mapFilePath = AllocStr8(stdHeap, filePath);
+		}
+		AppRememberRecentFile(filePath);
 		
 		v2d boundsOnMapTopLeft = MapProject(app->view.projection, app->map.bounds.TopLeft, app->view.mapRec);
 		v2d boundsOnMapBottomRight = MapProject(app->view.projection, AddV2d(app->map.bounds.TopLeft, app->map.bounds.Size), app->view.mapRec);
@@ -626,9 +601,23 @@ void UpdateOsmWayColorChoice(OsmWay* way)
 				#endif
 				
 				Str8 colorStr = GetOsmWayTagValue(way, StrLit("color"), Str8_Empty);
+				if (IsEmptyStr(colorStr)) { colorStr = GetOsmWayTagValue(way, StrLit("colour"), Str8_Empty); }
 				if (!IsEmptyStr(colorStr))
 				{
-					if (TryParseColor(colorStr, &way->fillColor, nullptr)) { way->renderLayer = OsmRenderLayer_Middle; }
+					TryParseColor(colorStr, &way->fillColor, nullptr);
+				}
+				else
+				{
+					VarArrayLoop(&way->relationPntrs, rIndex)
+					{
+						VarArrayLoopGetValue(OsmRelation*, relation, &way->relationPntrs, rIndex);
+						Str8 relationColorStr = GetOsmRelationTagValue(relation, StrLit("color"), Str8_Empty);
+						if (IsEmptyStr(relationColorStr)) { relationColorStr = GetOsmRelationTagValue(relation, StrLit("colour"), Str8_Empty); }
+						if (!IsEmptyStr(relationColorStr))
+						{
+							TryParseColor(relationColorStr, &way->fillColor, nullptr);
+						}
+					}
 				}
 			}
 		}
@@ -669,7 +658,24 @@ void UpdateOsmWayColorChoice(OsmWay* way)
 			Str8 thicknessStr = GetOsmWayTagValue(way, StrLit("thickness"), Str8_Empty);
 			if (!IsEmptyStr(thicknessStr)) { TryParseR32(thicknessStr, &way->lineThickness, nullptr); }
 			Str8 colorStr = GetOsmWayTagValue(way, StrLit("color"), Str8_Empty);
-			if (!IsEmptyStr(colorStr)) { TryParseColor(colorStr, &way->fillColor, nullptr); }
+			if (IsEmptyStr(colorStr)) { colorStr = GetOsmWayTagValue(way, StrLit("colour"), Str8_Empty); }
+			if (!IsEmptyStr(colorStr))
+			{
+				TryParseColor(colorStr, &way->fillColor, nullptr);
+			}
+			else
+			{
+				VarArrayLoop(&way->relationPntrs, rIndex)
+				{
+					VarArrayLoopGetValue(OsmRelation*, relation, &way->relationPntrs, rIndex);
+					Str8 relationColorStr = GetOsmRelationTagValue(relation, StrLit("color"), Str8_Empty);
+					if (IsEmptyStr(relationColorStr)) { relationColorStr = GetOsmRelationTagValue(relation, StrLit("colour"), Str8_Empty); }
+					if (!IsEmptyStr(relationColorStr))
+					{
+						TryParseColor(relationColorStr, &way->fillColor, nullptr);
+					}
+				}
+			}
 		}
 	}
 }

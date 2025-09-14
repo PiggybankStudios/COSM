@@ -168,28 +168,54 @@ enum OsmRelationMemberRole
 	OsmRelationMemberRole_Stop,
 	OsmRelationMemberRole_Via,
 	OsmRelationMemberRole_AdminCentre,
+	OsmRelationMemberRole_Spring,
+	OsmRelationMemberRole_Building,
+	OsmRelationMemberRole_Roof,
+	OsmRelationMemberRole_Station,
+	OsmRelationMemberRole_Entrance,
+	OsmRelationMemberRole_Access,
+	OsmRelationMemberRole_StopEntryOnly,
+	OsmRelationMemberRole_PlatformArea,
+	OsmRelationMemberRole_PlatformEntryOnly,
+	OsmRelationMemberRole_PlatformExitOnly,
+	OsmRelationMemberRole_BackwardStop,
+	OsmRelationMemberRole_ForwardStop,
+	OsmRelationMemberRole_BusStop,
 	OsmRelationMemberRole_Count,
 };
 const char* GetOsmRelationMemberRoleStr(OsmRelationMemberRole enumValue)
 {
 	switch (enumValue)
 	{
-		case OsmRelationMemberRole_None:        return "None";
-		case OsmRelationMemberRole_Outer:       return "Outer";
-		case OsmRelationMemberRole_Inner:       return "Inner";
-		case OsmRelationMemberRole_Label:       return "Label";
-		case OsmRelationMemberRole_North:       return "North";
-		case OsmRelationMemberRole_South:       return "South";
-		case OsmRelationMemberRole_East:        return "East";
-		case OsmRelationMemberRole_West:        return "West";
-		case OsmRelationMemberRole_From:        return "From";
-		case OsmRelationMemberRole_To:          return "To";
-		case OsmRelationMemberRole_Backward:    return "Backward";
-		case OsmRelationMemberRole_Forward:     return "Forward";
-		case OsmRelationMemberRole_Platform:    return "Platform";
-		case OsmRelationMemberRole_Stop:        return "Stop";
-		case OsmRelationMemberRole_Via:         return "Via";
-		case OsmRelationMemberRole_AdminCentre: return "AdminCentre";
+		case OsmRelationMemberRole_None:              return "None";
+		case OsmRelationMemberRole_Outer:             return "Outer";
+		case OsmRelationMemberRole_Inner:             return "Inner";
+		case OsmRelationMemberRole_Label:             return "Label";
+		case OsmRelationMemberRole_North:             return "North";
+		case OsmRelationMemberRole_South:             return "South";
+		case OsmRelationMemberRole_East:              return "East";
+		case OsmRelationMemberRole_West:              return "West";
+		case OsmRelationMemberRole_From:              return "From";
+		case OsmRelationMemberRole_To:                return "To";
+		case OsmRelationMemberRole_Backward:          return "Backward";
+		case OsmRelationMemberRole_Forward:           return "Forward";
+		case OsmRelationMemberRole_Platform:          return "Platform";
+		case OsmRelationMemberRole_Stop:              return "Stop";
+		case OsmRelationMemberRole_Via:               return "Via";
+		case OsmRelationMemberRole_AdminCentre:       return "AdminCentre";
+		case OsmRelationMemberRole_Spring:            return "Spring";
+		case OsmRelationMemberRole_Building:          return "Building";
+		case OsmRelationMemberRole_Roof:              return "Roof";
+		case OsmRelationMemberRole_Station:           return "Station";
+		case OsmRelationMemberRole_Entrance:          return "Entrance";
+		case OsmRelationMemberRole_Access:            return "Access";
+		case OsmRelationMemberRole_StopEntryOnly:     return "StopEntryOnly";
+		case OsmRelationMemberRole_PlatformArea:      return "PlatformArea";
+		case OsmRelationMemberRole_PlatformEntryOnly: return "PlatformEntryOnly";
+		case OsmRelationMemberRole_PlatformExitOnly:  return "PlatformExitOnly";
+		case OsmRelationMemberRole_BackwardStop:      return "BackwardStop";
+		case OsmRelationMemberRole_ForwardStop:       return "ForwardStop";
+		case OsmRelationMemberRole_BusStop:           return "BusStop";
 		default: return UNKNOWN_STR;
 	}
 }
@@ -198,21 +224,34 @@ const char* GetOsmRelationMemberRoleXmlStr(OsmRelationMemberRole enumValue)
 {
 	switch (enumValue)
 	{
-		case OsmRelationMemberRole_Outer:       return "outer";
-		case OsmRelationMemberRole_Inner:       return "inner";
-		case OsmRelationMemberRole_Label:       return "label";
-		case OsmRelationMemberRole_North:       return "north";
-		case OsmRelationMemberRole_South:       return "south";
-		case OsmRelationMemberRole_East:        return "east";
-		case OsmRelationMemberRole_West:        return "west";
-		case OsmRelationMemberRole_From:        return "from";
-		case OsmRelationMemberRole_To:          return "to";
-		case OsmRelationMemberRole_Backward:    return "backward";
-		case OsmRelationMemberRole_Forward:     return "forward";
-		case OsmRelationMemberRole_Platform:    return "platform";
-		case OsmRelationMemberRole_Stop:        return "stop";
-		case OsmRelationMemberRole_Via:         return "via";
-		case OsmRelationMemberRole_AdminCentre: return "admin_centre";
+		case OsmRelationMemberRole_Outer:             return "outer";
+		case OsmRelationMemberRole_Inner:             return "inner";
+		case OsmRelationMemberRole_Label:             return "label";
+		case OsmRelationMemberRole_North:             return "north";
+		case OsmRelationMemberRole_South:             return "south";
+		case OsmRelationMemberRole_East:              return "east";
+		case OsmRelationMemberRole_West:              return "west";
+		case OsmRelationMemberRole_From:              return "from";
+		case OsmRelationMemberRole_To:                return "to";
+		case OsmRelationMemberRole_Backward:          return "backward";
+		case OsmRelationMemberRole_Forward:           return "forward";
+		case OsmRelationMemberRole_Platform:          return "platform";
+		case OsmRelationMemberRole_Stop:              return "stop";
+		case OsmRelationMemberRole_Via:               return "via";
+		case OsmRelationMemberRole_AdminCentre:       return "admin_centre";
+		case OsmRelationMemberRole_Spring:            return "spring";
+		case OsmRelationMemberRole_Building:          return "building";
+		case OsmRelationMemberRole_Roof:              return "roof";
+		case OsmRelationMemberRole_Station:           return "station";
+		case OsmRelationMemberRole_Entrance:          return "entrance";
+		case OsmRelationMemberRole_Access:            return "access";
+		case OsmRelationMemberRole_StopEntryOnly:     return "stop_entry_only";
+		case OsmRelationMemberRole_PlatformArea:      return "platform_area";
+		case OsmRelationMemberRole_PlatformEntryOnly: return "platform_entry_only";
+		case OsmRelationMemberRole_PlatformExitOnly:  return "platform_exit_only";
+		case OsmRelationMemberRole_BackwardStop:      return "backward_stop";
+		case OsmRelationMemberRole_ForwardStop:       return "forward_stop";
+		case OsmRelationMemberRole_BusStop:           return "bus_stop";
 		default: return "";
 	}
 }

@@ -175,7 +175,7 @@ EXPORT_FUNC APP_INIT_DEF(AppInit)
 	InitMapView(&app->view, MapProjection_Mercator);
 	
 	#if 0
-	OpenOsmMap(StrLit(TEST_OSM_FILE));
+	OpenOsmMap(StrLit(TEST_OSM_FILE), false);
 	#else
 	bool wasCmdPathGiven = false;
 	//NOTE: Not really sure if we need to handle multiple argument paths being passed.
@@ -188,7 +188,7 @@ EXPORT_FUNC APP_INIT_DEF(AppInit)
 		wasCmdPathGiven = true;
 		if (OsDoesFileExist(pathArgument))
 		{
-			OpenOsmMap(pathArgument);
+			OpenOsmMap(pathArgument, false);
 			break;
 		}
 		else
@@ -202,7 +202,7 @@ EXPORT_FUNC APP_INIT_DEF(AppInit)
 	if (!wasCmdPathGiven && app->recentFiles.length > 0)
 	{
 		RecentFile* mostRecentFile = VarArrayGetLast(RecentFile, &app->recentFiles);
-		OpenOsmMap(mostRecentFile->path);
+		OpenOsmMap(mostRecentFile->path, false);
 	}
 	#endif
 	
@@ -302,11 +302,12 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 		// +==============================+
 		// |     Handle Dropped Files     |
 		// +==============================+
+		//TODO: Handle multiple drops as opening 1 and then adding the rest on top
 		if (appIn->droppedFilePaths.length == 1)
 		{
 			Str8 droppedFilePath = VarArrayGetFirstValue(Str8, &appIn->droppedFilePaths);
 			PrintLine_I("Opening dropped file: \"%.*s\"", StrPrint(droppedFilePath));
-			OpenOsmMap(droppedFilePath);
+			OpenOsmMap(droppedFilePath, false);
 			isOverDisplayLimit = (app->map.nodes.length > DISPLAY_NODE_COUNT_LIMIT || app->map.ways.length > DISPLAY_WAY_COUNT_LIMIT);
 		}
 		
@@ -373,7 +374,7 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 		// +==================================+
 		if (IsKeyboardKeyDown(&appIn->keyboard, Key_Control) && IsKeyboardKeyDown(&appIn->keyboard, Key_Shift) && IsKeyboardKeyPressed(&appIn->keyboard, Key_O, false))
 		{
-			OpenOsmMap(StrLit(TEST_OSM_FILE));
+			OpenOsmMap(StrLit(TEST_OSM_FILE), false);
 			isOverDisplayLimit = (app->map.nodes.length > DISPLAY_NODE_COUNT_LIMIT || app->map.ways.length > DISPLAY_WAY_COUNT_LIMIT);
 		}
 		
@@ -612,6 +613,7 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 			// +==============================+
 			if (app->renderTiles)
 			{
+				const Color32 tileColor = {.r=100, .g=100, .b=100, .a=255};
 				v2 tileScreenSize = V2_Zero;
 				tileScreenSize.Width = (r32)(mapScreenRec.Width/(r64)tileGridSize);
 				tileScreenSize.Height = (r32)(mapScreenRec.Height/(r64)tileGridSize);
@@ -640,7 +642,7 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 							if (tileTexture != nullptr)
 							{
 								TracyCZoneN(_DrawTexturedRectangle, "DrawTexturedRectangle", true);
-								DrawTexturedRectangle(tileRec, White, tileTexture);
+								DrawTexturedRectangle(tileRec, tileColor, tileTexture);
 								TracyCZoneEnd(_DrawTexturedRectangle);
 							}
 							else
@@ -674,7 +676,7 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 										(256.0f / (r32)innerGridSize), (256.0f / (r32)innerGridSize)
 									);
 									TracyCZoneN(_DrawTexturedRectangle2, "DrawTexturedRectangle2", true);
-									DrawTexturedRectangleEx(tileRec, White, tileTexture, sourceRec);
+									DrawTexturedRectangleEx(tileRec, tileColor, tileTexture, sourceRec);
 									TracyCZoneEnd(_DrawTexturedRectangle2);
 								}
 							}
@@ -780,7 +782,7 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 			// +==============================+
 			// |         Render Nodes         |
 			// +==============================+
-			if (!isOverDisplayLimit)
+			if (!isOverDisplayLimit && false)
 			{
 				TracyCZoneN(_RenderNodes, "RenderNodes", true);
 				VarArrayLoop(&app->map.nodes, nIndex)
@@ -790,9 +792,11 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 						node->location.Lon >= viewableLongitude.min && node->location.Lat >= viewableLatitude.min)
 					{
 						Str8 populationStr = GetOsmNodeTagValue(node, StrLit("population"), Str8_Empty);
+						Str8 railwayStr = GetOsmNodeTagValue(node, StrLit("railway"), Str8_Empty);
 						u64 population = 0; TryParseU64(populationStr, &population, nullptr);
 						r32 populationLerp = InverseLerpClampR32(Thousand(50), Thousand(500), (r32)population);
 						r32 radius = (!IsEmptyStr(populationStr)) ? LerpR32(1.0, 10.0f, populationLerp) : 0.0f;
+						if (radius == 0.0f && StrAnyCaseEquals(railwayStr, StrLit("stop"))) { radius = 5.0f; }
 						if (app->map.ways.length == 0 && radius == 0.0f) { radius = 1.0f; } //Show all nodes when now ways were found
 						if (app->renderNodes && radius == 0.0f && node->wayPntrs.length == 0) { radius = 1.0f; } //Show nodes that aren't part of ways
 						
@@ -910,7 +914,8 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 					// +==============================+
 					if (ClayTopBtn("File", showMenuHotkeys, &app->isFileMenuOpen, &app->keepFileMenuOpenUntilMouseOver, app->isOpenRecentSubmenuOpen))
 					{
-						if (ClayBtn("Open" UNICODE_ELLIPSIS_STR, "Ctrl+O", true, nullptr))
+						bool isAdding = IsKeyboardKeyDown(&appIn->keyboard, Key_Shift);
+						if (ClayBtn(isAdding ? "Add" UNICODE_ELLIPSIS_STR : "Open" UNICODE_ELLIPSIS_STR, "Ctrl+O", true, nullptr))
 						{
 							FilePath selectedFilePath = FilePath_Empty;
 							TracyCZoneN(Zone_OsOpenFileDialog, "OsDoOpenFileDialog", true);
@@ -918,7 +923,7 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 							TracyCZoneEnd(Zone_OsOpenFileDialog);
 							if (openResult == Result_Success)
 							{
-								OpenOsmMap(selectedFilePath);
+								OpenOsmMap(selectedFilePath, isAdding);
 								isOverDisplayLimit = (app->map.nodes.length > DISPLAY_NODE_COUNT_LIMIT || app->map.ways.length > DISPLAY_WAY_COUNT_LIMIT);
 							}
 							else if (openResult != Result_Canceled) { PrintLine_E("OpenFileDialog failed: %s", GetResultStr(openResult)); }
@@ -933,9 +938,10 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 									RecentFile* recentFile = VarArrayGet(RecentFile, &app->recentFiles, rIndex-1);
 									Str8 displayPath = GetUniqueRecentFilePath(recentFile->path);
 									bool isOpenFile = StrAnyCaseEquals(app->mapFilePath, recentFile->path);
-									if (ClayBtnStrEx(recentFile->path, AllocStr8(uiArena, displayPath), StrLit(""), !isOpenFile && recentFile->fileExists, nullptr))
+									Str8 displayStr = isAdding ? JoinStringsInArena(uiArena, StrLit("Add "), displayPath, false) : AllocStr8(uiArena, displayPath);
+									if (ClayBtnStrEx(recentFile->path, displayStr, StrLit(""), !isOpenFile && recentFile->fileExists, nullptr))
 									{
-										OpenOsmMap(recentFile->path);
+										OpenOsmMap(recentFile->path, isAdding);
 										isOverDisplayLimit = (app->map.nodes.length > DISPLAY_NODE_COUNT_LIMIT || app->map.ways.length > DISPLAY_WAY_COUNT_LIMIT);
 										app->isOpenRecentSubmenuOpen = false;
 										app->isFileMenuOpen = false;

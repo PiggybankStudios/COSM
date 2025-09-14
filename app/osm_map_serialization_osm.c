@@ -274,7 +274,7 @@ Result TryParseOsmMap(Arena* arena, Str8 xmlFileContents, OsmMap* mapOut)
 							break;
 						}
 					}
-					if (role == OsmRelationMemberRole_None) { xml.error = Result_InvalidRole; xml.errorStr = roleStr; xml.errorElement = xmlRelation; break; }
+					if (role == OsmRelationMemberRole_None) { PrintLine_W("Warning: Unknown role type \"%.*s\" on member[%llu] in relation %llu", StrPrint(roleStr), newRelation->members.length, newRelation->id); }
 				}
 				
 				OsmRelationMember* newMember = VarArrayAdd(OsmRelationMember, &newRelation->members);

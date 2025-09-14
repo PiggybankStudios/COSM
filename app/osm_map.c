@@ -356,3 +356,207 @@ Str8 GetOsmRelationTagValue(OsmRelation* relation, Str8 tagKey, Str8 defaultValu
 	}
 	return defaultValue;
 }
+
+void OsmAddFromMap(OsmMap* dstMap, const OsmMap* srcMap)
+{
+	dstMap->bounds = BothRecd(dstMap->bounds, srcMap->bounds);
+	
+	// +==============================+
+	// |          Add Nodes           |
+	// +==============================+
+	{
+		VarArrayExpand(&dstMap->nodes, dstMap->nodes.length + srcMap->nodes.length);
+		
+		u64 prevNodeId = 0;
+		if (dstMap->nodes.length > 0) { prevNodeId = VarArrayGetLast(OsmNode, &dstMap->nodes)->id; }
+		VarArrayLoop(&srcMap->nodes, nIndex)
+		{
+			VarArrayLoopGet(OsmNode, srcNode, &srcMap->nodes, nIndex);
+			OsmNode* existingNode = FindOsmNode(dstMap, srcNode->id);
+			if (existingNode == nullptr)
+			{
+				if (srcNode->id <= prevNodeId) { dstMap->areNodesSorted = false; }
+				prevNodeId = srcNode->id;
+				OsmNode* dstNode = AddOsmNode(dstMap, srcNode->location, srcNode->id);
+				NotNull(dstNode);
+				dstNode->visible = srcNode->visible;
+				dstNode->version = srcNode->version;
+				dstNode->changeset = srcNode->changeset;
+				dstNode->timestampStr = (!IsEmptyStr(srcNode->timestampStr) ? AllocStr8(dstMap->arena, srcNode->timestampStr) : Str8_Empty);
+				dstNode->user = (!IsEmptyStr(srcNode->user) ? AllocStr8(dstMap->arena, srcNode->user) : Str8_Empty);
+				dstNode->uid = srcNode->uid;
+				VarArrayLoop(&srcNode->tags, tIndex)
+				{
+					VarArrayLoopGet(OsmTag, srcTag, &srcNode->tags, tIndex);
+					OsmTag* dstTag = VarArrayAdd(OsmTag, &dstNode->tags);
+					NotNull(dstTag);
+					dstTag->key = AllocStr8(dstMap->arena, srcTag->key);
+					dstTag->value = AllocStr8(dstMap->arena, srcTag->value);
+				}
+			}
+		}
+		
+		//Sort the nodes if needed
+		// if (!dstMap->areNodesSorted)
+		// {
+		// 	QuickSortVarArrayUintMember(OsmNode, id, &dstMap->nodes);
+		// 	dstMap->areNodesSorted = true;
+		// }
+		
+		//Update NodeRef pntrs for existing ways since we expanded the node array and it may have been reallocated
+		VarArrayLoop(&dstMap->ways, wIndex)
+		{
+			VarArrayLoopGet(OsmWay, way, &dstMap->ways, wIndex);
+			VarArrayLoop(&way->nodes, nIndex)
+			{
+				VarArrayLoopGet(OsmNodeRef, nodeRef, &way->nodes, nIndex);
+				nodeRef->pntr = FindOsmNode(dstMap, nodeRef->id);
+			}
+		}
+	}
+	
+	// +==============================+
+	// |           Add Ways           |
+	// +==============================+
+	{
+		VarArrayExpand(&dstMap->ways, dstMap->ways.length + srcMap->ways.length);
+		
+		u64 prevWayId = 0;
+		if (dstMap->ways.length > 0) { prevWayId = VarArrayGetLast(OsmWay, &dstMap->ways)->id; }
+		VarArrayLoop(&srcMap->ways, wIndex)
+		{
+			VarArrayLoopGet(OsmWay, srcWay, &srcMap->ways, wIndex);
+			OsmWay* existingWay = FindOsmWay(dstMap, srcWay->id);
+			if (existingWay == nullptr)
+			{
+				if (srcWay->id <= prevWayId) { dstMap->areWaysSorted = false; }
+				prevWayId = srcWay->id;
+				ScratchBegin1(scratch, dstMap->arena);
+				u64* nodeIds = (srcWay->nodes.length > 0) ? AllocArray(u64, scratch, srcWay->nodes.length) : nullptr;
+				VarArrayLoop(&srcWay->nodes, nIndex) { VarArrayLoopGet(OsmNodeRef, nodeRef, &srcWay->nodes, nIndex); nodeIds[nIndex] = nodeRef->id; }
+				OsmWay* dstWay = AddOsmWay(dstMap, srcWay->id, srcWay->nodes.length, nodeIds);
+				ScratchEnd(scratch);
+				NotNull(dstWay);
+				dstWay->visible = srcWay->visible;
+				dstWay->version = srcWay->version;
+				dstWay->changeset = srcWay->changeset;
+				dstWay->timestampStr = (!IsEmptyStr(srcWay->timestampStr) ? AllocStr8(dstMap->arena, srcWay->timestampStr) : Str8_Empty);
+				dstWay->user = (!IsEmptyStr(srcWay->user) ? AllocStr8(dstMap->arena, srcWay->user) : Str8_Empty);
+				dstWay->uid = srcWay->uid;
+				VarArrayLoop(&srcWay->tags, tIndex)
+				{
+					VarArrayLoopGet(OsmTag, srcTag, &srcWay->tags, tIndex);
+					OsmTag* dstTag = VarArrayAdd(OsmTag, &dstWay->tags);
+					NotNull(dstTag);
+					dstTag->key = AllocStr8(dstMap->arena, srcTag->key);
+					dstTag->value = AllocStr8(dstMap->arena, srcTag->value);
+				}
+			}
+		}
+		
+		//Sort the ways if needed
+		// if (!dstMap->areWaysSorted)
+		// {
+		// 	QuickSortVarArrayUintMember(OsmWay, id, &dstMap->ways);
+		// 	dstMap->areWaysSorted = true;
+		// }
+		
+		UpdateOsmNodeWayBackPntrs(dstMap);
+		
+		//Update Relation Member Pntrs
+		VarArrayLoop(&dstMap->relations, rIndex)
+		{
+			VarArrayLoopGet(OsmRelation, relation, &dstMap->relations, rIndex);
+			VarArrayLoop(&relation->members, mIndex)
+			{
+				VarArrayLoopGet(OsmRelationMember, member, &relation->members, mIndex);
+				if (member->type == OsmRelationMemberType_Node) { member->nodePntr = FindOsmNode(dstMap, member->id); }
+				else if (member->type == OsmRelationMemberType_Way) { member->wayPntr = FindOsmWay(dstMap, member->id); }
+				else if (member->type == OsmRelationMemberType_Relation) { /*member->relationPntr = FindOsmRelation(dstMap, member->id);*/ } //NOTE: We'll do this for all relations later, after we've added the new ones
+				else { Assert(false); }
+			}
+		}
+	}
+	
+	// +==============================+
+	// |        Add Relations         |
+	// +==============================+
+	{
+		VarArrayExpand(&dstMap->relations, dstMap->relations.length + srcMap->relations.length);
+		
+		u64 prevRelationId = 0;
+		if (dstMap->relations.length > 0) { prevRelationId = VarArrayGetLast(OsmRelation, &dstMap->relations)->id; }
+		VarArrayLoop(&srcMap->relations, rIndex)
+		{
+			VarArrayLoopGet(OsmRelation, srcRelation, &srcMap->relations, rIndex);
+			OsmRelation* existingRelation = FindOsmRelation(dstMap, srcRelation->id);
+			if (existingRelation == nullptr)
+			{
+				if (srcRelation->id <= prevRelationId) { dstMap->areRelationsSorted = false; }
+				prevRelationId = srcRelation->id;
+				OsmRelation* dstRelation = AddOsmRelation(dstMap, srcRelation->id, srcRelation->members.length);
+				NotNull(dstRelation);
+				dstRelation->visible = srcRelation->visible;
+				dstRelation->version = srcRelation->version;
+				dstRelation->changeset = srcRelation->changeset;
+				dstRelation->timestampStr = (!IsEmptyStr(srcRelation->timestampStr) ? AllocStr8(dstMap->arena, srcRelation->timestampStr) : Str8_Empty);
+				dstRelation->user = (!IsEmptyStr(srcRelation->user) ? AllocStr8(dstMap->arena, srcRelation->user) : Str8_Empty);
+				dstRelation->uid = srcRelation->uid;
+				VarArrayLoop(&srcRelation->members, mIndex)
+				{
+					VarArrayLoopGet(OsmRelationMember, srcMember, &srcRelation->members, mIndex);
+					OsmRelationMember* dstMember = VarArrayAdd(OsmRelationMember, &dstRelation->members);
+					NotNull(dstMember);
+					ClearPointer(dstMember);
+					dstMember->id = srcMember->id;
+					dstMember->type = srcMember->type;
+					dstMember->role = srcMember->role;
+					//TODO: Copy the locations!
+					if (dstMember->type == OsmRelationMemberType_Node) { dstMember->nodePntr = FindOsmNode(dstMap, dstMember->id); }
+					else if (dstMember->type == OsmRelationMemberType_Way) { dstMember->wayPntr = FindOsmWay(dstMap, dstMember->id); }
+					else if (dstMember->type == OsmRelationMemberType_Relation) { /*dstMember->relationPntr = FindOsmRelation(dstMap, dstMember->id);*/ } //NOTE: We'll do this for all relations later, after we've added the new ones
+					else { Assert(false); }
+				}
+				VarArrayLoop(&srcRelation->tags, tIndex)
+				{
+					VarArrayLoopGet(OsmTag, srcTag, &srcRelation->tags, tIndex);
+					OsmTag* dstTag = VarArrayAdd(OsmTag, &dstRelation->tags);
+					NotNull(dstTag);
+					dstTag->key = AllocStr8(dstMap->arena, srcTag->key);
+					dstTag->value = AllocStr8(dstMap->arena, srcTag->value);
+				}
+			}
+		}
+		// if (!dstMap->areRelationsSorted)
+		// {
+		// 	QuickSortVarArrayUintMember(OsmRelation, id, &dstMap->relations);
+		// 	dstMap->areRelationsSorted = true;
+		// }
+		
+		UpdateOsmRelationBackPntrs(dstMap);
+		
+		//Update Relation Members that are Relation Type
+		VarArrayLoop(&dstMap->relations, rIndex)
+		{
+			VarArrayLoopGet(OsmRelation, relation, &dstMap->relations, rIndex);
+			VarArrayLoop(&relation->members, mIndex)
+			{
+				VarArrayLoopGet(OsmRelationMember, member, &relation->members, mIndex);
+				if (member->type == OsmRelationMemberType_Relation) { member->relationPntr = FindOsmRelation(dstMap, member->id); }
+			}
+		}
+	}
+	
+	// +==============================+
+	// |    Update Selection Pntrs    |
+	// +==============================+
+	{
+		VarArrayLoop(&dstMap->selectedItems, sIndex)
+		{
+			VarArrayLoopGet(OsmSelectedItem, selectedItem, &dstMap->selectedItems, sIndex);
+			if (selectedItem->type == OsmPrimitiveType_Node) { selectedItem->nodePntr = FindOsmNode(dstMap, selectedItem->id); }
+			else if (selectedItem->type == OsmPrimitiveType_Way) { selectedItem->wayPntr = FindOsmWay(dstMap, selectedItem->id); }
+			else { Assert(false); }
+		}
+	}
+}

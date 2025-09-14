@@ -1,12 +1,14 @@
 // raddbg 0.9.21 project file
 
-recent_file: path: "core/struct/struct_sparse_sets.h"
+recent_file: path: "app/osm_map.c"
+recent_file: path: "core/misc/misc_sorting.h"
+recent_file: path: "core/cross/cross_sorting_and_var_array.h"
 recent_file: path: "core/misc/misc_poly_simplify.h"
 recent_file: path: "app/app_helpers.c"
-recent_file: path: "core/struct/struct_vectors.h"
 recent_file: path: "app/app_main.c"
+recent_file: path: "core/struct/struct_sparse_sets.h"
+recent_file: path: "core/struct/struct_vectors.h"
 recent_file: path: "core/struct/struct_var_array.h"
-recent_file: path: "app/osm_map.c"
 recent_file: path: "app/osm_map_serialization_osm.c"
 recent_file: path: "core/misc/misc_printing.h"
 recent_file: path: "app/map_tiles.c"
@@ -57,10 +59,4 @@ type_view:
 {
   type: SimpPolyVertR64
   expr: "rows($, $.state, $.pos)"
-}
-breakpoint:
-{
-  source_location: "core/misc/misc_poly_simplify.h:184:1"
-  hit_count: 0
-  enabled: 1
 }
