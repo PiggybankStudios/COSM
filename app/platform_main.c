@@ -313,12 +313,14 @@ void PlatSappEvent(const sapp_event* event)
 	
 	if (platformData->currentAppInput != nullptr)
 	{
-		handledEvent = HandleSokolKeyboardAndMouseEvents(
+		// bool HandleSokolKeyboardMouseAndTouchEvents(const sapp_event* event, u64 currentTime, v2i screenSize, KeyboardState* keyboard, MouseState* mouse, TouchscreenState* touchscreen, bool isMouseLocked)
+		handledEvent = HandleSokolKeyboardMouseAndTouchEvents(
 			event,
 			platformData->currentAppInput->programTime, //TODO: Calculate a more accurate programTime to pass here!
 			platformData->currentAppInput->screenSize,
 			&platformData->currentAppInput->keyboard,
 			&platformData->currentAppInput->mouse,
+			nullptr,
 			sapp_mouse_locked()
 		);
 	}

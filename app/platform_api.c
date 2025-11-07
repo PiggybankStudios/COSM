@@ -12,7 +12,7 @@ Description:
 // OsWindowHandle GetNativeWindowHandle()
 GET_NATIVE_WINDOW_HANDLE_DEF(Plat_GetNativeWindowHandle)
 {
-	OsWindowHandle result = nullptr;
+	OsWindowHandle result = OsWindowHandleEmpty;
 	#if TARGET_IS_WINDOWS
 	{
 		#if BUILD_WITH_SOKOL_APP

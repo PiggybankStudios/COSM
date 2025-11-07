@@ -26,6 +26,7 @@ Description:
 #include "tools/tools_pdc_flags.h"
 
 #include "tools/tools_build_helpers.h"
+#include "tools/tools_android_build_helpers.h"
 #include "tools/tools_pig_core_build_flags.h"
 
 //NOTE: We use miniz.h when BUNDLE_RESOURCES_ZIP is enabled
@@ -40,6 +41,7 @@ Description:
 #define FOLDERNAME_GENERATED_CODE  "gen"
 #define FOLDERNAME_LINUX           "linux"
 #define FOLDERNAME_OSX             "osx"
+#define FOLDERNAME_ANDROID         "android"
 
 #define FILENAME_RESOURCES_ZIP     "resources.zip"
 #define FILENAME_PIGGEN_EXE        "piggen.exe"
@@ -147,6 +149,7 @@ int main(int argc, char* argv[])
 	bool BUILD_WINDOWS            = ExtractBoolDefine(buildConfigContents, StrLit("BUILD_WINDOWS"));
 	bool BUILD_LINUX              = ExtractBoolDefine(buildConfigContents, StrLit("BUILD_LINUX"));
 	bool BUILD_OSX                = ExtractBoolDefine(buildConfigContents, StrLit("BUILD_OSX"));
+	bool BUILD_ANDROID            = ExtractBoolDefine(buildConfigContents, StrLit("BUILD_ANDROID"));
 	bool BUILD_TRACY_DLL          = ExtractBoolDefine(buildConfigContents, StrLit("BUILD_TRACY_DLL"));
 	bool PROFILING_ENABLED        = ExtractBoolDefine(buildConfigContents, StrLit("PROFILING_ENABLED"));
 	bool BUILD_SHADERS            = ExtractBoolDefine(buildConfigContents, StrLit("BUILD_SHADERS"));
@@ -173,6 +176,17 @@ int main(int argc, char* argv[])
 	bool BUILD_WITH_PHYSX         = ExtractBoolDefine(buildConfigContents, StrLit("BUILD_WITH_PHYSX"));
 	bool BUILD_WITH_HTTP          = ExtractBoolDefine(buildConfigContents, StrLit("BUILD_WITH_HTTP"));
 	bool BUILD_WITH_PROTOBUF      = ExtractBoolDefine(buildConfigContents, StrLit("BUILD_WITH_PROTOBUF"));
+	bool BUILD_WITH_FREETYPE      = ExtractBoolDefine(buildConfigContents, StrLit("BUILD_WITH_FREETYPE"));
+	
+	Str8 ANDROID_SIGNING_KEY_PATH = CopyStr8(ExtractStrDefine(buildConfigContents, StrLit("ANDROID_SIGNING_KEY_PATH")), false);
+	Str8 ANDROID_SIGNING_PASSWORD = ZEROED;
+	if (TryExtractDefineFrom(buildConfigContents, StrLit("ANDROID_SIGNING_PASSWORD"), &ANDROID_SIGNING_PASSWORD)) { ANDROID_SIGNING_PASSWORD = CopyStr8(ANDROID_SIGNING_PASSWORD, false); }
+	Str8 ANDROID_SIGNING_PASS_PATH = ZEROED;
+	if (TryExtractDefineFrom(buildConfigContents, StrLit("ANDROID_SIGNING_PASS_PATH"), &ANDROID_SIGNING_PASS_PATH)) { ANDROID_SIGNING_PASS_PATH = CopyStr8(ANDROID_SIGNING_PASS_PATH, false); }
+	Str8 ANDROID_NDK_VERSION = CopyStr8(ExtractStrDefine(buildConfigContents, StrLit("ANDROID_NDK_VERSION")), false);
+	Str8 ANDROID_PLATFORM_FOLDERNAME = CopyStr8(ExtractStrDefine(buildConfigContents, StrLit("ANDROID_PLATFORM_FOLDERNAME")), false);
+	Str8 ANDROID_BUILD_TOOLS_VERSION = CopyStr8(ExtractStrDefine(buildConfigContents, StrLit("ANDROID_BUILD_TOOLS_VERSION")), false);
+	Str8 ANDROID_ACTIVITY_PATH = CopyStr8(ExtractStrDefine(buildConfigContents, StrLit("ANDROID_ACTIVITY_PATH")), false);
 	
 	free(buildConfigContents.chars);
 	
@@ -207,12 +221,33 @@ int main(int argc, char* argv[])
 	}
 	
 	// +==============================+
+	// |        Find SDK Paths        |
+	// +==============================+
+	Str8 androidSdkDir = ZEROED;
+	Str8 androidSdkBuildToolsDir = ZEROED;
+	Str8 androidSdkPlatformDir = ZEROED;
+	Str8 androidNdkDir = ZEROED;
+	Str8 androidNdkToolchainDir = ZEROED;
+	if (BUILD_ANDROID)
+	{
+		androidSdkDir = GetAndroidSdkPath();
+		PrintLine("Android SDK path: \"%.*s\"", androidSdkDir.length, androidSdkDir.chars);
+		androidSdkBuildToolsDir = JoinStrings3(androidSdkDir, StrLit("/build-tools/"), ANDROID_BUILD_TOOLS_VERSION, false);
+		androidSdkPlatformDir = JoinStrings3(androidSdkDir, StrLit("/platforms/"), ANDROID_PLATFORM_FOLDERNAME, false);
+		androidNdkDir = JoinStrings3(androidSdkDir, StrLit("/ndk/"), ANDROID_NDK_VERSION, false);
+		//TODO: "windows-x86_64" is going to be different when compiling on Linux or OSX, we should figure out how we want that configured once we get there
+		androidNdkToolchainDir = JoinStrings3(androidNdkDir, StrLit("/toolchains/llvm/prebuilt/"), StrLit("windows-x86_64"), false);
+		//TODO: We should check to see if all these folders actually exist and give a nice error to the user when they need to install something or change the build_config.h
+	}
+	
+	// +==============================+
 	// |       Fill CliArgLists       |
 	// +==============================+
-	CliArgList cl_CommonFlags             = ZEROED; Fill_cl_CommonFlags(&cl_CommonFlags, DEBUG_BUILD, DUMP_PREPROCESSOR, DUMP_ASSEMBLY);
+	CliArgList cl_CommonFlags             = ZEROED; Fill_cl_CommonFlags(&cl_CommonFlags, DEBUG_BUILD, DUMP_PREPROCESSOR, DUMP_ASSEMBLY, BUILD_WITH_FREETYPE);
 	CliArgList cl_LangCFlags              = ZEROED; Fill_cl_LangCFlags(&cl_LangCFlags);
 	CliArgList cl_LangCppFlags            = ZEROED; Fill_cl_LangCppFlags(&cl_LangCppFlags);
 	CliArgList clang_CommonFlags          = ZEROED; Fill_clang_CommonFlags(&clang_CommonFlags, DEBUG_BUILD, DUMP_PREPROCESSOR);
+	CliArgList clang_AndroidFlags         = ZEROED; Fill_clang_AndroidFlags(&clang_AndroidFlags, androidNdkDir, androidNdkToolchainDir, DEBUG_BUILD);
 	CliArgList clang_LinuxFlags           = ZEROED; Fill_clang_LinuxFlags(&clang_LinuxFlags, DEBUG_BUILD);
 	CliArgList cl_CommonLinkerFlags       = ZEROED; Fill_cl_CommonLinkerFlags(&cl_CommonLinkerFlags, DEBUG_BUILD);
 	CliArgList clang_LinuxCommonLibraries = ZEROED; Fill_clang_LinuxCommonLibraries(&clang_LinuxCommonLibraries, BUILD_WITH_SOKOL_APP);
@@ -512,8 +547,10 @@ int main(int argc, char* argv[])
 	// |                        Build Shaders                         |
 	// +--------------------------------------------------------------+
 	FindShadersContext findContext = ZEROED;
-	CliArgList cl_ShaderObjects = ZEROED;
-	CliArgList clang_ShaderObjects = ZEROED;
+	CliArgList cl_WindowsShaderObjects = ZEROED;
+	CliArgList clang_LinuxShaderObjects = ZEROED;
+	// CliArgList clang_OsxShaderObjects = ZEROED;
+	CliArgList clang_AndroidShaderObjects[AndroidTargetArchitechture_Count] = ZEROED;
 	{
 		//NOTE: No ignoreList needed in findContext
 		RecursiveDirWalk(StrLit("../app"), FindShaderFilesCallback, &findContext);
@@ -523,7 +560,7 @@ int main(int argc, char* argv[])
 			for (uxx sIndex = 0; sIndex < findContext.objPaths.length; sIndex++)
 			{
 				Str8 objPath = findContext.objPaths.strings[sIndex];
-				AddArgStr(&cl_ShaderObjects, CLI_QUOTED_ARG, objPath);
+				AddArgStr(&cl_WindowsShaderObjects, CLI_QUOTED_ARG, objPath);
 				if (!DoesFileExist(objPath) && !BUILD_SHADERS) { PrintLine("Building shaders because \"%.*s\" is missing!", objPath.length, objPath.chars); BUILD_SHADERS = true; }
 			}
 		}
@@ -532,9 +569,25 @@ int main(int argc, char* argv[])
 			for (uxx sIndex = 0; sIndex < findContext.oPaths.length; sIndex++)
 			{
 				Str8 oPath = findContext.oPaths.strings[sIndex];
-				AddArgStr(&clang_ShaderObjects, CLI_QUOTED_ARG, oPath);
+				AddArgStr(&clang_LinuxShaderObjects, CLI_QUOTED_ARG, oPath);
 				Str8 oPathWithFolder = BUILDING_ON_LINUX ? CopyStr8(oPath, false) : JoinStrings2(StrLit(FOLDERNAME_LINUX "/"), oPath, false);
 				if (!DoesFileExist(oPathWithFolder) && !BUILD_SHADERS) { PrintLine("Building shaders because \"%.*s\" is missing!", oPathWithFolder.length, oPathWithFolder.chars); BUILD_SHADERS = true; }
+			}
+		}
+		if (BUILD_ANDROID)
+		{
+			for (uxx sIndex = 0; sIndex < findContext.oPaths.length; sIndex++)
+			{
+				for (uxx archIndex = 1; archIndex < AndroidTargetArchitechture_Count; archIndex++)
+				{
+					AndroidTargetArchitechture architecture = (AndroidTargetArchitechture)archIndex;
+					Str8 archFolderName = NewStr8Nt(GetAndroidTargetArchitechtureFolderName(architecture));
+					Str8 archFolderPath = JoinStrings3(StrLit("lib/"), archFolderName, StrLit("/"), false);
+					Str8 oPath = findContext.oPaths.strings[sIndex];
+					AddArgStr(&clang_AndroidShaderObjects[archIndex], CLI_QUOTED_ARG, oPath);
+					Str8 oRelativePath = JoinStrings3(StrLit(FOLDERNAME_ANDROID "/"), archFolderPath, oPath, false);
+					if (!DoesFileExist(oRelativePath) && !BUILD_SHADERS) { PrintLine("Building shaders because \"%.*s\" is missing!", oRelativePath.length, oRelativePath.chars); BUILD_SHADERS = true; }
+				}
 			}
 		}
 		
@@ -661,6 +714,46 @@ int main(int argc, char* argv[])
 				chdir("..");
 				#endif
 			}
+			if (BUILD_ANDROID)
+			{
+				mkdir(FOLDERNAME_ANDROID, FOLDER_PERMISSIONS);
+				chdir(FOLDERNAME_ANDROID);
+				mkdir("lib", FOLDER_PERMISSIONS);
+				chdir("lib");
+				
+				for (uxx archIndex = 1; archIndex < AndroidTargetArchitechture_Count; archIndex++)
+				{
+					AndroidTargetArchitechture architecture = (AndroidTargetArchitechture)archIndex;
+					mkdir(GetAndroidTargetArchitechtureFolderName(architecture), FOLDER_PERMISSIONS);
+					chdir(GetAndroidTargetArchitechtureFolderName(architecture));
+					
+					Str8 oPath = findContext.oPaths.strings[sIndex];
+					//TODO: The path we store in the findContext needs to have [ROOT] at the beginning somehow so we can get rid of this logic
+					// Str8 fixedSourcePath = BUILDING_ON_LINUX ? CopyStr8(sourcePath, false) : JoinStrings2(StrLit("../"), sourcePath, false);
+					// FixPathSlashes(fixedSourcePath, '/');
+					// Str8 fixedHeaderDirectory = BUILDING_ON_LINUX ? CopyStr8(headerDirectory, false) : JoinStrings2(StrLit("../"), headerDirectory, false);
+					// FixPathSlashes(fixedHeaderDirectory, '/');
+					
+					CliArgList cmd = ZEROED;
+					cmd.pathSepChar = '/';
+					cmd.rootDirPath = StrLit("../../../..");
+					AddArg(&cmd, CLANG_COMPILE);
+					AddArgStr(&cmd, CLI_QUOTED_ARG, sourcePath);
+					AddArgStr(&cmd, CLANG_OUTPUT_FILE, oPath);
+					AddArgStr(&cmd, CLANG_INCLUDE_DIR, headerDirectory);
+					AddArgList(&cmd, &clang_CommonFlags);
+					AddArgList(&cmd, &clang_AndroidFlags);
+					AddArgNt(&cmd, CLANG_TARGET_ARCHITECTURE, GetAndroidTargetArchitechtureTargetStr(architecture));
+					
+					RunCliProgramAndExitOnFailure(StrLit(EXE_CLANG), &cmd, StrLit("Failed to build TODO: for Android!"));
+					AssertFileExist(oPath, true);
+					
+					chdir("..");
+				}
+				
+				chdir("..");
+				chdir("..");
+			}
 		}
 		
 		FreeStrArray(&findContext.shaderPaths);
@@ -754,7 +847,7 @@ int main(int argc, char* argv[])
 			AddArg(&cmd, CL_LINK);
 			AddArgList(&cmd, &cl_CommonLinkerFlags);
 			if (!BUILD_INTO_SINGLE_UNIT) { AddArgNt(&cmd, CLI_QUOTED_ARG, FILENAME_PIG_CORE_LIB); }
-			if (BUILD_INTO_SINGLE_UNIT) { AddArgList(&cmd, &cl_ShaderObjects); }
+			if (BUILD_INTO_SINGLE_UNIT) { AddArgList(&cmd, &cl_WindowsShaderObjects); }
 			AddArgList(&cmd, &cl_PigCoreLibraries);
 			
 			Str8 errorStr = JoinStrings3(StrLit("Failed to build "), filenameAppExe, StrLit("!"), false);
@@ -775,7 +868,7 @@ int main(int argc, char* argv[])
 			AddArgList(&cmd, &clang_LinuxFlags);
 			AddArgNt(&cmd, CLANG_RPATH_DIR, ".");
 			if (!BUILD_INTO_SINGLE_UNIT) { AddArgNt(&cmd, CLI_QUOTED_ARG, FILENAME_PIG_CORE_SO); }
-			if (BUILD_INTO_SINGLE_UNIT) { AddArgList(&cmd, &clang_ShaderObjects); }
+			if (BUILD_INTO_SINGLE_UNIT) { AddArgList(&cmd, &clang_LinuxShaderObjects); }
 			AddArgList(&cmd, &clang_LinuxCommonLibraries);
 			AddArgList(&cmd, &clang_PigCoreLibraries);
 			
@@ -824,7 +917,7 @@ int main(int argc, char* argv[])
 			AddArgList(&cmd, &cl_CommonLinkerFlags);
 			AddArgNt(&cmd, CLI_QUOTED_ARG, FILENAME_PIG_CORE_LIB);
 			AddArgList(&cmd, &cl_PigCoreLibraries);
-			AddArgList(&cmd, &cl_ShaderObjects);
+			AddArgList(&cmd, &cl_WindowsShaderObjects);
 			
 			Str8 errorStr = JoinStrings3(StrLit("Failed to build "), filenameAppDll, StrLit("!"), false);
 			RunCliProgramAndExitOnFailure(StrLit(EXE_MSVC_CL), &cmd, errorStr);
@@ -847,7 +940,7 @@ int main(int argc, char* argv[])
 			AddArgNt(&cmd, CLI_QUOTED_ARG, FILENAME_PIG_CORE_SO);
 			AddArgList(&cmd, &clang_LinuxCommonLibraries);
 			AddArgList(&cmd, &clang_PigCoreLibraries);
-			AddArgList(&cmd, &clang_ShaderObjects);
+			AddArgList(&cmd, &clang_LinuxShaderObjects);
 			
 			#if BUILDING_ON_LINUX
 			Str8 clangExe = StrLit(EXE_CLANG);

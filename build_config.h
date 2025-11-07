@@ -14,7 +14,7 @@ Description:
 #ifndef _BUILD_CONFIG_H
 #define /* Don't show in CSwitch */ _BUILD_CONFIG_H
 
-#define BUILD_PIG_BUILD 0
+#define BUILD_PIG_BUILD 1
 
 // Controls whether we are making a build that we want to run with a Debugger.
 // This often sacrifices runtime speed or code size for extra debug information.
@@ -29,13 +29,17 @@ Description:
 
 
 // Build .exe binaries for Windows platform
-#define BUILD_WINDOWS 1
+#define BUILD_WINDOWS     1
 // Build binaries for Linux platform(s)
-#define BUILD_LINUX   0
+#define BUILD_LINUX       0
 // Build binaries for OSX platform
-#define BUILD_OSX     0
+#define BUILD_OSX         0
+// Build the native .so files for Android
+#define BUILD_ANDROID     0
+// Package the .so files and other content into an .apk for Android
+#define BUILD_ANDROID_APK 0
 // Runs the sokol-shdc.exe on all .glsl files in the source directory to produce .glsl.h and .glsl.c files and then compiles the .glsl.c files to .obj
-#define BUILD_SHADERS 0
+#define BUILD_SHADERS     1
 
 
 // Compiles piggen/main.c
@@ -47,17 +51,19 @@ Description:
 #define BUILD_TRACY_DLL 0
 
 // Builds dll_main.c into pig_core.dll and pig_core.lib
-#define BUILD_PIG_CORE_DLL            1
+#define BUILD_PIG_CORE_DLL   1
 
 // This puts all the contents of _data/resources into a zip file and converts the contents of that zip into resources_zip.c (and resources_zip.h in app/)
-#define BUNDLE_RESOURCES_ZIP            0
+#define BUNDLE_RESOURCES_ZIP   0
 
 // Compiles app/platform_main.c to %PROJECT_EXE_NAME%.exe
-#define BUILD_APP_EXE  1
+#define BUILD_APP_EXE     1
 // Compiles app/app_main.c to %PROJECT_DLL_NAME%.dll
-#define BUILD_APP_DLL  1
+#define BUILD_APP_DLL     1
 // Runs the %PROJECT_EXE_NAME%.exe
-#define RUN_APP        0
+#define RUN_APP           0
+// Installs the Android .apk onto a running Virtual Device (AVD) through abd.exe
+#define INSTALL_TESTS_APK 0
 
 
 
@@ -66,7 +72,7 @@ Description:
 #define COPY_TO_DATA_DIRECTORY 1
 
 // Runs protoc --c_out (which uses protoc-gen-c plugin) to generate pb-c.h and pb-c.c files from all .proto files
-#define GENERATE_PROTOBUF 0
+#define GENERATE_PROTOBUF   0
 // Rather than compiling the project(s) it will simply output the
 // result of the preprocessor's pass over the code to the build folder
 #define DUMP_PREPROCESSOR   0
@@ -75,22 +81,6 @@ Description:
 
 // Tells the sokol_gfx.h include to use OpenGL instead of D3D11 on Windows (NOTE: Smooth resizing only works in OpenGL mode right now!)
 #define PREFER_OPENGL_OVER_D3D11 1
-
-#define PROJECT_READABLE_NAME COSM
-#define PROJECT_FOLDER_NAME   COSM
-#define PROJECT_DLL_NAME      cosm_app
-#define PROJECT_EXE_NAME      cosm
-
-#ifndef STRINGIFY_DEFINE
-#define STRINGIFY_DEFINE(define) STRINGIFY(define)
-#endif
-#ifndef STRINGIFY
-#define STRINGIFY(text)          #text
-#endif
-#define PROJECT_READABLE_NAME_STR  STRINGIFY_DEFINE(PROJECT_READABLE_NAME)
-#define PROJECT_FOLDER_NAME_STR    STRINGIFY_DEFINE(PROJECT_FOLDER_NAME)
-#define PROJECT_DLL_NAME_STR       STRINGIFY_DEFINE(PROJECT_DLL_NAME)
-#define PROJECT_EXE_NAME_STR       STRINGIFY_DEFINE(PROJECT_EXE_NAME)
 
 //These are all expected to be constant for the duration of the project
 #define BUILD_WITH_SOKOL_GFX  1
@@ -104,5 +94,53 @@ Description:
 #define BUILD_WITH_PHYSX      0
 #define BUILD_WITH_HTTP       1
 #define BUILD_WITH_PROTOBUF   1
+#define BUILD_WITH_FREETYPE   1
+
+// +==============================+
+// |        String Defines        |
+// +==============================+
+#define PROJECT_READABLE_NAME COSM
+#define PROJECT_FOLDER_NAME   COSM
+#define PROJECT_DLL_NAME      cosm_app
+#define PROJECT_EXE_NAME      cosm
+
+// #define ANDROID_SIGNING_KEY_PATH     C:/Users/robbitay/.android/debug.keystore
+// #define ANDROID_SIGNING_PASSWORD     android
+#define ANDROID_SIGNING_KEY_PATH     F:/android_keystore.jks
+#define ANDROID_SIGNING_PASS_PATH    Q:/android_keystore_password.txt
+
+//folder name inside %ANDROID_SDK%/ndk/
+#define ANDROID_NDK_VERSION          29.0.13599879
+//folder name inside %ANDROID_SDK%/platforms/
+#define ANDROID_PLATFORM_FOLDERNAME  android-36
+//folder name inside %ANDROID_SDK%/build-tools/
+#define ANDROID_BUILD_TOOLS_VERSION  36.0.0
+#define ANDROID_PACKAGE_PATH         com.piggybank.pigcore.tests
+#define ANDROID_ACTIVITY_PATH        com.piggybank.pigcore.tests/android.app.NativeActivity
+
+#ifndef STRINGIFY_DEFINE
+#define STRINGIFY_DEFINE(define) STRINGIFY(define)
+#endif
+#ifndef STRINGIFY
+#define STRINGIFY(text)          #text
+#endif
+
+#define PROJECT_READABLE_NAME_STR       STRINGIFY_DEFINE(PROJECT_READABLE_NAME)
+#define PROJECT_FOLDER_NAME_STR         STRINGIFY_DEFINE(PROJECT_FOLDER_NAME)
+#define PROJECT_DLL_NAME_STR            STRINGIFY_DEFINE(PROJECT_DLL_NAME)
+#define PROJECT_EXE_NAME_STR            STRINGIFY_DEFINE(PROJECT_EXE_NAME)
+
+#define ANDROID_SIGNING_KEY_PATH_STR    STRINGIFY_DEFINE(ANDROID_SIGNING_KEY_PATH)
+#ifdef ANDROID_SIGNING_PASSWORD
+#define ANDROID_SIGNING_PASSWORD_STR    STRINGIFY_DEFINE(ANDROID_SIGNING_PASSWORD)
+#endif
+#ifdef ANDROID_SIGNING_PASS_PATH
+#define ANDROID_SIGNING_PASS_PATH_STR   STRINGIFY_DEFINE(ANDROID_SIGNING_PASS_PATH)
+#endif
+#define ANDROID_NDK_VERSION_STR         STRINGIFY_DEFINE(ANDROID_NDK_VERSION)
+#define ANDROID_PLATFORM_FOLDERNAME_STR STRINGIFY_DEFINE(ANDROID_PLATFORM_FOLDERNAME)
+#define ANDROID_BUILD_TOOLS_VERSION_STR STRINGIFY_DEFINE(ANDROID_BUILD_TOOLS_VERSION)
+#define ANDROID_PACKAGE_PATH_STR        STRINGIFY_DEFINE(ANDROID_PACKAGE_PATH)
+#define ANDROID_ACTIVITY_PATH_STR       STRINGIFY_DEFINE(ANDROID_ACTIVITY_PATH)
 
 #endif //  _BUILD_CONFIG_H
