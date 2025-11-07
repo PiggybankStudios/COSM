@@ -1,4 +1,43 @@
 # TODO List
+	[!] Add notification system from CSwitch
+	[!] Add confirmation dialog system from CSwitch
+	[!] Add Dear ImGui support
+	[ ] Space Partitioning
+	[ ] Proper hover/selection behavior for ways
+	[ ] Triangulate Relations / Color+Triangulate Partial Relations
+	[ ] Simplify Relation Parts
+	[ ] Outline Shader
+	[ ] Line Triangulation
+	[!] Android Port
+	
+	[ ] Some way to select relations
+	[ ] Combobox widget
+	[ ] String interning for tag keys/values
+	[ ] Right click menu widget
+	[ ] Serialize to .pbf
+		[ ] Parse non-dense nodes in .pbf
+		[ ] Serialize to .pbf
+		[?] Option to dump directly to file through DataStream for TwoPassPrint functions
+	[!] Async loading of background image (single worker thread?)
+	[ ] Load file(s) as layers
+	[ ] Filter by tags UI, render if filtered items are below limit, save only filtered items
+	[ ] Choose which background image to use
+	[ ] ResizableSplit based on px not percent
+	[ ] Store things in dictionaries based on IDs for quick lookup by ID
+	[ ] Caching system with eviction for vertex buffers
+	[ ] Style rules loaded from file
+	[ ] Turn selected items on/off. Move to different layers. Delete items.
+	[ ] Add support for choosing color/thickness/radius of selected items
+	[ ] Select similar nodes by tag value
+	[ ] Group items together (layer is separate from groups?)
+	[ ] Choose which name(s) to display for all nodes
+	[ ] Space partitioning data structure
+	[ ] Layer management panel (create, destroy, duplicate, move between layers, etc.)
+	[ ] Render names on ways (or collections of ways?)
+	[ ] Dynamically show node names based on importance and position to maximize space usage
+	[ ] 
+
+# Completed Items
 	[X] Render english city names
 	[X] Fix panning/zooming interaction (r64)
 	[-] Find a way to download LOD versions of coastline?
@@ -19,40 +58,5 @@
 	[X] Load multiple .osm files
 	[X] Parse .pbf relations
 	[X] Copy and Paste behavior!
-	[ ] Proper JIT glyph baking support in fonts
-	[ ] Proper hover/selection behavior for ways
-	[ ] Triangulate Relations / Color+Triangulate Partial Relations
-	[ ] Simplify Relation Parts
-	[ ] Space Partitioning
-	[ ] Outline Shader
-	[ ] Line Triangulation
-	[!] Android Port
-	
-	[ ] Some way to select relations
-	[ ] Combobox widget
-	[ ] String interning for tag keys/values
-	[ ] Right click menu widget
-	[ ] Serialize to .pbf
-		[ ] Parse non-dense nodes in .pbf
-		[ ] Serialize to .pbf
-		[?] Option to dump directly to file through DataStream for TwoPassPrint functions
-	[!] Async loading of background image (single worker thread?)
-	[ ] Add notification system from CSwitch
-	[ ] Add confirmation dialog system from CSwitch
-	[ ] Load file(s) as layers
-	[ ] Filter by tags UI, render if filtered items are below limit, save only filtered items
-	[ ] Choose which background image to use
-	[ ] ResizableSplit based on px not percent
-	[ ] Store things in dictionaries based on IDs for quick lookup by ID
-	[ ] Caching system with eviction for vertex buffers
-	[ ] Style rules loaded from file
-	[ ] Turn selected items on/off. Move to different layers. Delete items.
-	[ ] Add support for choosing color/thickness/radius of selected items
-	[ ] Select similar nodes by tag value
-	[ ] Group items together (layer is separate from groups?)
-	[ ] Choose which name(s) to display for all nodes
-	[ ] Space partitioning data structure
-	[ ] Layer management panel (create, destroy, duplicate, move between layers, etc.)
-	[ ] Render names on ways (or collections of ways?)
-	[ ] Dynamically show node names based on importance and position to maximize space usage
-	[ ] 
+	[X] Proper JIT glyph baking support in fonts
+	[X] Dummy Item
