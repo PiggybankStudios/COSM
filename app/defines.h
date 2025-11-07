@@ -13,8 +13,11 @@ Date:   02\25\2025
 #define CHECK_RECENT_FILES_CHANGED_PERIOD 1000 //ms
 #define RECENT_FILES_RELOAD_DELAY         100 //ms
 
-#define MIN_FONT_ATLAS_SIZE 256 //px
-#define MAX_FONT_ATLAS_SIZE 1024 //px
+#define MIN_FONT_ATLAS_SIZE        256 //px
+#define MAX_FONT_ATLAS_SIZE        1024 //px
+#define FONT_MAX_NUM_ATLASES       16 //atlases
+#define FONT_AUTO_EVICT_GLYPH_TIME 0 //ms
+#define FONT_AUTO_EVICT_ATLAS_TIME 0 //ms
 
 #define UI_FONT_NAME  "Consolas"
 #define UI_FONT_STYLE FontStyleFlag_None

@@ -14,7 +14,7 @@ Description:
 #ifndef _BUILD_CONFIG_H
 #define /* Don't show in CSwitch */ _BUILD_CONFIG_H
 
-#define BUILD_PIG_BUILD 1
+#define BUILD_PIG_BUILD 0
 
 // Controls whether we are making a build that we want to run with a Debugger.
 // This often sacrifices runtime speed or code size for extra debug information.
@@ -39,7 +39,7 @@ Description:
 // Package the .so files and other content into an .apk for Android
 #define BUILD_ANDROID_APK 0
 // Runs the sokol-shdc.exe on all .glsl files in the source directory to produce .glsl.h and .glsl.c files and then compiles the .glsl.c files to .obj
-#define BUILD_SHADERS     1
+#define BUILD_SHADERS     0
 
 
 // Compiles piggen/main.c
@@ -51,13 +51,13 @@ Description:
 #define BUILD_TRACY_DLL 0
 
 // Builds dll_main.c into pig_core.dll and pig_core.lib
-#define BUILD_PIG_CORE_DLL   1
+#define BUILD_PIG_CORE_DLL   0
 
 // This puts all the contents of _data/resources into a zip file and converts the contents of that zip into resources_zip.c (and resources_zip.h in app/)
 #define BUNDLE_RESOURCES_ZIP   0
 
 // Compiles app/platform_main.c to %PROJECT_EXE_NAME%.exe
-#define BUILD_APP_EXE     1
+#define BUILD_APP_EXE     0
 // Compiles app/app_main.c to %PROJECT_DLL_NAME%.dll
 #define BUILD_APP_DLL     1
 // Runs the %PROJECT_EXE_NAME%.exe

@@ -63,46 +63,73 @@ void LoadMapBackTexture()
 	TracyCZoneEnd(funcZone);
 }
 
+Result TryAttachLocalFontFile(PigFont* font, Str8 filePath, u8 styleFlags)
+{
+	NotNull(font);
+	NotNull(font->arena);
+	NotEmptyStr(filePath);
+	ScratchBegin1(scratch, font->arena);
+	Slice fontFileContents = Slice_Empty;
+	if (!OsReadBinFile(filePath, scratch, &fontFileContents)) { ScratchEnd(scratch); return Result_FileNotFound; }
+	Result attachResult = TryAttachFontFile(font, filePath, fontFileContents, styleFlags, true);
+	ScratchEnd(scratch);
+	return attachResult;
+}
+
 bool AppCreateFonts()
 {
-	FontCharRange fontCharRanges[] = {
+	FontCharRange basicRanges[] = {
 		FontCharRange_ASCII,
+		FontCharRange_LatinSupplementAccent,
+		FontCharRange_LatinExtA,
 		NewFontCharRangeSingle(UNICODE_ELLIPSIS_CODEPOINT),
 		NewFontCharRangeSingle(UNICODE_RIGHT_ARROW_CODEPOINT),
 	};
-	FontCharRange fontExtendedCharRanges[] = {
-		FontCharRange_LatinSupplementAccent,
-		FontCharRange_LatinExtA,
+	FontCharRange otherRanges[] = {
+		FontCharRange_Cyrillic,
 	};
+	FontCharRange kanaRanges[] = {
+		FontCharRange_Hiragana,
+		FontCharRange_Katakana,
+	};
+	
+	Result attachResult = Result_None;
+	Result bakeResult = Result_None;
 	
 	PigFont newUiFont = ZEROED;
 	{
 		newUiFont = InitFont(stdHeap, StrLit("uiFont"));
-		Result attachResult = TryAttachOsTtfFileToFont(&newUiFont, StrLit(UI_FONT_NAME), app->uiFontSize, UI_FONT_STYLE);
-		Assert(attachResult == Result_Success);
+		attachResult = TryAttachOsTtfFileToFont(&newUiFont, StrLit(UI_FONT_NAME), app->uiFontSize, UI_FONT_STYLE); Assert(attachResult == Result_Success);
+		attachResult = TryAttachLocalFontFile(&newUiFont, StrLit("resources/font/NotoSansJP-Regular.ttf"), UI_FONT_STYLE); Assert(attachResult == Result_Success);
+		attachResult = TryAttachLocalFontFile(&newUiFont, StrLit("resources/font/NotoSansSymbols-Regular.ttf"), UI_FONT_STYLE); Assert(attachResult == Result_Success);
 		
-		Result bakeResult = TryBakeFontAtlas(&newUiFont, app->uiFontSize, UI_FONT_STYLE, MIN_FONT_ATLAS_SIZE, MAX_FONT_ATLAS_SIZE, ArrayCount(fontCharRanges), &fontCharRanges[0]);
-		if (bakeResult != Result_Success)
+		bakeResult = TryBakeFontAtlas(&newUiFont, app->uiFontSize, UI_FONT_STYLE, MIN_FONT_ATLAS_SIZE, MAX_FONT_ATLAS_SIZE, ArrayCount(basicRanges), &basicRanges[0]);
+		if (bakeResult == Result_Success || bakeResult == Result_Partial)
 		{
-			RemoveAttachedFontFiles(&newUiFont);
+			FillFontKerningTable(&newUiFont);
+			bakeResult = TryBakeFontAtlas(&newUiFont, app->uiFontSize, UI_FONT_STYLE, MIN_FONT_ATLAS_SIZE, MAX_FONT_ATLAS_SIZE, ArrayCount(otherRanges), &otherRanges[0]);
+			if (bakeResult == Result_Success || bakeResult == Result_Partial)
+			{
+				bakeResult = TryBakeFontAtlas(&newUiFont, app->uiFontSize, UI_FONT_STYLE, MIN_FONT_ATLAS_SIZE, MAX_FONT_ATLAS_SIZE, ArrayCount(kanaRanges), &kanaRanges[0]);
+			}
+		}
+		if (bakeResult != Result_Success && bakeResult != Result_Partial)
+		{
 			FreeFont(&newUiFont);
 			return false;
 		}
 		
-		FillFontKerningTable(&newUiFont);
-		RemoveAttachedFontFiles(&newUiFont);
+		MakeFontActive(&newUiFont, MIN_FONT_ATLAS_SIZE, MAX_FONT_ATLAS_SIZE, FONT_MAX_NUM_ATLASES, FONT_AUTO_EVICT_GLYPH_TIME, FONT_AUTO_EVICT_ATLAS_TIME);
 	}
 	
 	PigFont newLargeFont = ZEROED;
 	{
 		newLargeFont = InitFont(stdHeap, StrLit("largeFont"));
-		Result attachResult = TryAttachOsTtfFileToFont(&newLargeFont, StrLit(LARGE_FONT_NAME), app->largeFontSize, LARGE_FONT_STYLE);
-		Assert(attachResult == Result_Success);
+		attachResult = TryAttachOsTtfFileToFont(&newLargeFont, StrLit(LARGE_FONT_NAME), app->largeFontSize, LARGE_FONT_STYLE); Assert(attachResult == Result_Success);
 		
-		Result bakeResult = TryBakeFontAtlas(&newLargeFont, app->largeFontSize, LARGE_FONT_STYLE, MIN_FONT_ATLAS_SIZE, MAX_FONT_ATLAS_SIZE, ArrayCount(fontCharRanges), &fontCharRanges[0]);
-		if (bakeResult != Result_Success)
+		bakeResult = TryBakeFontAtlas(&newLargeFont, app->largeFontSize, LARGE_FONT_STYLE, MIN_FONT_ATLAS_SIZE, MAX_FONT_ATLAS_SIZE, ArrayCount(basicRanges), &basicRanges[0]);
+		if (bakeResult != Result_Success && bakeResult != Result_Partial)
 		{
-			RemoveAttachedFontFiles(&newLargeFont);
 			FreeFont(&newLargeFont);
 			FreeFont(&newUiFont);
 			return false;
@@ -115,61 +142,42 @@ bool AppCreateFonts()
 	PigFont newMapFont = ZEROED;
 	{
 		newMapFont = InitFont(stdHeap, StrLit("mapFont"));
-		Result attachResult = TryAttachOsTtfFileToFont(&newMapFont, StrLit(MAP_FONT_NAME), app->mapFontSize, MAP_FONT_STYLE);
-		Assert(attachResult == Result_Success);
+		attachResult = TryAttachOsTtfFileToFont(&newMapFont, StrLit(MAP_FONT_NAME), app->mapFontSize, MAP_FONT_STYLE); Assert(attachResult == Result_Success);
+		attachResult = TryAttachLocalFontFile(&newMapFont, StrLit("resources/font/NotoSansJP-Regular.ttf"), MAP_FONT_STYLE); Assert(attachResult == Result_Success);
+		attachResult = TryAttachLocalFontFile(&newMapFont, StrLit("resources/font/NotoSansSymbols-Regular.ttf"), MAP_FONT_STYLE); Assert(attachResult == Result_Success);
 		
-		Result bakeResult1 = TryBakeFontAtlas(&newMapFont, app->mapFontSize, MAP_FONT_STYLE, MIN_FONT_ATLAS_SIZE, MAX_FONT_ATLAS_SIZE, ArrayCount(fontCharRanges), &fontCharRanges[0]);
-		if (bakeResult1 != Result_Success)
+		bakeResult = TryBakeFontAtlas(&newMapFont, app->mapFontSize, MAP_FONT_STYLE, MIN_FONT_ATLAS_SIZE, MAX_FONT_ATLAS_SIZE, ArrayCount(basicRanges), &basicRanges[0]);
+		if (bakeResult == Result_Success || bakeResult == Result_Partial)
 		{
-			RemoveAttachedFontFiles(&newMapFont);
+			FillFontKerningTable(&newMapFont);
+			bakeResult = TryBakeFontAtlas(&newMapFont, app->mapFontSize, MAP_FONT_STYLE, MIN_FONT_ATLAS_SIZE, MAX_FONT_ATLAS_SIZE, ArrayCount(kanaRanges), &kanaRanges[0]);
+			// if (bakeResult == Result_Success || bakeResult == Result_Partial)
+			// {
+			// 	if (app->kanjiCodepoints.length > 0)
+			// 	{
+			// 		ScratchBegin(scratch);
+			// 		uxx numKanjiRanges = app->kanjiCodepoints.length;
+			// 		FontCharRange* kanjiRanges = AllocArray(FontCharRange, scratch, numKanjiRanges);
+			// 		NotNull(kanjiRanges);
+			// 		VarArrayLoop(&app->kanjiCodepoints, cIndex)
+			// 		{
+			// 			VarArrayLoopGetValue(u32, codepoint, &app->kanjiCodepoints, cIndex);
+			// 			kanjiRanges[cIndex] = NewFontCharRangeSingle(codepoint);
+			// 		}
+			// 		bakeResult = TryBakeFontAtlas(&newMapFont, app->mapFontSize, MAP_FONT_STYLE, MIN_FONT_ATLAS_SIZE, MAX_FONT_ATLAS_SIZE, numKanjiRanges, kanjiRanges);
+			// 		ScratchEnd(scratch);
+			// 	}
+			// }
+		}
+		if (bakeResult != Result_Success && bakeResult != Result_Partial)
+		{
 			FreeFont(&newMapFont);
 			FreeFont(&newLargeFont);
 			FreeFont(&newUiFont);
 			return false;
 		}
 		
-		Result bakeResult2 = TryBakeFontAtlas(&newMapFont, app->mapFontSize, MAP_FONT_STYLE, MIN_FONT_ATLAS_SIZE, MAX_FONT_ATLAS_SIZE, ArrayCount(fontExtendedCharRanges), &fontExtendedCharRanges[0]);
-		if (bakeResult2 != Result_Success)
-		{
-			RemoveAttachedFontFiles(&newMapFont);
-			FreeFont(&newMapFont);
-			FreeFont(&newLargeFont);
-			FreeFont(&newUiFont);
-			return false;
-		}
-		
-		FillFontKerningTable(&newMapFont);
-		RemoveAttachedFontFiles(&newMapFont);
-		
-		if (app->kanjiCodepoints.length > 0)
-		{
-			ScratchBegin(scratch);
-			attachResult = TryAttachOsTtfFileToFont(&newMapFont, StrLit(MAP_ASIAN_FONT_NAME), app->mapFontSize, MAP_FONT_STYLE);
-			Assert(attachResult == Result_Success);
-			
-			uxx numRanges = app->kanjiCodepoints.length;
-			FontCharRange* ranges = AllocArray(FontCharRange, scratch, numRanges);
-			NotNull(ranges);
-			VarArrayLoop(&app->kanjiCodepoints, cIndex)
-			{
-				VarArrayLoopGetValue(u32, codepoint, &app->kanjiCodepoints, cIndex);
-				ranges[cIndex] = NewFontCharRangeSingle(codepoint);
-			}
-			
-			Result bakeResult3 = TryBakeFontAtlas(&newMapFont, app->mapFontSize, MAP_FONT_STYLE, MIN_FONT_ATLAS_SIZE, MAX_FONT_ATLAS_SIZE, numRanges, ranges);
-			if (bakeResult3 != Result_Success)
-			{
-				RemoveAttachedFontFiles(&newMapFont);
-				FreeFont(&newMapFont);
-				FreeFont(&newLargeFont);
-				FreeFont(&newUiFont);
-				ScratchEnd(scratch);
-				return false;
-			}
-			
-			RemoveAttachedFontFiles(&newMapFont);
-			ScratchEnd(scratch);
-		}
+		MakeFontActive(&newMapFont, MIN_FONT_ATLAS_SIZE, MAX_FONT_ATLAS_SIZE, FONT_MAX_NUM_ATLASES, FONT_AUTO_EVICT_GLYPH_TIME, FONT_AUTO_EVICT_ATLAS_TIME);
 	}
 	
 	if (app->uiFont.arena != nullptr) { FreeFont(&app->uiFont); }

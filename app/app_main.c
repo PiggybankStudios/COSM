@@ -278,6 +278,9 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 	bool isMouseOverMainViewport = IsMouseOverClay(CLAY_ID("MainViewport"));
 	bool isOverDisplayLimit = (app->map.nodes.length > DISPLAY_NODE_COUNT_LIMIT || app->map.ways.length > DISPLAY_WAY_COUNT_LIMIT);
 	bool isHoveringMapPrimitive = false;
+	FontNewFrame(&app->uiFont, appIn->programTime);
+	FontNewFrame(&app->mapFont, appIn->programTime);
+	FontNewFrame(&app->largeFont, appIn->programTime);
 	
 	TracyCZoneN(Zone_Update, "Update", true);
 	// +==============================+
@@ -783,7 +786,7 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 			// +==============================+
 			// |         Render Nodes         |
 			// +==============================+
-			if (!isOverDisplayLimit && false)
+			if (!isOverDisplayLimit && true)
 			{
 				TracyCZoneN(_RenderNodes, "RenderNodes", true);
 				VarArrayLoop(&app->map.nodes, nIndex)
@@ -1427,6 +1430,9 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 		
 		platform->SetCursorShape(uiContext.cursorShape);
 	}
+	CommitAllFontTextureUpdates(&app->uiFont);
+	CommitAllFontTextureUpdates(&app->mapFont);
+	CommitAllFontTextureUpdates(&app->largeFont);
 	TracyCZoneEnd(Zone_Render);
 	TracyCZoneN(Zone_EndFrame, "EndFrame", true);
 	EndFrame();
