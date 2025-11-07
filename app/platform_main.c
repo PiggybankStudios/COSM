@@ -14,16 +14,18 @@ Description:
 
 #include "base/base_all.h"
 #include "std/std_all.h"
-#include "os/os_all.h"
-#include "mem/mem_all.h"
-#include "struct/struct_all.h"
-#include "misc/misc_all.h"
-#include "input/input_all.h"
 #include "file_fmt/file_fmt_all.h"
-#include "ui/ui_all.h"
 #include "gfx/gfx_all.h"
 #include "gfx/gfx_system_global.h"
+#include "input/input_all.h"
+#include "lib/lib_all.h"
+#include "mem/mem_all.h"
+#include "misc/misc_all.h"
+#include "os/os_all.h"
+#include "parse/parse_all.h"
 #include "phys/phys_all.h"
+#include "struct/struct_all.h"
+#include "ui/ui_all.h"
 
 #if BUILD_INTO_SINGLE_UNIT
 #include "base/base_debug_output_impl.h"
@@ -33,28 +35,8 @@ Description:
 #include "third_party/raylib/raylib.h"
 #endif
 
-//TODO: We really should only have one spot where we include sokol_app.h (inside misc_sokol_app_include.h)
 #if BUILD_WITH_SOKOL_APP
-#define SOKOL_APP_IMPL
-#if TARGET_IS_LINUX
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wmissing-field-initializers" //warning: missing field 'revents' initializer [-Wmissing-field-initializers]
-#endif
-#if COMPILER_IS_MSVC
-#pragma warning(push)
-#pragma warning(disable: 4189) //warning: local variable is initialized but not referenced
-#endif
-#include "third_party/sokol/sokol_app.h"
-#if TARGET_IS_LINUX
-#pragma clang diagnostic pop
-#endif
-#if COMPILER_IS_MSVC
-#pragma warning(pop)
-#endif
-#endif //BUILD_WITH_SOKOL_APP
-
-#if BUILD_WITH_SOKOL_APP
-#include "misc/misc_sokol_app_helpers.c"
+#include "lib/lib_sokol_app_impl.c"
 #endif
 
 #define ENABLE_RAYLIB_LOGS_DEBUG   0

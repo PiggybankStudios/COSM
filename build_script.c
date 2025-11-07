@@ -243,16 +243,20 @@ int main(int argc, char* argv[])
 	// +==============================+
 	// |       Fill CliArgLists       |
 	// +==============================+
-	CliArgList cl_CommonFlags             = ZEROED; Fill_cl_CommonFlags(&cl_CommonFlags, DEBUG_BUILD, DUMP_PREPROCESSOR, DUMP_ASSEMBLY, BUILD_WITH_FREETYPE);
-	CliArgList cl_LangCFlags              = ZEROED; Fill_cl_LangCFlags(&cl_LangCFlags);
-	CliArgList cl_LangCppFlags            = ZEROED; Fill_cl_LangCppFlags(&cl_LangCppFlags);
-	CliArgList clang_CommonFlags          = ZEROED; Fill_clang_CommonFlags(&clang_CommonFlags, DEBUG_BUILD, DUMP_PREPROCESSOR);
-	CliArgList clang_AndroidFlags         = ZEROED; Fill_clang_AndroidFlags(&clang_AndroidFlags, androidNdkDir, androidNdkToolchainDir, DEBUG_BUILD);
-	CliArgList clang_LinuxFlags           = ZEROED; Fill_clang_LinuxFlags(&clang_LinuxFlags, DEBUG_BUILD);
-	CliArgList cl_CommonLinkerFlags       = ZEROED; Fill_cl_CommonLinkerFlags(&cl_CommonLinkerFlags, DEBUG_BUILD);
-	CliArgList clang_LinuxCommonLibraries = ZEROED; Fill_clang_LinuxCommonLibraries(&clang_LinuxCommonLibraries, BUILD_WITH_SOKOL_APP);
-	CliArgList cl_PigCoreLibraries        = ZEROED; Fill_cl_PigCoreLibraries(&cl_PigCoreLibraries, BUILD_WITH_RAYLIB, BUILD_WITH_BOX2D, BUILD_WITH_SDL, BUILD_WITH_OPENVR, BUILD_WITH_IMGUI, BUILD_WITH_PHYSX, BUILD_WITH_HTTP);
-	CliArgList clang_PigCoreLibraries     = ZEROED; Fill_clang_PigCoreLibraries(&clang_PigCoreLibraries, BUILD_WITH_BOX2D, BUILD_WITH_SOKOL_GFX, !BUILDING_ON_OSX);
+	Str8 pigCoreThirdPartyPath = StrLit("[ROOT]/core/third_party");
+	CliArgList cl_CommonFlags              = ZEROED; Fill_cl_CommonFlags(&cl_CommonFlags, pigCoreThirdPartyPath, DEBUG_BUILD, DUMP_PREPROCESSOR, DUMP_ASSEMBLY, BUILD_WITH_FREETYPE);
+	CliArgList cl_LangCFlags               = ZEROED; Fill_cl_LangCFlags(&cl_LangCFlags);
+	CliArgList cl_LangCppFlags             = ZEROED; Fill_cl_LangCppFlags(&cl_LangCppFlags);
+	CliArgList clang_CommonFlags           = ZEROED; Fill_clang_CommonFlags(&clang_CommonFlags, DEBUG_BUILD, DUMP_PREPROCESSOR, BUILD_WITH_FREETYPE);
+	CliArgList clang_AndroidFlags          = ZEROED; Fill_clang_AndroidFlags(&clang_AndroidFlags, androidNdkDir, androidNdkToolchainDir, DEBUG_BUILD);
+	CliArgList clang_LinuxOrOsxFlags       = ZEROED; Fill_clang_LinuxOrOsxFlags(&clang_LinuxOrOsxFlags, DEBUG_BUILD);
+	CliArgList cl_CommonLinkerFlags        = ZEROED; Fill_cl_CommonLinkerFlags(&cl_CommonLinkerFlags, DEBUG_BUILD);
+	CliArgList clang_CommonLibraries       = ZEROED; Fill_clang_CommonLibraries(&clang_CommonLibraries);
+	CliArgList clang_LinuxCommonLibraries  = ZEROED; Fill_clang_LinuxCommonLibraries(&clang_LinuxCommonLibraries, BUILD_WITH_SOKOL_APP);
+	CliArgList clang_OsxCommonLibraries    = ZEROED; Fill_clang_OsxCommonLibraries(&clang_OsxCommonLibraries, BUILD_WITH_SOKOL_APP);
+	CliArgList cl_PigCoreLibraries         = ZEROED; Fill_cl_PigCoreLibraries(&cl_PigCoreLibraries, BUILD_WITH_RAYLIB, BUILD_WITH_BOX2D, BUILD_WITH_SDL, BUILD_WITH_OPENVR, BUILD_WITH_IMGUI, BUILD_WITH_PHYSX, BUILD_WITH_HTTP);
+	CliArgList clang_PigCoreLinuxLibraries = ZEROED; Fill_clang_PigCoreLinuxLibraries(&clang_PigCoreLinuxLibraries, BUILD_WITH_BOX2D, BUILD_WITH_SOKOL_GFX);
+	CliArgList clang_PigCoreOsxLibraries   = ZEROED; Fill_clang_PigCoreOsxLibraries(&clang_PigCoreOsxLibraries, BUILD_WITH_BOX2D, BUILD_WITH_SOKOL_GFX);
 	
 	AddArgNt(&cl_CommonFlags, CL_INCLUDE_DIR, "[ROOT]/app");
 	AddArgNt(&cl_CommonFlags, CL_INCLUDE_DIR, "[ROOT]/core");
@@ -344,7 +348,8 @@ int main(int argc, char* argv[])
 			AddArgNt(&cmd, CLI_QUOTED_ARG, "[ROOT]/piggen/piggen_main.c");
 			AddArgNt(&cmd, CLANG_OUTPUT_FILE, FILENAME_PIGGEN);
 			AddArgList(&cmd, &clang_CommonFlags);
-			AddArgList(&cmd, &clang_LinuxFlags);
+			AddArgList(&cmd, &clang_LinuxOrOsxFlags);
+			AddArgList(&cmd, &clang_CommonLibraries);
 			AddArgList(&cmd, &clang_LinuxCommonLibraries);
 			
 			#if BUILDING_ON_LINUX
@@ -696,7 +701,7 @@ int main(int argc, char* argv[])
 				AddArgStr(&cmd, CLANG_INCLUDE_DIR, headerDirectory);
 				AddArgNt(&cmd, CLANG_DISABLE_WARNING, "unused-command-line-argument"); //Clang likes to warn about _lib_debug/_lib_release library folder being unused
 				AddArgList(&cmd, &clang_CommonFlags);
-				AddArgList(&cmd, &clang_LinuxFlags);
+				AddArgList(&cmd, &clang_LinuxOrOsxFlags);
 				
 				#if BUILDING_ON_LINUX
 				Str8 clangExe = StrLit(EXE_CLANG);
@@ -803,9 +808,10 @@ int main(int argc, char* argv[])
 			AddArg(&cmd, CLANG_fPIC);
 			AddArgNt(&cmd, CLANG_DEFINE, "PIG_CORE_DLL_INCLUDE_GFX_SYSTEM_GLOBAL=1");
 			AddArgList(&cmd, &clang_CommonFlags);
-			AddArgList(&cmd, &clang_LinuxFlags);
+			AddArgList(&cmd, &clang_LinuxOrOsxFlags);
+			AddArgList(&cmd, &clang_CommonLibraries);
 			AddArgList(&cmd, &clang_LinuxCommonLibraries);
-			AddArgList(&cmd, &clang_PigCoreLibraries);
+			AddArgList(&cmd, &clang_PigCoreLinuxLibraries);
 			
 			#if BUILDING_ON_LINUX
 			Str8 clangExe = StrLit(EXE_CLANG);
@@ -865,12 +871,13 @@ int main(int argc, char* argv[])
 			AddArgNt(&cmd, CLI_QUOTED_ARG, "[ROOT]/app/platform_main.c"); //NOTE: When BUILD_INTO_SINGLE_UNIT platform_main.c #includes app_main.c (and has PigCore implementations)
 			AddArgStr(&cmd, CLANG_OUTPUT_FILE, filenameApp);
 			AddArgList(&cmd, &clang_CommonFlags);
-			AddArgList(&cmd, &clang_LinuxFlags);
+			AddArgList(&cmd, &clang_LinuxOrOsxFlags);
 			AddArgNt(&cmd, CLANG_RPATH_DIR, ".");
 			if (!BUILD_INTO_SINGLE_UNIT) { AddArgNt(&cmd, CLI_QUOTED_ARG, FILENAME_PIG_CORE_SO); }
 			if (BUILD_INTO_SINGLE_UNIT) { AddArgList(&cmd, &clang_LinuxShaderObjects); }
+			AddArgList(&cmd, &clang_CommonLibraries);
 			AddArgList(&cmd, &clang_LinuxCommonLibraries);
-			AddArgList(&cmd, &clang_PigCoreLibraries);
+			AddArgList(&cmd, &clang_PigCoreLinuxLibraries);
 			
 			#if BUILDING_ON_LINUX
 			Str8 clangExe = StrLit(EXE_CLANG);
@@ -936,10 +943,11 @@ int main(int argc, char* argv[])
 			AddArg(&cmd, CLANG_BUILD_SHARED_LIB);
 			AddArg(&cmd, CLANG_fPIC);
 			AddArgList(&cmd, &clang_CommonFlags);
-			AddArgList(&cmd, &clang_LinuxFlags);
+			AddArgList(&cmd, &clang_LinuxOrOsxFlags);
 			AddArgNt(&cmd, CLI_QUOTED_ARG, FILENAME_PIG_CORE_SO);
+			AddArgList(&cmd, &clang_CommonLibraries);
 			AddArgList(&cmd, &clang_LinuxCommonLibraries);
-			AddArgList(&cmd, &clang_PigCoreLibraries);
+			AddArgList(&cmd, &clang_PigCoreLinuxLibraries);
 			AddArgList(&cmd, &clang_LinuxShaderObjects);
 			
 			#if BUILDING_ON_LINUX
