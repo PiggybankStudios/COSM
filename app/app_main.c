@@ -570,10 +570,11 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 		if (IsKeyboardKeyPressed(&appIn->keyboard, Key_N, true))
 		{
 			DbgLevel level = (DbgLevel)GetRandU8Range(&app->random, DbgLevel_Debug, DbgLevel_Count);
+			u64 duration = GetRandU64Range(&app->random, 1*NUM_MS_PER_SECOND, 10*NUM_MS_PER_SECOND);
 			#if 0
 			AddNotificationToQueue(&app->notificationQueue, level, StrLit("Notification!"));
 			#else
-			NotifyPrintAt(level, "%s Notification \"%.*s\"!", GetDbgLevelStr(level), StrPrint(app->mapBackTexturePath));
+			NotifyPrintAt(level, duration, "%s Notification %llu \"%.*s\"!", GetDbgLevelStr(level), duration, StrPrint(app->mapBackTexturePath));
 			#endif
 		}
 		

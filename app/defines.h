@@ -67,6 +67,7 @@ Date:   02\25\2025
 #define DISPLAY_WAY_COUNT_LIMIT      Thousand(30)
 
 #define NOTIFICATION_ICONS_TEXTURE_PATH "resources/image/notifications_2x2.png"
+#define NOTIFICATION_ICONS_SIZE 16 //px
 
 // #define MAP_BACKGROUND_TEXTURE_PATH "resources/image/mercator_tile_0_0_0.png"
 #define MAP_BACKGROUND_TEXTURE_PATH "resources/image/mercator_osm_2048px.png"

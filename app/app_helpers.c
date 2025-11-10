@@ -59,6 +59,7 @@ void LoadNotificationIcons()
 		(r32)app->notificationIconsTexture.Width / (r32)sheetSize.Width,
 		(r32)app->notificationIconsTexture.Height / (r32)sheetSize.Height
 	);
+	r32 iconScale = NOTIFICATION_ICONS_SIZE / cellSize.Width;
 	for (uxx lIndex = DbgLevel_Debug; lIndex < DbgLevel_Count; lIndex++)
 	{
 		DbgLevel dbgLevel = (DbgLevel)lIndex;
@@ -80,7 +81,7 @@ void LoadNotificationIcons()
 				cellSize.Height * cellPos.Y,
 				cellSize.Width, cellSize.Height
 			);
-			SetNotificationIcon(&app->notificationQueue, dbgLevel, &app->notificationIconsTexture, iconSourceRec, GetDbgLevelTextColor(dbgLevel));
+			SetNotificationIconEx(&app->notificationQueue, dbgLevel, &app->notificationIconsTexture, iconScale, GetDbgLevelTextColor(dbgLevel), iconSourceRec);
 		}
 	}
 	
