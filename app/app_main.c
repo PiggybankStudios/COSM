@@ -119,6 +119,10 @@ void UpdateDllGlobals(PlatformInfo* inPlatformInfo, PlatformApi* inPlatformApi, 
 	#endif
 	app = (AppData*)memoryPntr;
 	appIn = appInput;
+	
+	#if NOTIFICATION_QUEUE_AVAILABLE
+	SetGlobalNotificationQueue((app != nullptr) ? &app->notificationQueue : nullptr);
+	#endif
 }
 
 // +==============================+
@@ -151,6 +155,7 @@ EXPORT_FUNC APP_INIT_DEF(AppInit)
 	OsInitHttpRequestManager(stdHeap, &app->httpManager);
 	
 	InitNotificationQueue(stdHeap, &app->notificationQueue);
+	LoadNotificationIcons();
 	
 	InitCompiledShader(&app->mainShader, stdHeap, main2d);
 	LoadMapBackTexture();
@@ -273,6 +278,7 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 	ScratchBegin2(scratch3, scratch, scratch2);
 	bool renderedFrame = true;
 	UpdateDllGlobals(inPlatformInfo, inPlatformApi, memoryPntr, appInput);
+	app->notificationQueue.currentProgramTime = appIn->programTime;
 	v2i screenSizei = appIn->screenSize;
 	v2 screenSize = ToV2Fromi(appIn->screenSize);
 	// v2 screenCenter = Div(screenSize, 2.0f);
@@ -563,7 +569,12 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 		
 		if (IsKeyboardKeyPressed(&appIn->keyboard, Key_N, true))
 		{
-			AddNotificationToQueue(&app->notificationQueue, (DbgLevel)GetRandU8Range(&app->random, DbgLevel_Debug, DbgLevel_Count), StrLit("Notification!"), appIn->programTime);
+			DbgLevel level = (DbgLevel)GetRandU8Range(&app->random, DbgLevel_Debug, DbgLevel_Count);
+			#if 0
+			AddNotificationToQueue(&app->notificationQueue, level, StrLit("Notification!"));
+			#else
+			NotifyPrintAt(level, "%s Notification \"%.*s\"!", GetDbgLevelStr(level), StrPrint(app->mapBackTexturePath));
+			#endif
 		}
 		
 		UpdateMapView(&app->view, isMouseOverMainViewport, &appIn->mouse, &appIn->keyboard);

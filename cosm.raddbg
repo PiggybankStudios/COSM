@@ -67,11 +67,16 @@ type_view:
 }
 debug_info:
 {
-  path: "D:/gamedev/projects/Cosm/_build/cosm.pdb"
-  timestamp: 66197985701403
+  path: "C:/gamedev/projects/COSM/_build/cosm.pdb"
+  timestamp: 66198059540890
 }
 debug_info:
 {
-  path: "D:/gamedev/projects/Cosm/_build/pig_core.pdb"
-  timestamp: 66197985700570
+  path: "C:/gamedev/projects/COSM/_build/pig_core.pdb"
+  timestamp: 66198059540013
+}
+debug_info:
+{
+  path: "C:/gamedev/projects/COSM/_build/cosm_app.pdb"
+  timestamp: 66198059542019
 }
