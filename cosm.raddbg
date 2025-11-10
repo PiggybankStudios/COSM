@@ -65,3 +65,13 @@ type_view:
   type: RangeUXX
   expr: "rows($, $.min, $.max)"
 }
+debug_info:
+{
+  path: "D:/gamedev/projects/Cosm/_build/cosm.pdb"
+  timestamp: 66197985701403
+}
+debug_info:
+{
+  path: "D:/gamedev/projects/Cosm/_build/pig_core.pdb"
+  timestamp: 66197985700570
+}

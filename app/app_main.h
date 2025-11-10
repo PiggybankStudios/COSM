@@ -47,6 +47,7 @@ plex AppData
 	RandomSeries random;
 	AppResources resources;
 	HttpRequestManager httpManager;
+	NotificationQueue notificationQueue;
 	
 	Shader mainShader;
 	PigFont uiFont;

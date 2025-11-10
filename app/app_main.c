@@ -150,6 +150,8 @@ EXPORT_FUNC APP_INIT_DEF(AppInit)
 	
 	OsInitHttpRequestManager(stdHeap, &app->httpManager);
 	
+	InitNotificationQueue(stdHeap, &app->notificationQueue);
+	
 	InitCompiledShader(&app->mainShader, stdHeap, main2d);
 	LoadMapBackTexture();
 	
@@ -559,6 +561,11 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 			LoadMapBackTexture();
 		}
 		
+		if (IsKeyboardKeyPressed(&appIn->keyboard, Key_N, true))
+		{
+			AddNotificationToQueue(&app->notificationQueue, (DbgLevel)GetRandU8Range(&app->random, DbgLevel_Debug, DbgLevel_Count), StrLit("Notification!"), appIn->programTime);
+		}
+		
 		UpdateMapView(&app->view, isMouseOverMainViewport, &appIn->mouse, &appIn->keyboard);
 	}
 	TracyCZoneEnd(Zone_Update);
@@ -584,7 +591,17 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 		uiArena = scratch3;
 		FlagSet(uiArena->flags, ArenaFlag_DontPop);
 		uxx uiArenaMark = ArenaGetMark(uiArena);
-		UiWidgetContext uiContext = NewUiWidgetContext(uiArena, &app->clay, &appIn->keyboard, &appIn->mouse, app->uiScale, &app->uiFocusedElement, CursorShape_Default, platform->GetNativeWindowHandle());
+		UiWidgetContext uiContext = NewUiWidgetContext(
+			uiArena,
+			&app->clay,
+			&appIn->keyboard,
+			&appIn->mouse,
+			app->uiScale,
+			&app->uiFocusedElement,
+			CursorShape_Default,
+			platform->GetNativeWindowHandle(),
+			appIn->programTime
+		);
 		
 		// +==============================+
 		// |          Render Map          |
@@ -1419,6 +1436,8 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 						}
 					}
 				}
+				
+				DoUiNotificationQueue(&uiContext, &app->notificationQueue, &app->uiFont, app->uiFontSize, UI_FONT_STYLE, appIn->screenSize);
 			}
 		}
 		
