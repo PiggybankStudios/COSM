@@ -1,5 +1,6 @@
 # TODO List
-	[!] Add notification system from CSwitch
+	[!] Better word wrapping support for notifications (container with pre-calculated size and correct userData to do PigCore wrapWidth)
+	[!] Notification de-duplication support
 	[!] Add confirmation dialog system from CSwitch
 	[!] Add Dear ImGui support
 	[ ] Space Partitioning
@@ -38,6 +39,8 @@
 	[ ] 
 
 # Completed Items
+	[X] Update places to use notifications
+	[X] Add notification system from CSwitch
 	[X] Render english city names
 	[X] Fix panning/zooming interaction (r64)
 	[-] Find a way to download LOD versions of coastline?

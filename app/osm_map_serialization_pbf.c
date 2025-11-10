@@ -50,7 +50,7 @@ Result TryParsePbfMap(Arena* arena, DataStream* protobufStream, OsmMap* mapOut)
 		if (headerLength == 0) { result = Result_ValueTooLow; break; }
 		if (headerLength > Kilobytes(64)) { result = Result_ValueTooHigh; break; }
 		u8* headerBytes = TryReadFromDataStream(protobufStream, headerLength, scratch);
-		if (headerBytes == nullptr) { PrintLine_E("Failed to read %u byte header for blob[%llu]", headerLength, blobIndex); result = protobufStream->error; break; }
+		if (headerBytes == nullptr) { NotifyPrint_E("Failed to read %u byte header for blob[%llu]", headerLength, blobIndex); result = protobufStream->error; break; }
 		// PrintLine_D("headerLength=%u", headerLength);
 		
 		TracyCZoneN(Zone_BlobHeader, "BlobHeader", true);
@@ -63,7 +63,7 @@ Result TryParsePbfMap(Arena* arena, DataStream* protobufStream, OsmMap* mapOut)
 		if (blobHeader->datasize == 0) { result = Result_ValueTooLow; break; }
 		if (blobHeader->datasize > Megabytes(32)) { result = Result_ValueTooHigh; break; }
 		u8* blobBytes = TryReadFromDataStream(protobufStream, blobHeader->datasize, scratch);
-		if (blobBytes == nullptr) { PrintLine_E("Failed to read %u byte blob[%llu]", blobHeader->datasize, blobIndex); result = protobufStream->error; break; }
+		if (blobBytes == nullptr) { NotifyPrint_E("Failed to read %u byte blob[%llu]", blobHeader->datasize, blobIndex); result = protobufStream->error; break; }
 		
 		TracyCZoneN(Zone_Blob, "Blob", true);
 		OSMPBF__Blob* blob = osmpbf__blob__unpack(&scratchAllocator, blobHeader->datasize, blobBytes);
@@ -104,7 +104,7 @@ Result TryParsePbfMap(Arena* arena, DataStream* protobufStream, OsmMap* mapOut)
 			TracyCZoneEnd(Zone_ZlibDecompress);
 			if (decompressedBuffer.bytes == nullptr)
 			{
-				PrintLine_E("Failed to decompress blob[%llu] ZLIB %llu->%llu", blobIndex, (uxx)dataPntr->len, (uxx)blob->raw_size);
+				NotifyPrint_E("Failed to decompress blob[%llu] ZLIB %llu->%llu", blobIndex, (uxx)dataPntr->len, (uxx)blob->raw_size);
 				result = Result_DecompressError;
 				break;
 			}
@@ -112,7 +112,7 @@ Result TryParsePbfMap(Arena* arena, DataStream* protobufStream, OsmMap* mapOut)
 		}
 		else if (blob->data_case != OSMPBF__BLOB__DATA__NOT_SET)
 		{
-			PrintLine_E("Unsupported compression %s on blob[%llu]", compressionTypeStr, blobIndex);
+			NotifyPrint_E("Unsupported compression %s on blob[%llu]", compressionTypeStr, blobIndex);
 			result = Result_UnsupportedCompression;
 			break;
 		}
@@ -122,12 +122,12 @@ Result TryParsePbfMap(Arena* arena, DataStream* protobufStream, OsmMap* mapOut)
 		// +==============================+
 		if (StrExactEquals(blobTypeStr, StrLit("OSMHeader")))
 		{
-			if (foundOsmHeader) { PrintLine_E("Blob[%llu] was a second OSMHeader!", blobIndex); result = Result_Duplicate; break; }
+			if (foundOsmHeader) { NotifyPrint_E("Blob[%llu] was a second OSMHeader!", blobIndex); result = Result_Duplicate; break; }
 			
 			TracyCZoneN(Zone_OsmHeaderBlock, "OsmHeaderBlock", true);
 			OSMPBF__HeaderBlock* headerBlock = osmpbf__header_block__unpack(&scratchAllocator, decompressedBuffer.length, decompressedBuffer.bytes);
 			TracyCZoneEnd(Zone_OsmHeaderBlock);
-			if (headerBlock == nullptr) { PrintLine_E("Failed to parse OSMPBF::HeaderBlock in blob[%llu]!", blobIndex); result = Result_ParsingFailure; break; }
+			if (headerBlock == nullptr) { NotifyPrint_E("Failed to parse OSMPBF::HeaderBlock in blob[%llu]!", blobIndex); result = Result_ParsingFailure; break; }
 			#if 0
 			PrintLine_D("\tbbox: (%lf, %lf, %lf, %lf)",
 				(r64)headerBlock->bbox->left * (r64)Nano(1),
@@ -163,12 +163,12 @@ Result TryParsePbfMap(Arena* arena, DataStream* protobufStream, OsmMap* mapOut)
 		// +==============================+
 		else if (StrExactEquals(blobTypeStr, StrLit("OSMData")))
 		{
-			if (!foundOsmHeader) { PrintLine_E("Blob[%llu] was OSMData BEFORE we found OSMHeader blob!", blobIndex); result = Result_MissingHeader; break; }
+			if (!foundOsmHeader) { NotifyPrint_E("Blob[%llu] was OSMData BEFORE we found OSMHeader blob!", blobIndex); result = Result_MissingHeader; break; }
 			
 			TracyCZoneN(Zone_OsmHeaderBlock, "OsmPrimitiveBlock", true);
 			OSMPBF__PrimitiveBlock* primitiveBlock = osmpbf__primitive_block__unpack(&scratchAllocator, decompressedBuffer.length, decompressedBuffer.bytes);
 			TracyCZoneEnd(Zone_OsmHeaderBlock);
-			if (primitiveBlock == nullptr) { PrintLine_E("Failed to parse OSMPBF::PrimitiveBlock in blob[%llu]!", blobIndex); result = Result_ParsingFailure; break; }
+			if (primitiveBlock == nullptr) { NotifyPrint_E("Failed to parse OSMPBF::PrimitiveBlock in blob[%llu]!", blobIndex); result = Result_ParsingFailure; break; }
 			#if 0
 			PrintLine_D("\tstrings: %zu", primitiveBlock->stringtable->n_s);
 			// PrintLine_D("\tstrings at %p relative to %p or %d", primitiveBlock->stringtable->s, decompressedBuffer.bytes, (u8*)primitiveBlock->stringtable->s - decompressedBuffer.bytes);
@@ -234,20 +234,20 @@ Result TryParsePbfMap(Arena* arena, DataStream* protobufStream, OsmMap* mapOut)
 					TracyCZoneN(Zone_OsmDenseNodes, "OsmDenseNodes", true);
 					OSMPBF__DenseNodes* denseNodes = primitiveGroup->dense;
 					NotNull(denseNodes->denseinfo);
-					if (denseNodes->n_id != denseNodes->n_lat) { PrintLine_E("DenseNode in blob[%llu] ID count %zu doesn't match Lat count %zu", blobIndex, denseNodes->n_id, denseNodes->n_lat); result = Result_Mismatch; TracyCZoneEnd(Zone_OsmDenseNodes); break; }
-					if (denseNodes->n_id != denseNodes->n_lon) { PrintLine_E("DenseNode in blob[%llu] ID count %zu doesn't match Lon count %zu", blobIndex, denseNodes->n_id, denseNodes->n_lon); result = Result_Mismatch; TracyCZoneEnd(Zone_OsmDenseNodes); break; }
+					if (denseNodes->n_id != denseNodes->n_lat) { NotifyPrint_E("DenseNode in blob[%llu] ID count %zu doesn't match Lat count %zu", blobIndex, denseNodes->n_id, denseNodes->n_lat); result = Result_Mismatch; TracyCZoneEnd(Zone_OsmDenseNodes); break; }
+					if (denseNodes->n_id != denseNodes->n_lon) { NotifyPrint_E("DenseNode in blob[%llu] ID count %zu doesn't match Lon count %zu", blobIndex, denseNodes->n_id, denseNodes->n_lon); result = Result_Mismatch; TracyCZoneEnd(Zone_OsmDenseNodes); break; }
 					bool haveVersions   = (denseNodes->denseinfo->n_version   != 0);
 					bool haveTimestamps = (denseNodes->denseinfo->n_timestamp != 0);
 					bool haveChangesets = (denseNodes->denseinfo->n_changeset != 0);
 					bool haveUids       = (denseNodes->denseinfo->n_uid       != 0);
 					bool haveUserSids   = (denseNodes->denseinfo->n_user_sid  != 0);
 					bool haveVisibles   = (denseNodes->denseinfo->n_visible   != 0);
-					if (haveVersions   && denseNodes->n_id != denseNodes->denseinfo->n_version)   { PrintLine_E("DenseNode in blob[%llu] ID count %zu doesn't match info->version count %zu",   blobIndex, denseNodes->n_id, denseNodes->denseinfo->n_version);   result = Result_Mismatch; TracyCZoneEnd(Zone_OsmDenseNodes); break; }
-					if (haveTimestamps && denseNodes->n_id != denseNodes->denseinfo->n_timestamp) { PrintLine_E("DenseNode in blob[%llu] ID count %zu doesn't match info->timestamp count %zu", blobIndex, denseNodes->n_id, denseNodes->denseinfo->n_timestamp); result = Result_Mismatch; TracyCZoneEnd(Zone_OsmDenseNodes); break; }
-					if (haveChangesets && denseNodes->n_id != denseNodes->denseinfo->n_changeset) { PrintLine_E("DenseNode in blob[%llu] ID count %zu doesn't match info->changeset count %zu", blobIndex, denseNodes->n_id, denseNodes->denseinfo->n_changeset); result = Result_Mismatch; TracyCZoneEnd(Zone_OsmDenseNodes); break; }
-					if (haveUids       && denseNodes->n_id != denseNodes->denseinfo->n_uid)       { PrintLine_E("DenseNode in blob[%llu] ID count %zu doesn't match info->uid count %zu",       blobIndex, denseNodes->n_id, denseNodes->denseinfo->n_uid);       result = Result_Mismatch; TracyCZoneEnd(Zone_OsmDenseNodes); break; }
-					if (haveUserSids   && denseNodes->n_id != denseNodes->denseinfo->n_user_sid)  { PrintLine_E("DenseNode in blob[%llu] ID count %zu doesn't match info->user_sid count %zu",  blobIndex, denseNodes->n_id, denseNodes->denseinfo->n_user_sid);  result = Result_Mismatch; TracyCZoneEnd(Zone_OsmDenseNodes); break; }
-					if (haveVisibles   && denseNodes->n_id != denseNodes->denseinfo->n_visible)   { PrintLine_E("DenseNode in blob[%llu] ID count %zu doesn't match info->visible count %zu",   blobIndex, denseNodes->n_id, denseNodes->denseinfo->n_visible);   result = Result_Mismatch; TracyCZoneEnd(Zone_OsmDenseNodes); break; }
+					if (haveVersions   && denseNodes->n_id != denseNodes->denseinfo->n_version)   { NotifyPrint_E("DenseNode in blob[%llu] ID count %zu doesn't match info->version count %zu",   blobIndex, denseNodes->n_id, denseNodes->denseinfo->n_version);   result = Result_Mismatch; TracyCZoneEnd(Zone_OsmDenseNodes); break; }
+					if (haveTimestamps && denseNodes->n_id != denseNodes->denseinfo->n_timestamp) { NotifyPrint_E("DenseNode in blob[%llu] ID count %zu doesn't match info->timestamp count %zu", blobIndex, denseNodes->n_id, denseNodes->denseinfo->n_timestamp); result = Result_Mismatch; TracyCZoneEnd(Zone_OsmDenseNodes); break; }
+					if (haveChangesets && denseNodes->n_id != denseNodes->denseinfo->n_changeset) { NotifyPrint_E("DenseNode in blob[%llu] ID count %zu doesn't match info->changeset count %zu", blobIndex, denseNodes->n_id, denseNodes->denseinfo->n_changeset); result = Result_Mismatch; TracyCZoneEnd(Zone_OsmDenseNodes); break; }
+					if (haveUids       && denseNodes->n_id != denseNodes->denseinfo->n_uid)       { NotifyPrint_E("DenseNode in blob[%llu] ID count %zu doesn't match info->uid count %zu",       blobIndex, denseNodes->n_id, denseNodes->denseinfo->n_uid);       result = Result_Mismatch; TracyCZoneEnd(Zone_OsmDenseNodes); break; }
+					if (haveUserSids   && denseNodes->n_id != denseNodes->denseinfo->n_user_sid)  { NotifyPrint_E("DenseNode in blob[%llu] ID count %zu doesn't match info->user_sid count %zu",  blobIndex, denseNodes->n_id, denseNodes->denseinfo->n_user_sid);  result = Result_Mismatch; TracyCZoneEnd(Zone_OsmDenseNodes); break; }
+					if (haveVisibles   && denseNodes->n_id != denseNodes->denseinfo->n_visible)   { NotifyPrint_E("DenseNode in blob[%llu] ID count %zu doesn't match info->visible count %zu",   blobIndex, denseNodes->n_id, denseNodes->denseinfo->n_visible);   result = Result_Mismatch; TracyCZoneEnd(Zone_OsmDenseNodes); break; }
 					
 					VarArrayExpand(&mapOut->nodes, mapOut->nodes.length + (uxx)denseNodes->n_id);
 					
@@ -273,11 +273,11 @@ Result TryParsePbfMap(Arena* arena, DataStream* protobufStream, OsmMap* mapOut)
 						i32 nodeUid       = (haveUids       ? prevNodeUid       + denseNodes->denseinfo->uid[nIndex]       : 0);
 						i32 nodeUserSid   = (haveUserSids   ? prevNodeUserSid   + denseNodes->denseinfo->user_sid[nIndex]  : 0);
 						bool nodeVisible  = (haveVisibles   ? denseNodes->denseinfo->visible[nIndex]   : true);
-						if (nodeId <= 0) { PrintLine_E("Invalid Node ID %lld in blob[%llu] group[%zu] denseNode[%zu]!", nodeId, blobIndex, gIndex, nIndex); result = Result_InvalidID; break; }
-						if (nodeVersion < -1) { PrintLine_E("Invalid Node Version %d in blob[%llu] group[%zu] denseNode[%zu]!", nodeVersion, blobIndex, gIndex, nIndex); result = Result_ValueTooLow; break; }
-						if (nodeTimestamp < 0) { PrintLine_E("Invalid Node Timestamp %d in blob[%llu] group[%zu] denseNode[%zu]!", nodeTimestamp, blobIndex, gIndex, nIndex); result = Result_ValueTooLow; break; }
-						if (nodeChangeset < 0) { PrintLine_E("Invalid Node Changeset %d in blob[%llu] group[%zu] denseNode[%zu]!", nodeChangeset, blobIndex, gIndex, nIndex); result = Result_ValueTooLow; break; }
-						if (nodeUid < 0) { PrintLine_E("Invalid Node UID %d in blob[%llu] group[%zu] denseNode[%zu]!", nodeUid, blobIndex, gIndex, nIndex); result = Result_ValueTooLow; break; }
+						if (nodeId <= 0) { NotifyPrint_E("Invalid Node ID %lld in blob[%llu] group[%zu] denseNode[%zu]!", nodeId, blobIndex, gIndex, nIndex); result = Result_InvalidID; break; }
+						if (nodeVersion < -1) { NotifyPrint_E("Invalid Node Version %d in blob[%llu] group[%zu] denseNode[%zu]!", nodeVersion, blobIndex, gIndex, nIndex); result = Result_ValueTooLow; break; }
+						if (nodeTimestamp < 0) { NotifyPrint_E("Invalid Node Timestamp %d in blob[%llu] group[%zu] denseNode[%zu]!", nodeTimestamp, blobIndex, gIndex, nIndex); result = Result_ValueTooLow; break; }
+						if (nodeChangeset < 0) { NotifyPrint_E("Invalid Node Changeset %d in blob[%llu] group[%zu] denseNode[%zu]!", nodeChangeset, blobIndex, gIndex, nIndex); result = Result_ValueTooLow; break; }
+						if (nodeUid < 0) { NotifyPrint_E("Invalid Node UID %d in blob[%llu] group[%zu] denseNode[%zu]!", nodeUid, blobIndex, gIndex, nIndex); result = Result_ValueTooLow; break; }
 						
 						if (nIndex == 0)
 						{
@@ -329,7 +329,7 @@ Result TryParsePbfMap(Arena* arena, DataStream* protobufStream, OsmMap* mapOut)
 					}
 					TracyCZoneEnd(Zone_OsmDenseNodes);
 					if (result != Result_None) { break; }
-					if (currentKeyValIndex < denseNodes->n_keys_vals) { PrintLine_W("There were %zu/%zu tags left over after parsing %zu denseNodes in blob[%llu]", denseNodes->n_keys_vals - currentKeyValIndex, denseNodes->n_keys_vals, denseNodes->n_id, blobIndex); }
+					if (currentKeyValIndex < denseNodes->n_keys_vals) { NotifyPrint_W("There were %zu/%zu tags left over after parsing %zu denseNodes in blob[%llu]", denseNodes->n_keys_vals - currentKeyValIndex, denseNodes->n_keys_vals, denseNodes->n_id, blobIndex); }
 					
 					if (!areNewNodesSorted || !mapOut->areNodesSorted)
 					{
@@ -368,11 +368,11 @@ Result TryParsePbfMap(Arena* arena, DataStream* protobufStream, OsmMap* mapOut)
 					{
 						OSMPBF__Way* way = primitiveGroup->ways[wIndex];
 						NotNull(way->info);
-						if (way->id <= 0)                                         { PrintLine_E("Way[%zu] in blob[%llu] has invalid ID %lld",        wIndex, blobIndex, way->id); result = Result_InvalidID; break; }
-						if (way->info->has_timestamp && way->info->timestamp < 0) { PrintLine_E("Way[%zu] in blob[%llu] has invalid timestamp %lld", wIndex, blobIndex, way->info->timestamp); result = Result_ValueTooLow; break; }
-						if (way->info->has_uid       && way->info->uid       < 0) { PrintLine_E("Way[%zu] in blob[%llu] has invalid uid %d",         wIndex, blobIndex, way->info->uid); result = Result_ValueTooLow; break; }
-						if (way->info->has_changeset && way->info->changeset < 0) { PrintLine_E("Way[%zu] in blob[%llu] has invalid changeset %lld", wIndex, blobIndex, way->info->changeset); result = Result_ValueTooLow; break; }
-						if (way->n_keys != way->n_vals)                           { PrintLine_E("Way[%zu] in blob[%llu] key count %zu doesn't match value count %zu", wIndex, blobIndex, way->n_keys, way->n_vals); result = Result_Mismatch; break; }
+						if (way->id <= 0)                                         { NotifyPrint_E("Way[%zu] in blob[%llu] has invalid ID %lld",        wIndex, blobIndex, way->id); result = Result_InvalidID; break; }
+						if (way->info->has_timestamp && way->info->timestamp < 0) { NotifyPrint_E("Way[%zu] in blob[%llu] has invalid timestamp %lld", wIndex, blobIndex, way->info->timestamp); result = Result_ValueTooLow; break; }
+						if (way->info->has_uid       && way->info->uid       < 0) { NotifyPrint_E("Way[%zu] in blob[%llu] has invalid uid %d",         wIndex, blobIndex, way->info->uid); result = Result_ValueTooLow; break; }
+						if (way->info->has_changeset && way->info->changeset < 0) { NotifyPrint_E("Way[%zu] in blob[%llu] has invalid changeset %lld", wIndex, blobIndex, way->info->changeset); result = Result_ValueTooLow; break; }
+						if (way->n_keys != way->n_vals)                           { NotifyPrint_E("Way[%zu] in blob[%llu] key count %zu doesn't match value count %zu", wIndex, blobIndex, way->n_keys, way->n_vals); result = Result_Mismatch; break; }
 						if (way->n_refs > 0)
 						{
 							uxx scratchMark2 = ArenaGetMark(scratch);
@@ -382,8 +382,8 @@ Result TryParsePbfMap(Arena* arena, DataStream* protobufStream, OsmMap* mapOut)
 							u64 prevNodeId = 0;
 							for (size_t rIndex = 0; rIndex < way->n_refs; rIndex++)
 							{
-								if (way->refs[rIndex] < -(i64)prevNodeId) { PrintLine_E("Node[%zu] in Way[%zu] in blob[%llu] has negative ID %llu%s%lld", rIndex, wIndex, blobIndex, prevNodeId, (way->refs[rIndex] >= 0) ? "+" : "", way->refs[rIndex]); result = Result_InvalidID; break; }
-								if (way->refs[rIndex] > 0 && (u64)way->refs[rIndex] > UINT64_MAX - prevNodeId) { PrintLine_E("Node[%zu] in Way[%zu] in blob[%llu] has overflow ID %llu%s%lld", rIndex, wIndex, blobIndex, prevNodeId, (way->refs[rIndex] >= 0) ? "+" : "", way->refs[rIndex]); result = Result_InvalidID; break; }
+								if (way->refs[rIndex] < -(i64)prevNodeId) { NotifyPrint_E("Node[%zu] in Way[%zu] in blob[%llu] has negative ID %llu%s%lld", rIndex, wIndex, blobIndex, prevNodeId, (way->refs[rIndex] >= 0) ? "+" : "", way->refs[rIndex]); result = Result_InvalidID; break; }
+								if (way->refs[rIndex] > 0 && (u64)way->refs[rIndex] > UINT64_MAX - prevNodeId) { NotifyPrint_E("Node[%zu] in Way[%zu] in blob[%llu] has overflow ID %llu%s%lld", rIndex, wIndex, blobIndex, prevNodeId, (way->refs[rIndex] >= 0) ? "+" : "", way->refs[rIndex]); result = Result_InvalidID; break; }
 								nodeIds[rIndex] = (u64)(prevNodeId + way->refs[rIndex]);
 								prevNodeId = nodeIds[rIndex];
 							}
@@ -448,13 +448,13 @@ Result TryParsePbfMap(Arena* arena, DataStream* protobufStream, OsmMap* mapOut)
 					{
 						OSMPBF__Relation* relation = primitiveGroup->relations[rIndex];
 						NotNull(relation->info);
-						if (relation->id <= 0)                                              { PrintLine_E("Relation[%zu] in blob[%llu] has invalid ID %lld", rIndex, blobIndex, relation->id); result = Result_InvalidID; break; }
-						if (relation->info->has_timestamp && relation->info->timestamp < 0) { PrintLine_E("Relation[%zu] in blob[%llu] has invalid timestamp %lld", rIndex, blobIndex, relation->info->timestamp); result = Result_ValueTooLow; break; }
-						if (relation->info->has_uid       && relation->info->uid       < 0) { PrintLine_E("Relation[%zu] in blob[%llu] has invalid uid %d", rIndex, blobIndex, relation->info->uid); result = Result_ValueTooLow; break; }
-						if (relation->info->has_changeset && relation->info->changeset < 0) { PrintLine_E("Relation[%zu] in blob[%llu] has invalid changeset %lld", rIndex, blobIndex, relation->info->changeset); result = Result_ValueTooLow; break; }
-						if (relation->n_keys != relation->n_vals)                           { PrintLine_E("Relation[%zu] in blob[%llu] key count %zu doesn't match value count %zu", rIndex, blobIndex, relation->n_keys, relation->n_vals); result = Result_Mismatch; break; }
-						if (relation->n_memids != relation->n_roles_sid)                    { PrintLine_E("Relation[%zu] in blob[%llu] member ID count %zu doesn't match roles SID count %zu", rIndex, blobIndex, relation->n_memids, relation->n_roles_sid); result = Result_Mismatch; break; }
-						if (relation->n_memids != relation->n_types)                        { PrintLine_E("Relation[%zu] in blob[%llu] member ID count %zu doesn't match types count %zu", rIndex, blobIndex, relation->n_memids, relation->n_types); result = Result_Mismatch; break; }
+						if (relation->id <= 0)                                              { NotifyPrint_E("Relation[%zu] in blob[%llu] has invalid ID %lld", rIndex, blobIndex, relation->id); result = Result_InvalidID; break; }
+						if (relation->info->has_timestamp && relation->info->timestamp < 0) { NotifyPrint_E("Relation[%zu] in blob[%llu] has invalid timestamp %lld", rIndex, blobIndex, relation->info->timestamp); result = Result_ValueTooLow; break; }
+						if (relation->info->has_uid       && relation->info->uid       < 0) { NotifyPrint_E("Relation[%zu] in blob[%llu] has invalid uid %d", rIndex, blobIndex, relation->info->uid); result = Result_ValueTooLow; break; }
+						if (relation->info->has_changeset && relation->info->changeset < 0) { NotifyPrint_E("Relation[%zu] in blob[%llu] has invalid changeset %lld", rIndex, blobIndex, relation->info->changeset); result = Result_ValueTooLow; break; }
+						if (relation->n_keys != relation->n_vals)                           { NotifyPrint_E("Relation[%zu] in blob[%llu] key count %zu doesn't match value count %zu", rIndex, blobIndex, relation->n_keys, relation->n_vals); result = Result_Mismatch; break; }
+						if (relation->n_memids != relation->n_roles_sid)                    { NotifyPrint_E("Relation[%zu] in blob[%llu] member ID count %zu doesn't match roles SID count %zu", rIndex, blobIndex, relation->n_memids, relation->n_roles_sid); result = Result_Mismatch; break; }
+						if (relation->n_memids != relation->n_types)                        { NotifyPrint_E("Relation[%zu] in blob[%llu] member ID count %zu doesn't match types count %zu", rIndex, blobIndex, relation->n_memids, relation->n_types); result = Result_Mismatch; break; }
 						if (relation->n_memids > 0)
 						{
 							if (prevRelationId == 0)
@@ -510,7 +510,7 @@ Result TryParsePbfMap(Arena* arena, DataStream* protobufStream, OsmMap* mapOut)
 									if (role == OsmRelationMemberRole_None) { PrintLine_W("Warning: Uknown role type \"%.*s\" on member[%llu] in relation[%zu] in blob[%llu]", StrPrint(roleStr), mIndex, rIndex, blobIndex); }
 								}
 								
-								if (memberId <= 0) { PrintLine_E("Member[%zu] in Relation[%zu] in blob[%llu] has invalid ID %lld", mIndex, rIndex, blobIndex, memberId); result = Result_InvalidID; break; }
+								if (memberId <= 0) { NotifyPrint_E("Member[%zu] in Relation[%zu] in blob[%llu] has invalid ID %lld", mIndex, rIndex, blobIndex, memberId); result = Result_InvalidID; break; }
 								else
 								{
 									OsmRelationMember* newMember = VarArrayAdd(OsmRelationMember, &newRelation->members);
@@ -524,7 +524,7 @@ Result TryParsePbfMap(Arena* arena, DataStream* protobufStream, OsmMap* mapOut)
 										case OSMPBF__RELATION__MEMBER_TYPE__NODE: newMember->type = OsmRelationMemberType_Node; break;
 										case OSMPBF__RELATION__MEMBER_TYPE__WAY: newMember->type = OsmRelationMemberType_Way; break;
 										case OSMPBF__RELATION__MEMBER_TYPE__RELATION: newMember->type = OsmRelationMemberType_Relation; break;
-										default: PrintLine_E("Member[%zu] in Relation[%zu] in blob[%llu] has unhandled type %d", mIndex, rIndex, blobIndex, memberType); result = Result_InvalidType; break;
+										default: NotifyPrint_E("Member[%zu] in Relation[%zu] in blob[%llu] has unhandled type %d", mIndex, rIndex, blobIndex, memberType); result = Result_InvalidType; break;
 									}
 									if (result != Result_None) { break; }
 								}
@@ -570,7 +570,7 @@ Result TryParsePbfMap(Arena* arena, DataStream* protobufStream, OsmMap* mapOut)
 		blobIndex++;
 	}
 	
-	if (result != Result_None) { PrintLine_E("Got through %llu blobs before encountering: %s", blobIndex, GetResultStr(result)); }
+	if (result != Result_None) { NotifyPrint_E("Got through %llu blobs before encountering: %s", blobIndex, GetResultStr(result)); }
 	if (!foundOsmData) { result = foundOsmHeader ? (foundUnkownBlobTypes ? Result_WrongInternalFormat : Result_MissingData) : Result_MissingHeader; }
 	if (result == Result_None)
 	{

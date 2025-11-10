@@ -201,7 +201,7 @@ EXPORT_FUNC APP_INIT_DEF(AppInit)
 		}
 		else
 		{
-			PrintLine_E("Command line path does not point to a file: \"%.*s\"", StrPrint(pathArgument));
+			NotifyPrint_E("Command line path does not point to a file: \"%.*s\"", StrPrint(pathArgument));
 		}
 		
 		argIndex++;
@@ -958,7 +958,7 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 								OpenOsmMap(selectedFilePath, isAdding);
 								isOverDisplayLimit = (app->map.nodes.length > DISPLAY_NODE_COUNT_LIMIT || app->map.ways.length > DISPLAY_WAY_COUNT_LIMIT);
 							}
-							else if (openResult != Result_Canceled) { PrintLine_E("OpenFileDialog failed: %s", GetResultStr(openResult)); }
+							else if (openResult != Result_Canceled) { NotifyPrint_E("OpenFileDialog failed: %s", GetResultStr(openResult)); }
 						} Clay__CloseElement();
 						
 						if (app->recentFiles.length > 0)

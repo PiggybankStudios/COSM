@@ -73,7 +73,7 @@ void AppSaveRecentFilesList()
 	Result createSettingsFolderResult = OsCreateFolder(settingsFolderPath, true);
 	if (createSettingsFolderResult != Result_Success)
 	{
-		PrintLine_E("Failed to create settings folder at \"%.*s\": %s", StrPrint(settingsFolderPath), GetResultStr(createSettingsFolderResult));
+		NotifyPrint_E("Failed to create settings folder at \"%.*s\": %s", StrPrint(settingsFolderPath), GetResultStr(createSettingsFolderResult));
 		return;
 	}
 	FilePath savePath = JoinStringsInArena3(scratch,
@@ -100,7 +100,7 @@ void AppSaveRecentFilesList()
 		if (app->recentFilesSaveWatch.arena == nullptr) { OsInitFileWatch(stdHeap, savePath, CHECK_RECENT_FILES_CHANGED_PERIOD, programTime, &app->recentFilesSaveWatch); }
 		else { OsResetFileWatch(&app->recentFilesSaveWatch, programTime); }
 	}
-	else { PrintLine_E("Failed to save recent files list to \"%.*s\"", StrPrint(savePath)); }
+	else { NotifyPrint_E("Failed to save recent files list to \"%.*s\"", StrPrint(savePath)); }
 	
 	ScratchEnd(scratch);
 }

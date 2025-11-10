@@ -340,7 +340,7 @@ Result TryParseOsmMap(Arena* arena, Str8 xmlFileContents, OsmMap* mapOut)
 	else
 	{
 		NotNull(xml.errorElement);
-		PrintLine_E("XML Parsing Error: %s \"%.*s\" on \"%.*s\" element", GetResultStr(xml.error), StrPrint(xml.errorStr), StrPrint(xml.errorElement->type));
+		NotifyPrint_E("XML Parsing Error: %s \"%.*s\" on \"%.*s\" element", GetResultStr(xml.error), StrPrint(xml.errorStr), StrPrint(xml.errorElement->type));
 		FreeOsmMap(mapOut);
 	}
 	

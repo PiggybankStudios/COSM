@@ -116,7 +116,7 @@ bool PlatDoUpdate(void)
 				Result loadDllResult = OsLoadDll(platformData->appDllTempPath, &newDll);
 				if (loadDllResult != Result_Success)
 				{
-					PrintLine_E("Failed to load \"%.*s\": %s", StrPrint(platformData->appDllPath), GetResultStr(loadDllResult));
+					NotifyPrint_E("Failed to load \"%.*s\": %s", StrPrint(platformData->appDllPath), GetResultStr(loadDllResult));
 					AssertMsg(loadDllResult == Result_Success, "App DLL reload failed!");
 				}
 				

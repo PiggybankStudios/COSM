@@ -104,9 +104,9 @@ void LoadMapBackTexture()
 			FreeStr8(stdHeap, &app->mapBackTexturePath);
 			app->mapBackTexturePath = AllocStr8Nt(stdHeap, MAP_BACKGROUND_TEXTURE_PATH);
 		}
-		else { PrintLine_E("Failed to parse create Texture from %dx%d ImageData!", mapBackImageData.size.Width, mapBackImageData.size.Height); }
+		else { NotifyPrint_E("Failed to parse/create background Texture from %dx%d ImageData!", mapBackImageData.size.Width, mapBackImageData.size.Height); }
 	}
-	else { PrintLine_E("Failed to load map background texture from \"%s\"", MAP_BACKGROUND_TEXTURE_PATH); }
+	else { NotifyPrint_E("Failed to load map background texture from \"%s\"", MAP_BACKGROUND_TEXTURE_PATH); }
 	ScratchEnd(scratch);
 	TracyCZoneEnd(funcZone);
 }
@@ -389,9 +389,9 @@ Result TryParseMapFile(Arena* arena, FilePath filePath, OsmMap* mapOut)
 			DataStream fileStream = ToDataStreamFromFile(&pbfFile);
 			parseResult = TryParsePbfMap(stdHeap, &fileStream, mapOut);
 			OsCloseFile(&pbfFile);
-			if (parseResult != Result_Success) { PrintLine_E("Failed to parse as OpenStreetMaps Protobuf data! Error: %s", GetResultStr(parseResult)); }
+			if (parseResult != Result_Success) { NotifyPrint_E("Failed to parse as OpenStreetMaps Protobuf data! Error: %s", GetResultStr(parseResult)); }
 		}
-		else { PrintLine_E("Failed to open \"%.*s\"", StrPrint(filePath)); }
+		else { NotifyPrint_E("Failed to open \"%.*s\"", StrPrint(filePath)); }
 		#else
 		Slice fileContents = Slice_Empty;
 		TracyCZoneN(_ReadBinFile, "OsReadBinFile", true);
@@ -417,13 +417,13 @@ Result TryParseMapFile(Arena* arena, FilePath filePath, OsmMap* mapOut)
 		{
 			PrintLine_I("Opened text \"%.*s\", %llu bytes", StrPrint(filePath), fileContents.length);
 			parseResult = TryParseOsmMap(stdHeap, fileContents, mapOut);
-			if (parseResult != Result_Success) { PrintLine_E("Failed to parse as OpenStreetMaps XML data! Error: %s", GetResultStr(parseResult)); }
+			if (parseResult != Result_Success) { NotifyPrint_E("Failed to parse as OpenStreetMaps XML data! Error: %s", GetResultStr(parseResult)); }
 		}
-		else { PrintLine_E("Failed to open \"%.*s\"", StrPrint(filePath)); }
+		else { NotifyPrint_E("Failed to open \"%.*s\"", StrPrint(filePath)); }
 	}
 	else
 	{
-		PrintLine_E("Unknown file extension \"%.*s\", expected .osm or .pbf files!", StrPrint(GetFileNamePart(filePath, true)));
+		NotifyPrint_E("Unknown file extension \"%.*s\", expected .osm or .pbf files!", StrPrint(GetFileNamePart(filePath, true)));
 		parseResult = Result_UnsupportedFileFormat;
 	}
 	
@@ -500,12 +500,12 @@ bool SaveOsmMap(FilePath filePath)
 		{
 			if (OsWriteTextFile(filePath, xmlFileContents))
 			{
-				PrintLine_I("Successfully saved %llu byte XML to \"%.*s\"", xmlFileContents.length, StrPrint(filePath));
+				NotifyPrint_I("Successfully saved %llu byte XML to \"%.*s\"", xmlFileContents.length, StrPrint(filePath));
 				result = true;
 			}
-			else { PrintLine_I("Failed to write %llu byte XML to \"%.*s\"!", xmlFileContents.length, StrPrint(filePath)); }
+			else { NotifyPrint_E("Failed to write %llu byte XML to \"%.*s\"!", xmlFileContents.length, StrPrint(filePath)); }
 		}
-		else { WriteLine_E("Failed to serialize map to OpenStreetMap XML format!"); }
+		else { Notify_E("Failed to serialize map to OpenStreetMap XML format!"); }
 	}
 	// else if (StrAnyCaseEndsWith(filePath, StrLit(".pbf")))
 	// {
@@ -514,7 +514,7 @@ bool SaveOsmMap(FilePath filePath)
 	else
 	{
 		Str8 fileName = GetFileNamePart(filePath, true);
-		PrintLine_E("Unsupported extension \"%.*s\"", StrPrint(fileName));
+		NotifyPrint_E("Unsupported extension \"%.*s\"", StrPrint(fileName));
 	}
 	ScratchEnd(scratch);
 	return result;
