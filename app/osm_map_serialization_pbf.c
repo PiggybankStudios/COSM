@@ -57,7 +57,7 @@ Result TryParsePbfMap(Arena* arena, DataStream* protobufStream, OsmMap* mapOut)
 		OSMPBF__BlobHeader* blobHeader = osmpbf__blob_header__unpack(&scratchAllocator, headerLength, headerBytes);
 		TracyCZoneEnd(Zone_BlobHeader);
 		if (blobHeader == nullptr) { result = Result_ParsingFailure; break; }
-		Str8 blobTypeStr = StrLit(blobHeader->type);
+		Str8 blobTypeStr = NewStr8Nt(blobHeader->type);
 		// PrintLine_I("Parsed %u byte BlobHeader: %d byte \"%s\"", headerLength, blobHeader->datasize, blobHeader->type);
 		// if (blobHeader->has_indexdata) { PrintLine_D("\tindexdata=%zu bytes %p", blobHeader->indexdata.len, blobHeader->indexdata.data); }
 		if (blobHeader->datasize == 0) { result = Result_ValueTooLow; break; }
@@ -501,7 +501,7 @@ Result TryParsePbfMap(Arena* arena, DataStream* protobufStream, OsmMap* mapOut)
 									for (uxx roleIndex = 1; roleIndex < OsmRelationMemberRole_Count; roleIndex++)
 									{
 										const char* roleEnumStrNt = GetOsmRelationMemberRoleXmlStr((OsmRelationMemberRole)roleIndex);
-										if (StrAnyCaseEquals(roleStr, StrLit(roleEnumStrNt)))
+										if (StrAnyCaseEquals(roleStr, NewStr8Nt(roleEnumStrNt)))
 										{
 											role = (OsmRelationMemberRole)roleIndex;
 											break;

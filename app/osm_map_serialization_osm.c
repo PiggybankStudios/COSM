@@ -255,7 +255,7 @@ Result TryParseOsmMap(Arena* arena, Str8 xmlFileContents, OsmMap* mapOut)
 				for (uxx eIndex = 1; eIndex < OsmRelationMemberType_Count; eIndex++)
 				{
 					const char* enumValueStrNt = GetOsmRelationMemberTypeXmlStr((OsmRelationMemberType)eIndex);
-					if (StrAnyCaseEquals(typeStr, StrLit(enumValueStrNt)))
+					if (StrAnyCaseEquals(typeStr, NewStr8Nt(enumValueStrNt)))
 					{
 						type = (OsmRelationMemberType)eIndex;
 						break;
@@ -268,7 +268,7 @@ Result TryParseOsmMap(Arena* arena, Str8 xmlFileContents, OsmMap* mapOut)
 					for (uxx eIndex = 1; eIndex < OsmRelationMemberRole_Count; eIndex++)
 					{
 						const char* enumValueStrNt = GetOsmRelationMemberRoleXmlStr((OsmRelationMemberRole)eIndex);
-						if (StrAnyCaseEquals(roleStr, StrLit(enumValueStrNt)))
+						if (StrAnyCaseEquals(roleStr, NewStr8Nt(enumValueStrNt)))
 						{
 							role = (OsmRelationMemberRole)eIndex;
 							break;

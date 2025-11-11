@@ -12,7 +12,7 @@ ImageData LoadImageData(Arena* arena, const char* path)
 	ScratchBegin1(scratch, arena);
 	Slice fileContents = Slice_Empty;
 	TracyCZoneN(_TryReadAppResource, "TryReadAppResource", true);
-	Result readFileResult = TryReadAppResource(&app->resources, scratch, FilePathLit(path), false, &fileContents);
+	Result readFileResult = TryReadAppResource(&app->resources, scratch, NewFilePathNt(path), false, &fileContents);
 	TracyCZoneEnd(_TryReadAppResource);
 	Assert(readFileResult == Result_Success);
 	UNUSED(readFileResult);
