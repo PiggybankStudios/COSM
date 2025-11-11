@@ -1,10 +1,10 @@
 // raddbg 0.9.24 project file
 
+recent_file: path: "app/app_main.c"
 recent_file: path: "app/parse_xml.c"
 recent_file: path: "core/struct/struct_vectors.h"
 recent_file: path: "app/osm_map.c"
 recent_file: path: "core/misc/misc_sorting.h"
-recent_file: path: "app/app_main.c"
 recent_file: path: "core/cross/cross_sorting_and_var_array.h"
 recent_file: path: "core/misc/misc_poly_simplify.h"
 recent_file: path: "app/app_helpers.c"
@@ -68,15 +68,21 @@ type_view:
 debug_info:
 {
   path: "C:/gamedev/projects/COSM/_build/cosm.pdb"
-  timestamp: 66198062384010
+  timestamp: 66198071661808
 }
 debug_info:
 {
   path: "C:/gamedev/projects/COSM/_build/pig_core.pdb"
-  timestamp: 66198062383125
+  timestamp: 66198071660930
 }
 debug_info:
 {
   path: "C:/gamedev/projects/COSM/_build/cosm_app.pdb"
-  timestamp: 66198062384979
+  timestamp: 66198071662767
+}
+breakpoint:
+{
+  source_location: "app/app_main.c:582:1"
+  hit_count: 0
+  enabled: 0
 }
