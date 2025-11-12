@@ -767,7 +767,7 @@ void UpdateOsmWayTriangulation(OsmMap* map, OsmWay* way)
 						(r32)InverseLerpClampR64(way->nodeBounds.Lon, way->nodeBounds.Lon + way->nodeBounds.Width, polygonVerts[vertIndex].Lon),
 						(r32)InverseLerpClampR64(way->nodeBounds.Lat + way->nodeBounds.Height, way->nodeBounds.Lat, polygonVerts[vertIndex].Lat)
 					);
-					bufferVertices[iIndex + tIndex] = NewVertex2D(normalizedPosition, normalizedPosition, (v4)V4_One_Const);
+					bufferVertices[iIndex + tIndex] = NewVertex2D(normalizedPosition, normalizedPosition, V4_One);
 				}
 			}
 			way->triVertBuffer = InitVertBuffer2D(map->arena, StrLit("Way_TriVertBuffer"), VertBufferUsage_Static, numBufferVertices, bufferVertices, false);

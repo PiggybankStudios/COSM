@@ -112,9 +112,9 @@ void InitMapTiles()
 		{
 			Str8 fileNameNoExt = GetFileNamePart(fileName, false);
 			uxx underscoreIndex = 0;
-			RangeUXX zRange = RangeUXX_Zero_Const;
-			RangeUXX xRange = RangeUXX_Zero_Const;
-			RangeUXX yRange = RangeUXX_Zero_Const;
+			RangeUXX zRange = RangeUXX_Zero;
+			RangeUXX xRange = RangeUXX_Zero;
+			RangeUXX yRange = RangeUXX_Zero;
 			for (uxx cIndex = 0; cIndex < fileNameNoExt.length; cIndex++)
 			{
 				if (fileNameNoExt.chars[cIndex] == '_')
