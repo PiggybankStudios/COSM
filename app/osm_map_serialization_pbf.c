@@ -21,11 +21,11 @@ char GetPbfBlobTypeChar(u8 blobType)
 	}
 }
 
-#define GetPbfString(stringTablePntr, stringId)                                            \
-(                                                                                          \
-	((stringId) > 0 && (size_t)(stringId) < (stringTablePntr)->n_s)                        \
-	? NewStr8((stringTablePntr)->s[(stringId)].len, (stringTablePntr)->s[(stringId)].data) \
-	: Str8_Empty                                                                           \
+#define GetPbfString(stringTablePntr, stringId)                                                    \
+(                                                                                                  \
+	((stringId) > 0 && (size_t)(stringId) < (stringTablePntr)->n_s)                                \
+	? MakeStr8((stringTablePntr)->s[(stringId)].len, (char*)(stringTablePntr)->s[(stringId)].data) \
+	: Str8_Empty                                                                                   \
 )
 
 Result TryParsePbfMap(Arena* arena, DataStream* protobufStream, OsmMap* mapOut)
@@ -57,7 +57,7 @@ Result TryParsePbfMap(Arena* arena, DataStream* protobufStream, OsmMap* mapOut)
 		OSMPBF__BlobHeader* blobHeader = osmpbf__blob_header__unpack(&scratchAllocator, headerLength, headerBytes);
 		TracyCZoneEnd(Zone_BlobHeader);
 		if (blobHeader == nullptr) { result = Result_ParsingFailure; break; }
-		Str8 blobTypeStr = NewStr8Nt(blobHeader->type);
+		Str8 blobTypeStr = MakeStr8Nt(blobHeader->type);
 		// PrintLine_I("Parsed %u byte BlobHeader: %d byte \"%s\"", headerLength, blobHeader->datasize, blobHeader->type);
 		// if (blobHeader->has_indexdata) { PrintLine_D("\tindexdata=%zu bytes %p", blobHeader->indexdata.len, blobHeader->indexdata.data); }
 		if (blobHeader->datasize == 0) { result = Result_ValueTooLow; break; }
@@ -95,12 +95,12 @@ Result TryParsePbfMap(Arena* arena, DataStream* protobufStream, OsmMap* mapOut)
 		Slice decompressedBuffer = Slice_Empty;
 		if (blob->data_case == OSMPBF__BLOB__DATA_RAW)
 		{
-			decompressedBuffer = NewStr8((uxx)dataPntr->len, dataPntr->data);
+			decompressedBuffer = MakeSlice((uxx)dataPntr->len, dataPntr->data);
 		}
 		else if (blob->data_case == OSMPBF__BLOB__DATA_ZLIB_DATA && blob->raw_size > 0)
 		{
 			TracyCZoneN(Zone_ZlibDecompress, "ZlibDecompress", true);
-			decompressedBuffer = ZlibDecompressIntoArena(scratch, NewStr8((uxx)dataPntr->len, dataPntr->data), (uxx)blob->raw_size);
+			decompressedBuffer = ZlibDecompressIntoArena(scratch, MakeSlice((uxx)dataPntr->len, dataPntr->data), (uxx)blob->raw_size);
 			TracyCZoneEnd(Zone_ZlibDecompress);
 			if (decompressedBuffer.bytes == nullptr)
 			{
@@ -202,7 +202,7 @@ Result TryParsePbfMap(Arena* arena, DataStream* protobufStream, OsmMap* mapOut)
 			#endif
 			
 			r64 granularityMult = (r64)(primitiveBlock->has_granularity ? primitiveBlock->granularity : 1) * (r64)Billionth(100);
-			v2d nodeOffset = NewV2d(
+			v2d nodeOffset = MakeV2d(
 				(r64)(primitiveBlock->has_lon_offset ? primitiveBlock->lon_offset * granularityMult : 0),
 				(r64)(primitiveBlock->has_lat_offset ? primitiveBlock->lat_offset * granularityMult : 0)
 			);
@@ -285,7 +285,7 @@ Result TryParsePbfMap(Arena* arena, DataStream* protobufStream, OsmMap* mapOut)
 							if (lastNode != nullptr && lastNode->id >= (u64)nodeId) { areNewNodesSorted = false; }
 						}
 						else if (prevNodeId >= nodeId) { areNewNodesSorted = false; }
-						v2d nodeLocation = NewV2d(
+						v2d nodeLocation = MakeV2d(
 							nodeOffset.X + ((r64)nodeLon * granularityMult),
 							nodeOffset.Y + ((r64)nodeLat * granularityMult)
 						);
@@ -501,7 +501,7 @@ Result TryParsePbfMap(Arena* arena, DataStream* protobufStream, OsmMap* mapOut)
 									for (uxx roleIndex = 1; roleIndex < OsmRelationMemberRole_Count; roleIndex++)
 									{
 										const char* roleEnumStrNt = GetOsmRelationMemberRoleXmlStr((OsmRelationMemberRole)roleIndex);
-										if (StrAnyCaseEquals(roleStr, NewStr8Nt(roleEnumStrNt)))
+										if (StrAnyCaseEquals(roleStr, MakeStr8Nt(roleEnumStrNt)))
 										{
 											role = (OsmRelationMemberRole)roleIndex;
 											break;

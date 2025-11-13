@@ -207,8 +207,8 @@ OsmWay* AddOsmWay(OsmMap* map, u64 id, u64 numNodes, u64* nodeIds)
 		if (newRef->pntr == nullptr) { map->waysMissingNodes = true; }
 		else
 		{
-			if (!foundFirstNode) { result->nodeBounds = NewRecd(newRef->pntr->location.Lon, newRef->pntr->location.Lat, 0, 0); foundFirstNode = true; }
-			else { result->nodeBounds = BothRecd(result->nodeBounds, NewRecdV(newRef->pntr->location, V2d_Zero)); }
+			if (!foundFirstNode) { result->nodeBounds = MakeRecd(newRef->pntr->location.Lon, newRef->pntr->location.Lat, 0, 0); foundFirstNode = true; }
+			else { result->nodeBounds = BothRecd(result->nodeBounds, MakeRecdV(newRef->pntr->location, V2d_Zero)); }
 		}
 	}
 	result->isClosedLoop = (numNodes >= 3 && nodeIds[0] == nodeIds[numNodes-1]);

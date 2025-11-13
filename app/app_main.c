@@ -453,7 +453,7 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 						{
 							OsmNodeRef* node1 = VarArrayGet(OsmNodeRef, &way->nodes, nIndex-1);
 							OsmNodeRef* node2 = VarArrayGet(OsmNodeRef, &way->nodes, nIndex);
-							Line2DR64 line = NewLine2DR64V(node1->pntr->location, node2->pntr->location);
+							Line2DR64 line = MakeLine2DR64V(node1->pntr->location, node2->pntr->location);
 							v2d closestPoint = V2d_Zero;
 							r64 distanceToLine = DistanceToLine2DR64(line, mouseLocation, &closestPoint);
 							if (closestWay == nullptr || distanceToLine*distanceToLine < closestWayDistanceSqr)
@@ -611,7 +611,7 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 		uiArena = scratch3;
 		FlagSet(uiArena->flags, ArenaFlag_DontPop);
 		uxx uiArenaMark = ArenaGetMark(uiArena);
-		UiWidgetContext uiContext = NewUiWidgetContext(
+		UiWidgetContext uiContext = MakeUiWidgetContext(
 			uiArena,
 			&app->clay,
 			&appIn->keyboard,
@@ -643,7 +643,7 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 			RangeR64 viewableLatitude = NewRangeR64(viewportLocationTopLeft.Latitude, viewportLocationBottomRight.Latitude);
 			
 			v2 backSize = ToV2Fromi(app->mapBackTexture.size);
-			rec backSourceRec = NewRec(
+			rec backSourceRec = MakeRec(
 				0 * backSize.Width, 0.0f * backSize.Height,
 				1 * backSize.Width, 1.0f * backSize.Height
 			);
@@ -671,13 +671,13 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 						r32 tileScreenX = (r32)(mapScreenRec.X + ((r64)tileScreenSize.Width * tileX));
 						if (tileScreenX >= screenSize.Width) { break; }
 						
-						rec tileRec = NewRec(tileScreenX, tileScreenY, tileScreenSize.Width, tileScreenSize.Height);
+						rec tileRec = MakeRec(tileScreenX, tileScreenY, tileScreenSize.Width, tileScreenSize.Height);
 						if (tileRec.X + tileRec.Width > 0 && tileRec.Y + tileRec.Height > 0)
 						{
 							bool isMouseHovered = (isMouseOverMainViewport && IsInsideRec(tileRec, appIn->mouse.position) && !isHoveringMapPrimitive);
 							bool shouldDownload = (isMouseHovered && IsMouseBtnPressed(&appIn->mouse, MouseBtn_Left) && IsKeyboardKeyDown(&appIn->keyboard, Key_Control));
 							TracyCZoneN(_GetMapTileTexture, "GetMapTileTexture", true);
-							Texture* tileTexture = GetMapTileTexture(NewV3i(tileX, tileY, tileLevelZ), true, shouldDownload);
+							Texture* tileTexture = GetMapTileTexture(MakeV3i(tileX, tileY, tileLevelZ), true, shouldDownload);
 							TracyCZoneEnd(_GetMapTileTexture);
 							bool hadDesiredTile = (tileTexture != nullptr);
 							if (tileTexture != nullptr)
@@ -691,7 +691,7 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 								//If we don't have the actual tile we want to render, then lets walk up the layers and find a tile that we can render a portion from
 								i32 upperLevelZ = tileLevelZ;
 								i32 upperGridSize = tileGridSize;
-								v2i upperTileCoord = NewV2i(tileX, tileY);
+								v2i upperTileCoord = MakeV2i(tileX, tileY);
 								i32 innerLevelZ = 0;
 								i32 innerGridSize = 1;
 								v2i innerTileCoord = V2i_Zero;
@@ -706,12 +706,12 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 									if ((upperTileCoord.Y % 2) != 0) { innerTileCoord.Y += innerGridSize/2; }
 									upperTileCoord.X /= 2;
 									upperTileCoord.Y /= 2;
-									tileTexture = GetMapTileTexture(NewV3i(upperTileCoord.X, upperTileCoord.Y, upperLevelZ), true, false);
+									tileTexture = GetMapTileTexture(MakeV3i(upperTileCoord.X, upperTileCoord.Y, upperLevelZ), true, false);
 								}
 								TracyCZoneEnd(_FindUpperTile);
 								if (tileTexture != nullptr)
 								{
-									rec sourceRec = NewRec(
+									rec sourceRec = MakeRec(
 										innerTileCoord.X * (256.0f / (r32)innerGridSize),
 										innerTileCoord.Y * (256.0f / (r32)innerGridSize),
 										(256.0f / (r32)innerGridSize), (256.0f / (r32)innerGridSize)
@@ -748,11 +748,11 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 			#if 0
 			if (app->mapFont.arena != nullptr)
 			{
-				v2 atlasPos = NewV2(10, 60);
+				v2 atlasPos = MakeV2(10, 60);
 				VarArrayLoop(&app->mapFont.atlases, aIndex)
 				{
 					VarArrayLoopGet(FontAtlas, atlas, &app->mapFont.atlases, aIndex);
-					rec atlasRec = NewRec(atlasPos.X, atlasPos.Y, (r32)atlas->texture.Width, (r32)atlas->texture.Height);
+					rec atlasRec = MakeRec(atlasPos.X, atlasPos.Y, (r32)atlas->texture.Width, (r32)atlas->texture.Height);
 					DrawTexturedRectangle(atlasRec, White, &atlas->texture);
 					DrawRectangleOutline(atlasRec, 1.0f, MonokaiYellow);
 					atlasPos.X += atlasRec.Width + 10;
@@ -789,7 +789,7 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 										Color32 smallColor = (way->borderThickness > 0.0f && way->borderColor.a > 0) ? way->borderColor : way->fillColor;
 										#if 0
 										r32 radius = LengthV2(boundsRec.Size) / 2.0f;
-										DrawCircle(NewCircleV(AddV2(boundsRec.TopLeft, ShrinkV2(boundsRec.Size, 2)), radius), smallColor);
+										DrawCircle(MakeCircleV(AddV2(boundsRec.TopLeft, ShrinkV2(boundsRec.Size, 2)), radius), smallColor);
 										#else
 										DrawRectangle(boundsRec, smallColor);
 										#endif
@@ -859,8 +859,8 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 							
 							v2d nodePos = MapProject(app->view.projection, node->location, mapScreenRec);
 							AlignV2d(&nodePos);
-							if (outlineColor.a > 0) { DrawCircle(NewCircleV(ToV2Fromd(nodePos), radius + 1), outlineColor); }
-							DrawCircle(NewCircleV(ToV2Fromd(nodePos), radius), nodeColor);
+							if (outlineColor.a > 0) { DrawCircle(MakeCircleV(ToV2Fromd(nodePos), radius + 1), outlineColor); }
+							DrawCircle(MakeCircleV(ToV2Fromd(nodePos), radius), nodeColor);
 							
 							Str8 japaneseNameStr = GetOsmNodeTagValue(node, StrLit("name:ja"), Str8_Empty);
 							if (IsEmptyStr(japaneseNameStr)) { japaneseNameStr = GetOsmNodeTagValue(node, StrLit("name"), Str8_Empty); }
@@ -868,13 +868,13 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 							if (IsEmptyStr(englishNameStr)) { englishNameStr = GetOsmNodeTagValue(node, StrLit("name:en"), Str8_Empty); }
 							
 							Color32 textColor = (outlineColor.a > 0) ? outlineColor : nodeColor;
-							v2 namePos = AddV2(ToV2Fromd(nodePos), NewV2(0, -(radius + 5)));
+							v2 namePos = AddV2(ToV2Fromd(nodePos), MakeV2(0, -(radius + 5)));
 							if (!IsEmptyStr(japaneseNameStr))
 							{
 								TextMeasure nameMeasure = MeasureTextEx(&app->mapFont, app->mapFontSize, MAP_FONT_STYLE, false, 0.0f, japaneseNameStr);
 								BindFontEx(&app->mapFont, app->mapFontSize, MAP_FONT_STYLE);
-								v2 textPos = AddV2(namePos, NewV2(-nameMeasure.Width/2, 0));
-								// DrawText(japaneseNameStr, AddV2(textPos, NewV2(0, 2)), ColorLerpSimple(textColor, Black, 0.75f));
+								v2 textPos = AddV2(namePos, MakeV2(-nameMeasure.Width/2, 0));
+								// DrawText(japaneseNameStr, AddV2(textPos, MakeV2(0, 2)), ColorLerpSimple(textColor, Black, 0.75f));
 								DrawText(japaneseNameStr, textPos, textColor);
 								namePos.Y -= nameMeasure.Height + 5;
 							}
@@ -882,8 +882,8 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 							{
 								TextMeasure nameMeasure = MeasureTextEx(&app->mapFont, app->mapFontSize, MAP_FONT_STYLE, false, 0.0f, englishNameStr);
 								BindFontEx(&app->mapFont, app->mapFontSize, MAP_FONT_STYLE);
-								v2 textPos = AddV2(namePos, NewV2(-nameMeasure.Width/2, 0));
-								DrawText(englishNameStr, AddV2(textPos, NewV2(0, 2)), ColorLerpSimple(textColor, Black, 0.75f));
+								v2 textPos = AddV2(namePos, MakeV2(-nameMeasure.Width/2, 0));
+								DrawText(englishNameStr, AddV2(textPos, MakeV2(0, 2)), ColorLerpSimple(textColor, Black, 0.75f));
 								DrawText(englishNameStr, textPos, textColor);
 								namePos.Y -= nameMeasure.Height + 5;
 							}
@@ -897,8 +897,8 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 			v2 boundsBottomRight = ToV2Fromd(MapProject(app->view.projection, AddV2d(app->map.bounds.TopLeft, app->map.bounds.Size), mapScreenRec));
 			rec boundsRec = NewRecBetweenV(boundsTopLeft, boundsBottomRight);
 			DrawRectangleOutline(boundsRec, 2.0f, MonokaiRed);
-			// DrawCircle(NewCircleV(boundsRec.TopLeft, 5), MonokaiRed);
-			// DrawCircle(NewCircleV(Add(boundsRec.TopLeft, boundsRec.Size), 5), MonokaiOrange);
+			// DrawCircle(MakeCircleV(boundsRec.TopLeft, 5), MonokaiRed);
+			// DrawCircle(MakeCircleV(Add(boundsRec.TopLeft, boundsRec.Size), 5), MonokaiOrange);
 			
 			// +==============================+
 			// |    Render Center Reticle     |

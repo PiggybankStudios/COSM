@@ -80,7 +80,7 @@ void InitAppInput(AppInput* input)
 	input->cursorType = SAPP_MOUSECURSOR_DEFAULT;
 	input->isFullscreen = sapp_is_fullscreen();
 	input->isFocused = true; //we assume we are focused when we first present the window, I belive sokol_app will give us an unfocus event immediately after startup if that's not true
-	input->screenSize = NewV2i((i32)sapp_width(), (i32)sapp_height());
+	input->screenSize = MakeV2i((i32)sapp_width(), (i32)sapp_height());
 	InitVarArray(Str8, &input->droppedFilePaths, stdHeap);
 }
 
@@ -141,7 +141,7 @@ bool PlatDoUpdate(void)
 	AppInput* oldAppInput = platformData->currentAppInput;
 	AppInput* newAppInput = (platformData->currentAppInput == &platformData->appInputs[0]) ? &platformData->appInputs[1] : &platformData->appInputs[0];
 	
-	v2i newScreenSize = NewV2i(sapp_width(), sapp_height());
+	v2i newScreenSize = MakeV2i(sapp_width(), sapp_height());
 	bool newIsFullScreen = sapp_is_fullscreen();
 	bool isMouseLocked = sapp_mouse_locked();
 	
@@ -162,7 +162,7 @@ bool PlatDoUpdate(void)
 	newAppInput->isMinimizedChanged = false;
 	newAppInput->isFocusedChanged = false;
 	RefreshKeyboardState(&newAppInput->keyboard);
-	RefreshMouseState(&newAppInput->mouse, isMouseLocked, NewV2((r32)newScreenSize.Width/2.0f, (r32)newScreenSize.Height/2.0f));
+	RefreshMouseState(&newAppInput->mouse, isMouseLocked, MakeV2((r32)newScreenSize.Width/2.0f, (r32)newScreenSize.Height/2.0f));
 	IncrementU64(newAppInput->frameIndex);
 	IncrementU64By(newAppInput->programTime, 16); //TODO: Replace this hardcoded increment!
 	platformData->oldAppInput = oldAppInput;
@@ -361,7 +361,7 @@ void PlatSappEvent(const sapp_event* event)
 				{
 					const char* filePathPntr = sapp_get_dropped_file_path((int)fIndex);
 					NotNull(filePathPntr);
-					newDroppedFilePaths[fIndex] = AllocStr8(stdHeap, NewStr8Nt(filePathPntr));
+					newDroppedFilePaths[fIndex] = AllocStr8Nt(stdHeap, filePathPntr);
 				}
 			} break;
 			default: PrintLine_D("Event: UNKNOWN(%d)", event->type); break;

@@ -78,7 +78,7 @@ Result TryParseOsmMap(Arena* arena, Str8 xmlFileContents, OsmMap* mapOut)
 			if (id <= prevNodeId) { areNodesSorted = false; }
 			prevNodeId = id;
 			
-			OsmNode* newNode = AddOsmNode(mapOut, NewV2d(longitude, latitude), id);
+			OsmNode* newNode = AddOsmNode(mapOut, MakeV2d(longitude, latitude), id);
 			NotNull(newNode);
 			newNode->visible = visible;
 			newNode->version = version;
@@ -255,7 +255,7 @@ Result TryParseOsmMap(Arena* arena, Str8 xmlFileContents, OsmMap* mapOut)
 				for (uxx eIndex = 1; eIndex < OsmRelationMemberType_Count; eIndex++)
 				{
 					const char* enumValueStrNt = GetOsmRelationMemberTypeXmlStr((OsmRelationMemberType)eIndex);
-					if (StrAnyCaseEquals(typeStr, NewStr8Nt(enumValueStrNt)))
+					if (StrAnyCaseEquals(typeStr, MakeStr8Nt(enumValueStrNt)))
 					{
 						type = (OsmRelationMemberType)eIndex;
 						break;
@@ -268,7 +268,7 @@ Result TryParseOsmMap(Arena* arena, Str8 xmlFileContents, OsmMap* mapOut)
 					for (uxx eIndex = 1; eIndex < OsmRelationMemberRole_Count; eIndex++)
 					{
 						const char* enumValueStrNt = GetOsmRelationMemberRoleXmlStr((OsmRelationMemberRole)eIndex);
-						if (StrAnyCaseEquals(roleStr, NewStr8Nt(enumValueStrNt)))
+						if (StrAnyCaseEquals(roleStr, MakeStr8Nt(enumValueStrNt)))
 						{
 							role = (OsmRelationMemberRole)eIndex;
 							break;
@@ -287,7 +287,7 @@ Result TryParseOsmMap(Arena* arena, Str8 xmlFileContents, OsmMap* mapOut)
 				if (newMember->type == OsmRelationMemberType_Node && !IsInfiniteOrNanR64(latitude) && !IsInfiniteOrNanR64(longitude))
 				{
 					InitVarArrayWithInitial(v2d, &newMember->locations, arena, 1);
-					VarArrayAddValue(v2d, &newMember->locations, NewV2d(longitude, latitude));
+					VarArrayAddValue(v2d, &newMember->locations, MakeV2d(longitude, latitude));
 				}
 				else if (newMember->type == OsmRelationMemberType_Way)
 				{
@@ -304,7 +304,7 @@ Result TryParseOsmMap(Arena* arena, Str8 xmlFileContents, OsmMap* mapOut)
 					{
 						r64 nodeLatitude = XmlGetAttributeR64OrBreak(&xml, xmlNodeLocation, StrLit("lat"));
 						r64 nodeLongitude = XmlGetAttributeR64OrBreak(&xml, xmlNodeLocation, StrLit("lon"));
-						VarArrayAddValue(v2d, &newMember->locations, NewV2d(nodeLongitude, nodeLatitude));
+						VarArrayAddValue(v2d, &newMember->locations, MakeV2d(nodeLongitude, nodeLatitude));
 					}
 					if (xml.error != Result_None) { break; }
 				}
@@ -357,8 +357,8 @@ Str8 SerializeOsmMap(Arena* arena, OsmMap* map)
 		TwoPassStrNt(&result, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
 		TwoPassStrNt(&result, "<osm version=\"0.6\" generator=\"COSM 1.0\" copyright=\"OpenStreetMap and contributors\" attribution=\"http://www.openstreetmap.org/copyright\" license=\"http://opendatacommons.org/licenses/odbl/1-0/\">\n");
 		
-		v2d boundsMin = NewV2d(MinR64(map->bounds.Lon, map->bounds.Lon + map->bounds.SizeLon), MinR64(map->bounds.Lat, map->bounds.Lat + map->bounds.SizeLat));
-		v2d boundsMax = NewV2d(MaxR64(map->bounds.Lon, map->bounds.Lon + map->bounds.SizeLon), MaxR64(map->bounds.Lat, map->bounds.Lat + map->bounds.SizeLat));
+		v2d boundsMin = MakeV2d(MinR64(map->bounds.Lon, map->bounds.Lon + map->bounds.SizeLon), MinR64(map->bounds.Lat, map->bounds.Lat + map->bounds.SizeLat));
+		v2d boundsMax = MakeV2d(MaxR64(map->bounds.Lon, map->bounds.Lon + map->bounds.SizeLon), MaxR64(map->bounds.Lat, map->bounds.Lat + map->bounds.SizeLat));
 		TwoPassPrint(&result, "\t<bounds minlat=\"%lf\" minlon=\"%lf\" maxlat=\"%lf\" maxlon=\"%lf\"/>\n", boundsMin.Lat, boundsMin.Lon, boundsMax.Lat, boundsMax.Lon);
 		
 		VarArrayLoop(&map->nodes, nIndex)

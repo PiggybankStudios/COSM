@@ -86,7 +86,7 @@ Result TryParseXml(Str8 xmlContents, Arena* arena, XmlFile* fileOut)
 				TracyCZoneN(Zone_ELEMENT_END, "HOXML_ELEMENT_END", true);
 				if (stackSize == 0) { result = Result_UnexpectedEndElement; TracyCZoneEnd(Zone_ELEMENT_END); break; }
 				XmlElement* element = stack[stackSize-1];
-				if (!StrExactEquals(NewStr8Nt(hoxml.tag), element->type)) { result = Result_WrongEndElementType; TracyCZoneEnd(Zone_ELEMENT_END); break; }
+				if (!StrExactEquals(MakeStr8Nt(hoxml.tag), element->type)) { result = Result_WrongEndElementType; TracyCZoneEnd(Zone_ELEMENT_END); break; }
 				stackSize--;
 				TracyCZoneEnd(Zone_ELEMENT_END);
 			} break;

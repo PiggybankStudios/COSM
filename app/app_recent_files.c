@@ -40,7 +40,7 @@ void AppLoadRecentFilesList()
 		if (OsReadTextFile(savePath, scratch, &fileContent))
 		{
 			AppClearRecentFiles();
-			LineParser parser = NewLineParser(fileContent);
+			LineParser parser = MakeLineParser(fileContent);
 			Str8 fileLine = ZEROED;
 			while (LineParserGetLine(&parser, &fileLine))
 			{

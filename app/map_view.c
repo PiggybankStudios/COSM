@@ -11,8 +11,8 @@ Description:
 void InitMapView(MapView* view, MapProjection projection)
 {
 	view->projection = projection;
-	view->mapRec = NewRecd(0, 0, MERCATOR_MAP_ASPECT_RATIO, 1.0);
-	view->position = NewV2d(view->mapRec.X + view->mapRec.Width/2.0, view->mapRec.Y + view->mapRec.Height/2.0);
+	view->mapRec = MakeRecd(0, 0, MERCATOR_MAP_ASPECT_RATIO, 1.0);
+	view->position = MakeV2d(view->mapRec.X + view->mapRec.Width/2.0, view->mapRec.Y + view->mapRec.Height/2.0);
 	view->zoom = 0.0; //this will get set to something reasonable after our first UI layout
 }
 

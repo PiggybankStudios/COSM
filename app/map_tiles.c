@@ -31,7 +31,7 @@ HTTP_CALLBACK_DEF(MapTileHttpCallback)
 	else if (request->responseBytes.length == 0) { NotifyPrint_E("Request to download MapTile(%d, %d, %d) return empty response!", mapTile->coord.X, mapTile->coord.Y, mapTile->coord.Z); }
 	else
 	{
-		Slice responseBytes = NewStr8(request->responseBytes.length, request->responseBytes.items);
+		Slice responseBytes = MakeStr8(request->responseBytes.length, request->responseBytes.items);
 		PrintLine_D("Got %llu byte response for MapTile(%d, %d, %d)", responseBytes.length, mapTile->coord.X, mapTile->coord.Y, mapTile->coord.Z);
 		ScratchBegin(scratch);
 		ImageData imageData = ZEROED;

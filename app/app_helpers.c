@@ -12,7 +12,7 @@ ImageData LoadImageData(Arena* arena, const char* path)
 	ScratchBegin1(scratch, arena);
 	Slice fileContents = Slice_Empty;
 	TracyCZoneN(_TryReadAppResource, "TryReadAppResource", true);
-	Result readFileResult = TryReadAppResource(&app->resources, scratch, NewFilePathNt(path), false, &fileContents);
+	Result readFileResult = TryReadAppResource(&app->resources, scratch, MakeFilePathNt(path), false, &fileContents);
 	TracyCZoneEnd(_TryReadAppResource);
 	Assert(readFileResult == Result_Success);
 	UNUSED(readFileResult);
@@ -55,7 +55,7 @@ void LoadNotificationIcons()
 	}
 	
 	const v2i sheetSize = { .X=2, .Y=2 };
-	v2 cellSize = NewV2(
+	v2 cellSize = MakeV2(
 		(r32)app->notificationIconsTexture.Width / (r32)sheetSize.Width,
 		(r32)app->notificationIconsTexture.Height / (r32)sheetSize.Height
 	);
@@ -63,20 +63,20 @@ void LoadNotificationIcons()
 	for (uxx lIndex = DbgLevel_Debug; lIndex < DbgLevel_Count; lIndex++)
 	{
 		DbgLevel dbgLevel = (DbgLevel)lIndex;
-		v2i cellPos = NewV2i(0, 0);
+		v2i cellPos = V2i_Zero;
 		switch (dbgLevel)
 		{
-			// case DbgLevel_Debug:   cellPos = NewV2i(1, 0); break;
-			case DbgLevel_Regular: cellPos = NewV2i(1, 0); break;
-			case DbgLevel_Info:    cellPos = NewV2i(1, 0); break;
-			case DbgLevel_Notify:  cellPos = NewV2i(1, 0); break;
-			case DbgLevel_Other:   cellPos = NewV2i(1, 0); break;
-			case DbgLevel_Warning: cellPos = NewV2i(0, 1); break;
-			case DbgLevel_Error:   cellPos = NewV2i(1, 1); break;
+			// case DbgLevel_Debug:   cellPos = MakeV2i(1, 0); break;
+			case DbgLevel_Regular: cellPos = MakeV2i(1, 0); break;
+			case DbgLevel_Info:    cellPos = MakeV2i(1, 0); break;
+			case DbgLevel_Notify:  cellPos = MakeV2i(1, 0); break;
+			case DbgLevel_Other:   cellPos = MakeV2i(1, 0); break;
+			case DbgLevel_Warning: cellPos = MakeV2i(0, 1); break;
+			case DbgLevel_Error:   cellPos = MakeV2i(1, 1); break;
 		}
 		if (cellPos.X != 0 || cellPos.Y != 0)
 		{
-			rec iconSourceRec = NewRec(
+			rec iconSourceRec = MakeRec(
 				cellSize.Width * cellPos.X,
 				cellSize.Height * cellPos.Y,
 				cellSize.Width, cellSize.Height
@@ -131,8 +131,8 @@ bool AppCreateFonts()
 		FontCharRange_ASCII,
 		FontCharRange_LatinSupplementAccent,
 		FontCharRange_LatinExtA,
-		NewFontCharRangeSingle(UNICODE_ELLIPSIS_CODEPOINT),
-		NewFontCharRangeSingle(UNICODE_RIGHT_ARROW_CODEPOINT),
+		MakeFontCharRangeSingle(UNICODE_ELLIPSIS_CODEPOINT),
+		MakeFontCharRangeSingle(UNICODE_RIGHT_ARROW_CODEPOINT),
 	};
 	FontCharRange otherRanges[] = {
 		FontCharRange_Cyrillic,
@@ -211,7 +211,7 @@ bool AppCreateFonts()
 			// 		VarArrayLoop(&app->kanjiCodepoints, cIndex)
 			// 		{
 			// 			VarArrayLoopGetValue(u32, codepoint, &app->kanjiCodepoints, cIndex);
-			// 			kanjiRanges[cIndex] = NewFontCharRangeSingle(codepoint);
+			// 			kanjiRanges[cIndex] = MakeFontCharRangeSingle(codepoint);
 			// 		}
 			// 		bakeResult = TryBakeFontAtlas(&newMapFont, app->mapFontSize, MAP_FONT_STYLE, MIN_FONT_ATLAS_SIZE, MAX_FONT_ATLAS_SIZE, numKanjiRanges, kanjiRanges);
 			// 		ScratchEnd(scratch);
@@ -532,7 +532,7 @@ void UpdateOsmWayColorChoice(OsmWay* way)
 		
 		if (way->isClosedLoop)
 		{
-			way->fillColor = NewColorU32(0x80FF00FF);
+			way->fillColor = MakeColorU32(0x80FF00FF);
 			way->renderLayer = OsmRenderLayer_Bottom;
 			if (way->tags.length == 0) { way->fillColor = Transparent; } //TODO: We should see if there are any relations referencing this way and maybe color this way based off that
 			else
@@ -763,11 +763,11 @@ void UpdateOsmWayTriangulation(OsmMap* map, OsmWay* way)
 					if (offset == 1) { offset = 2; }
 					else if (offset == 2) { offset = 1; }
 					uxx vertIndex = way->triIndices[iIndex + offset];
-					v2 normalizedPosition = NewV2(
+					v2 normalizedPosition = MakeV2(
 						(r32)InverseLerpClampR64(way->nodeBounds.Lon, way->nodeBounds.Lon + way->nodeBounds.Width, polygonVerts[vertIndex].Lon),
 						(r32)InverseLerpClampR64(way->nodeBounds.Lat + way->nodeBounds.Height, way->nodeBounds.Lat, polygonVerts[vertIndex].Lat)
 					);
-					bufferVertices[iIndex + tIndex] = NewVertex2D(normalizedPosition, normalizedPosition, V4_One);
+					bufferVertices[iIndex + tIndex] = MakeVertex2D(normalizedPosition, normalizedPosition, V4r_One);
 				}
 			}
 			way->triVertBuffer = InitVertBuffer2D(map->arena, StrLit("Way_TriVertBuffer"), VertBufferUsage_Static, numBufferVertices, bufferVertices, false);
