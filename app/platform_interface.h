@@ -18,8 +18,14 @@ plex PlatformInfo
 typedef plex AppInput AppInput;
 plex AppInput
 {
-	u64 programTime; //num ms since start of program
 	u64 frameIndex;
+	u64 programTime; //num ms since start of program
+	r32 programTimeRemainder;
+	r64 unclampedElapsedMsR64;
+	r64 elapsedMsR64; //clamped between [MIN_ELAPSED_MS, MAX_ELAPSED_MS]
+	r32 elapsedMs;
+	r64 timeScaleR64;
+	r32 timeScale;
 	
 	KeyboardState keyboard;
 	MouseState mouse;
@@ -37,7 +43,7 @@ plex AppInput
 	v2i screenSize;
 	bool screenSizeChanged;
 	bool isWindowTopmost;
-	// v2i windowSize; //TODO: Can we somehow ask sokol_sapp for the window size (include title bar and border)?
+	// v2i windowSize; //TODO: Can we somehow ask sokol_app for the window size (including title bar and border)?
 	
 	VarArray droppedFilePaths; //Str8
 };

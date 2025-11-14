@@ -46,6 +46,11 @@ Description:
 
 #define APP_DLL_RELOAD_DELAY       500 //ms
 
+#define MIN_ELAPSED_MS 5  //ms
+#define MAX_ELAPSED_MS 67 //ms
+#define TIME_SCALE_TARGET_FRAMERATE 60 //fps
+#define TIME_SCALE_ROUND_TOLERANCE 0.1
+
 // +--------------------------------------------------------------+
 // |                         Header Files                         |
 // +--------------------------------------------------------------+
@@ -164,7 +169,25 @@ bool PlatDoUpdate(void)
 	RefreshKeyboardState(&newAppInput->keyboard);
 	RefreshMouseState(&newAppInput->mouse, isMouseLocked, MakeV2((r32)newScreenSize.Width/2.0f, (r32)newScreenSize.Height/2.0f));
 	IncrementU64(newAppInput->frameIndex);
-	IncrementU64By(newAppInput->programTime, 16); //TODO: Replace this hardcoded increment!
+	{
+		OsTime currentTime = OsGetTime();
+		newAppInput->programTime = currentTime.msSinceStart;
+		newAppInput->programTimeRemainder = currentTime.msSinceStartRemainder;
+		
+		r32 elapsedMsRemainder = 0.0f;
+		u64 elapsedMs = OsTimeDiffMs(platformData->prevFrameTime, currentTime, &elapsedMsRemainder);
+		newAppInput->unclampedElapsedMsR64 = (r64)elapsedMs + (r64)elapsedMsRemainder;
+		if (elapsedMs < MIN_ELAPSED_MS) { elapsedMs = MIN_ELAPSED_MS; elapsedMsRemainder = 0.0f; }
+		else if (elapsedMs > MAX_ELAPSED_MS) { elapsedMs = MAX_ELAPSED_MS; elapsedMsRemainder = 0.0f; }
+		else if (elapsedMs == MAX_ELAPSED_MS && elapsedMsRemainder > 0.0f) { elapsedMsRemainder = 0.0f; }
+		newAppInput->elapsedMsR64 = (r64)elapsedMs + (r64)elapsedMsRemainder;
+		newAppInput->elapsedMs = (r32)newAppInput->elapsedMsR64;
+		newAppInput->timeScaleR64 = newAppInput->elapsedMsR64 / (1000.0 / TIME_SCALE_TARGET_FRAMERATE);
+		if (AreSimilarR64(newAppInput->timeScaleR64, 1.0, TIME_SCALE_ROUND_TOLERANCE)) { newAppInput->timeScaleR64 = 1.0; }
+		newAppInput->timeScale = (r32)newAppInput->timeScaleR64;
+		
+		platformData->prevFrameTime = currentTime;
+	}
 	platformData->oldAppInput = oldAppInput;
 	platformData->currentAppInput = newAppInput;
 	
@@ -381,6 +404,8 @@ sapp_desc sokol_main(int argc, char* argv[])
 	Str8 projectName = StrLit(PROJECT_READABLE_NAME_STR);
 	TracyCAppInfo(projectName.chars, projectName.length);
 	#endif
+	
+	OsMarkStartTime();
 	
 	#if TARGET_HAS_THREADING
 	MainThreadId = OsGetCurrentThreadId();

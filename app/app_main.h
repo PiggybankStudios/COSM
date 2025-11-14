@@ -48,6 +48,8 @@ plex AppData
 	AppResources resources;
 	HttpRequestManager httpManager;
 	NotificationQueue notificationQueue;
+	r32 prevFrameFlipMs;
+	PerfGraph perfGraph;
 	
 	Shader mainShader;
 	PigFont uiFont;

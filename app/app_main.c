@@ -172,6 +172,8 @@ EXPORT_FUNC APP_INIT_DEF(AppInit)
 	Assert(fontBakeSuccess);
 	UNUSED(fontBakeSuccess);
 	
+	InitPerfGraph(&app->perfGraph, 1000.0f / 60.0f); //TODO: How do we know the target framerate?
+	
 	InitClayUIRenderer(stdHeap, V2_Zero, &app->clay);
 	app->clayUiFontId = AddClayUIRendererFont(&app->clay, &app->uiFont, UI_FONT_STYLE);
 	app->clayLargeFontId = AddClayUIRendererFont(&app->clay, &app->largeFont, LARGE_FONT_STYLE);
@@ -278,6 +280,7 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 	ScratchBegin2(scratch3, scratch, scratch2);
 	bool renderedFrame = true;
 	UpdateDllGlobals(inPlatformInfo, inPlatformApi, memoryPntr, appInput);
+	UpdatePerfGraph(&app->perfGraph, ((r32)appIn->unclampedElapsedMsR64 - app->prevFrameFlipMs), app->prevFrameFlipMs);
 	app->notificationQueue.currentProgramTime = appIn->programTime;
 	v2i screenSizei = appIn->screenSize;
 	v2 screenSize = ToV2Fromi(appIn->screenSize);
@@ -1189,6 +1192,23 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 					}
 					#endif
 					
+					#if 0
+					CLAY({ .id = CLAY_ID("ProgramTimeDisplay") })
+					{
+						CLAY_TEXT(
+							PrintInArenaStr(uiArena, "ProgramTime: %llu (+%g)", appIn->programTime, appIn->timeScale),
+							CLAY_TEXT_CONFIG({
+								.fontId = app->clayUiFontId,
+								.fontSize = (u16)app->uiFontSize,
+								.textColor = TEXT_WHITE,
+								.wrapMode = CLAY_TEXT_WRAP_NONE,
+								.textAlignment = CLAY_TEXT_ALIGN_SHRINK,
+								.userData = { .contraction = TextContraction_ClipRight },
+							})
+						);
+					}
+					#endif
+					
 					CLAY({ .layout={ .sizing={ .width=CLAY_SIZING_FIXED(UI_R32(4)) } } }) {}
 				}
 				
@@ -1467,15 +1487,25 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 		ArenaResetToMark(uiArena, uiArenaMark);
 		uiArena = nullptr;
 		
+		// +==============================+
+		// |       Render Overlays        |
+		// +==============================+
+		RenderPerfGraph(&app->perfGraph, &gfx, &app->uiFont, app->uiFontSize, UI_FONT_STYLE, MakeRec(10, 10, 400, 100));
+		
 		platform->SetCursorShape(uiContext.cursorShape);
 	}
 	CommitAllFontTextureUpdates(&app->uiFont);
 	CommitAllFontTextureUpdates(&app->mapFont);
 	CommitAllFontTextureUpdates(&app->largeFont);
+	OsTime beforeFrameFlipTime = OsGetTime();
 	TracyCZoneEnd(Zone_Render);
 	TracyCZoneN(Zone_EndFrame, "EndFrame", true);
 	EndFrame();
 	TracyCZoneEnd(Zone_EndFrame);
+	OsTime afterFrameFlipTime = OsGetTime();
+	r32 frameFlipMsRemainder = 0.0f;
+	u64 frameFlipMs = OsTimeDiffMs(beforeFrameFlipTime, afterFrameFlipTime, &frameFlipMsRemainder);
+	app->prevFrameFlipMs = (r32)frameFlipMs + frameFlipMsRemainder;
 	
 	ScratchEnd(scratch);
 	ScratchEnd(scratch2);
