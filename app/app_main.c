@@ -326,6 +326,14 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 			isOverDisplayLimit = (app->map.nodes.length > DISPLAY_NODE_COUNT_LIMIT || app->map.ways.length > DISPLAY_WAY_COUNT_LIMIT);
 		}
 		
+		// +==============================+
+		// | F6 Toggles Performance Graph |
+		// +==============================+
+		if (IsKeyboardKeyPressed(&appIn->keyboard, Key_F6, false))
+		{
+			app->showPerfGraph = !app->showPerfGraph;
+		}
+		
 		// +==================================+
 		// | Space Centered Selected Item(s)  |
 		// +==================================+
@@ -1492,7 +1500,10 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 		// +==============================+
 		// |       Render Overlays        |
 		// +==============================+
-		RenderPerfGraph(&app->perfGraph, &gfx, &app->uiFont, app->uiFontSize, UI_FONT_STYLE, MakeRec(10, 10, 400, 100));
+		if (app->showPerfGraph)
+		{
+			RenderPerfGraph(&app->perfGraph, &gfx, &app->uiFont, app->uiFontSize, UI_FONT_STYLE, MakeRec(10, 10, 400, 100));
+		}
 		
 		platform->SetCursorShape(uiContext.cursorShape);
 	}

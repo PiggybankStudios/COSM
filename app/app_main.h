@@ -50,6 +50,7 @@ plex AppData
 	NotificationQueue notificationQueue;
 	r32 prevRenderMs;
 	PerfGraph perfGraph;
+	bool showPerfGraph;
 	
 	Shader mainShader;
 	PigFont uiFont;
