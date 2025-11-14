@@ -89,6 +89,30 @@ void InitAppInput(AppInput* input)
 	InitVarArray(Str8, &input->droppedFilePaths, stdHeap);
 }
 
+void PlatUpdateAppInputTimingInfo(AppInput* appInput)
+{
+	OsTime currentTime = OsGetTime();
+	OsTime prevTime = platformData->prevFrameTime;
+	if (appInput->frameIndex == 0) { prevTime = currentTime; } //ignore difference between 0 and first frame time
+	platformData->prevFrameTime = currentTime;
+	
+	appInput->programTime = currentTime.msSinceStart;
+	appInput->programTimeRemainder = currentTime.msSinceStartRemainder;
+	
+	r32 elapsedMsRemainder = 0.0f;
+	u64 elapsedMs = OsTimeDiffMsU64(prevTime, currentTime, &elapsedMsRemainder);
+	appInput->unclampedElapsedMsR64 = (r64)elapsedMs + (r64)elapsedMsRemainder;
+	if (elapsedMs < MIN_ELAPSED_MS) { elapsedMs = MIN_ELAPSED_MS; elapsedMsRemainder = 0.0f; }
+	else if (elapsedMs > MAX_ELAPSED_MS) { elapsedMs = MAX_ELAPSED_MS; elapsedMsRemainder = 0.0f; }
+	else if (elapsedMs == MAX_ELAPSED_MS && elapsedMsRemainder > 0.0f) { elapsedMsRemainder = 0.0f; }
+	appInput->elapsedMsR64 = (r64)elapsedMs + (r64)elapsedMsRemainder;
+	appInput->elapsedMs = (r32)appInput->elapsedMsR64;
+	
+	appInput->timeScaleR64 = appInput->elapsedMsR64 / (1000.0 / TIME_SCALE_TARGET_FRAMERATE);
+	if (AreSimilarR64(appInput->timeScaleR64, 1.0, TIME_SCALE_ROUND_TOLERANCE)) { appInput->timeScaleR64 = 1.0; }
+	appInput->timeScale = (r32)appInput->timeScaleR64;
+}
+
 bool PlatDoUpdate(void)
 {
 	TracyCFrameMarkNamed("Game Loop");
@@ -154,6 +178,7 @@ bool PlatDoUpdate(void)
 	oldAppInput->screenSize = newScreenSize;
 	if (oldAppInput->isFullscreen != newIsFullScreen) { oldAppInput->isFullscreenChanged = true; }
 	oldAppInput->isFullscreen = newIsFullScreen;
+	PlatUpdateAppInputTimingInfo(oldAppInput);
 	
 	VarArrayLoop(&newAppInput->droppedFilePaths, fIndex)
 	{
@@ -169,25 +194,6 @@ bool PlatDoUpdate(void)
 	RefreshKeyboardState(&newAppInput->keyboard);
 	RefreshMouseState(&newAppInput->mouse, isMouseLocked, MakeV2((r32)newScreenSize.Width/2.0f, (r32)newScreenSize.Height/2.0f));
 	IncrementU64(newAppInput->frameIndex);
-	{
-		OsTime currentTime = OsGetTime();
-		newAppInput->programTime = currentTime.msSinceStart;
-		newAppInput->programTimeRemainder = currentTime.msSinceStartRemainder;
-		
-		r32 elapsedMsRemainder = 0.0f;
-		u64 elapsedMs = OsTimeDiffMs(platformData->prevFrameTime, currentTime, &elapsedMsRemainder);
-		newAppInput->unclampedElapsedMsR64 = (r64)elapsedMs + (r64)elapsedMsRemainder;
-		if (elapsedMs < MIN_ELAPSED_MS) { elapsedMs = MIN_ELAPSED_MS; elapsedMsRemainder = 0.0f; }
-		else if (elapsedMs > MAX_ELAPSED_MS) { elapsedMs = MAX_ELAPSED_MS; elapsedMsRemainder = 0.0f; }
-		else if (elapsedMs == MAX_ELAPSED_MS && elapsedMsRemainder > 0.0f) { elapsedMsRemainder = 0.0f; }
-		newAppInput->elapsedMsR64 = (r64)elapsedMs + (r64)elapsedMsRemainder;
-		newAppInput->elapsedMs = (r32)newAppInput->elapsedMsR64;
-		newAppInput->timeScaleR64 = newAppInput->elapsedMsR64 / (1000.0 / TIME_SCALE_TARGET_FRAMERATE);
-		if (AreSimilarR64(newAppInput->timeScaleR64, 1.0, TIME_SCALE_ROUND_TOLERANCE)) { newAppInput->timeScaleR64 = 1.0; }
-		newAppInput->timeScale = (r32)newAppInput->timeScaleR64;
-		
-		platformData->prevFrameTime = currentTime;
-	}
 	platformData->oldAppInput = oldAppInput;
 	platformData->currentAppInput = newAppInput;
 	
@@ -301,6 +307,7 @@ void PlatSappInit(void)
 	platformData->appMemoryPntr = platformData->appApi.AppInit(platformInfo, platform);
 	NotNull(platformData->appMemoryPntr);
 	
+	OsMarkStartTime();
 	ScratchEnd(loadScratch);
 	TracyCZoneEnd(Zone_Func);
 }
@@ -405,7 +412,7 @@ sapp_desc sokol_main(int argc, char* argv[])
 	TracyCAppInfo(projectName.chars, projectName.length);
 	#endif
 	
-	OsMarkStartTime();
+	OsMarkStartTime(); //NOTE: This is also reset at the end of PlatSappInit
 	
 	#if TARGET_HAS_THREADING
 	MainThreadId = OsGetCurrentThreadId();

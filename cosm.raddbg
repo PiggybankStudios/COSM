@@ -86,3 +86,18 @@ breakpoint:
   hit_count: 0
   enabled: 0
 }
+debug_info:
+{
+  path: "D:/gamedev/projects/Cosm/_build/cosm.pdb"
+  timestamp: 66198414729082
+}
+debug_info:
+{
+  path: "D:/gamedev/projects/Cosm/_build/pig_core.pdb"
+  timestamp: 66198414728194
+}
+debug_info:
+{
+  path: "D:/gamedev/projects/Cosm/_build/cosm_app.pdb"
+  timestamp: 66198414730221
+}

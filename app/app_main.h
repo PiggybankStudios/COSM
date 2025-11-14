@@ -48,7 +48,7 @@ plex AppData
 	AppResources resources;
 	HttpRequestManager httpManager;
 	NotificationQueue notificationQueue;
-	r32 prevFrameFlipMs;
+	r32 prevRenderMs;
 	PerfGraph perfGraph;
 	
 	Shader mainShader;

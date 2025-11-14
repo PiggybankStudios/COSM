@@ -280,7 +280,7 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 	ScratchBegin2(scratch3, scratch, scratch2);
 	bool renderedFrame = true;
 	UpdateDllGlobals(inPlatformInfo, inPlatformApi, memoryPntr, appInput);
-	UpdatePerfGraph(&app->perfGraph, ((r32)appIn->unclampedElapsedMsR64 - app->prevFrameFlipMs), app->prevFrameFlipMs);
+	if (appIn->frameIndex > 0) { UpdatePerfGraph(&app->perfGraph, ((r32)appIn->unclampedElapsedMsR64 - app->prevRenderMs), app->prevRenderMs); }
 	app->notificationQueue.currentProgramTime = appIn->programTime;
 	v2i screenSizei = appIn->screenSize;
 	v2 screenSize = ToV2Fromi(appIn->screenSize);
@@ -596,9 +596,11 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 	// +==============================+
 	// |          Rendering           |
 	// +==============================+
+	OsTime beforeBeginFrameTime = OsGetTime();
 	TracyCZoneN(Zone_BeginFrame, "BeginFrame", true);
 	BeginFrame(platform->GetSokolSwapchain(), screenSizei, CartoFillBackground, 1.0f);
 	TracyCZoneEnd(Zone_BeginFrame);
+	OsTime afterBeginFrameTime = OsGetTime();
 	TracyCZoneN(Zone_Render, "Render", true);
 	{
 		BindShader(&app->mainShader);
@@ -1196,7 +1198,7 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 					CLAY({ .id = CLAY_ID("ProgramTimeDisplay") })
 					{
 						CLAY_TEXT(
-							PrintInArenaStr(uiArena, "ProgramTime: %llu (+%g)", appIn->programTime, appIn->timeScale),
+							PrintInArenaStr(uiArena, "ProgramTime: %.1f", appIn->programTime),
 							CLAY_TEXT_CONFIG({
 								.fontId = app->clayUiFontId,
 								.fontSize = (u16)app->uiFontSize,
@@ -1503,9 +1505,9 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 	EndFrame();
 	TracyCZoneEnd(Zone_EndFrame);
 	OsTime afterFrameFlipTime = OsGetTime();
-	r32 frameFlipMsRemainder = 0.0f;
-	u64 frameFlipMs = OsTimeDiffMs(beforeFrameFlipTime, afterFrameFlipTime, &frameFlipMsRemainder);
-	app->prevFrameFlipMs = (r32)frameFlipMs + frameFlipMsRemainder;
+	app->prevRenderMs =
+		OsTimeDiffMsR32(beforeBeginFrameTime, afterBeginFrameTime) +
+		OsTimeDiffMsR32(beforeFrameFlipTime, afterFrameFlipTime);
 	
 	ScratchEnd(scratch);
 	ScratchEnd(scratch2);
