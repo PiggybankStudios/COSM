@@ -215,6 +215,8 @@ void PlatSappInit(void)
 {
 	TracyCZoneN(Zone_Func, "PlatSappInit", true);
 	
+	InitScratchArenasVirtual(Gigabytes(4));
+	
 	ScratchBegin(loadScratch);
 	
 	InitAppInput(&platformData->appInputs[0]);
@@ -426,11 +428,11 @@ sapp_desc sokol_main(int argc, char* argv[])
 	TracyCAppInfo(projectName.chars, projectName.length);
 	#endif
 	
-	OsMarkStartTime(); //NOTE: This is also reset at the end of PlatSappInit
-	
 	#if TARGET_HAS_THREADING
 	MainThreadId = OsGetCurrentThreadId();
 	#endif
+	
+	OsMarkStartTime(); //NOTE: This is also reset at the end of PlatSappInit
 	
 	Arena stdHeapLocal = ZEROED;
 	InitArenaStdHeap(&stdHeapLocal);
@@ -466,9 +468,7 @@ sapp_desc sokol_main(int argc, char* argv[])
 	if (windowSize.Width < MIN_WINDOW_SIZE.Width) { windowSize.Width = MIN_WINDOW_SIZE.Width; }
 	if (windowSize.Height < MIN_WINDOW_SIZE.Height) { windowSize.Height = MIN_WINDOW_SIZE.Height; }
 	
-	InitScratchArenasVirtual(Gigabytes(4));
-	
-	return (sapp_desc){
+	return NEW_STRUCT(sapp_desc){
 		.init_cb = PlatSappInit,
 		.frame_cb = PlatDoUpdate,
 		.cleanup_cb = PlatSappCleanup,
