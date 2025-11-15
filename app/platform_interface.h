@@ -13,6 +13,7 @@ plex PlatformInfo
 	Arena* platformStdHeap;
 	Arena* platformStdHeapAllowFreeWithoutSize;
 	ProgramArgs* programArgs;
+	r32 updateMs;
 };
 
 typedef plex AppInput AppInput;

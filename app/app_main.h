@@ -48,7 +48,7 @@ plex AppData
 	AppResources resources;
 	HttpRequestManager httpManager;
 	NotificationQueue notificationQueue;
-	r32 prevRenderMs;
+	r32 prevUpdateMs;
 	PerfGraph perfGraph;
 	bool showPerfGraph;
 	

@@ -274,13 +274,18 @@ EXPORT_FUNC APP_AFTER_RELOAD_DEF(AppAfterReload)
 EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 {
 	TracyCZoneN(funcZone, "AppUpdate", true);
+	OsTime beforeUpdateTime = OsGetTime();
 	
 	ScratchBegin(scratch);
 	ScratchBegin1(scratch2, scratch);
 	ScratchBegin2(scratch3, scratch, scratch2);
 	bool renderedFrame = true;
 	UpdateDllGlobals(inPlatformInfo, inPlatformApi, memoryPntr, appInput);
-	if (appIn->frameIndex > 0) { UpdatePerfGraph(&app->perfGraph, ((r32)appIn->unclampedElapsedMsR64 - app->prevRenderMs), app->prevRenderMs); }
+	if (appIn->frameIndex > 0)
+	{
+		r32 fullUpdateMs = app->prevUpdateMs + platformInfo->updateMs;
+		UpdatePerfGraph(&app->perfGraph, fullUpdateMs, ((r32)appIn->unclampedElapsedMsR64 - fullUpdateMs));
+	}
 	app->notificationQueue.currentProgramTime = appIn->programTime;
 	v2i screenSizei = appIn->screenSize;
 	v2 screenSize = ToV2Fromi(appIn->screenSize);
@@ -604,13 +609,13 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 	// +==============================+
 	// |          Rendering           |
 	// +==============================+
-	OsTime beforeBeginFrameTime = OsGetTime();
+	OsTime afterUpdateTime = OsGetTime();
 	TracyCZoneN(Zone_BeginFrame, "BeginFrame", true);
 	BeginFrame(platform->GetSokolSwapchain(), screenSizei, CartoFillBackground, 1.0f);
 	TracyCZoneEnd(Zone_BeginFrame);
-	OsTime afterBeginFrameTime = OsGetTime();
-	TracyCZoneN(Zone_Render, "Render", true);
+	OsTime beforeRenderTime = OsGetTime();
 	{
+		TracyCZoneN(Zone_Render, "Render", true);
 		BindShader(&app->mainShader);
 		ClearDepthBuffer(1.0f);
 		SetDepth(1.0f);
@@ -1506,24 +1511,23 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 		}
 		
 		platform->SetCursorShape(uiContext.cursorShape);
+		TracyCZoneEnd(Zone_Render);
 	}
 	CommitAllFontTextureUpdates(&app->uiFont);
 	CommitAllFontTextureUpdates(&app->mapFont);
 	CommitAllFontTextureUpdates(&app->largeFont);
-	OsTime beforeFrameFlipTime = OsGetTime();
-	TracyCZoneEnd(Zone_Render);
+	OsTime afterRenderTime = OsGetTime();
 	TracyCZoneN(Zone_EndFrame, "EndFrame", true);
 	EndFrame();
 	TracyCZoneEnd(Zone_EndFrame);
-	OsTime afterFrameFlipTime = OsGetTime();
-	app->prevRenderMs =
-		OsTimeDiffMsR32(beforeBeginFrameTime, afterBeginFrameTime) +
-		OsTimeDiffMsR32(beforeFrameFlipTime, afterFrameFlipTime);
 	
 	ScratchEnd(scratch);
 	ScratchEnd(scratch2);
 	ScratchEnd(scratch3);
 	
+	app->prevUpdateMs =
+		OsTimeDiffMsR32(beforeUpdateTime, afterUpdateTime) +
+		OsTimeDiffMsR32(beforeRenderTime, afterRenderTime);
 	TracyCZoneEnd(funcZone);
 	// TracyCFrameMarkEnd("Game Loop");
 	return renderedFrame;
