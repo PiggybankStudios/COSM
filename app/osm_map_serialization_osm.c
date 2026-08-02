@@ -357,9 +357,9 @@ Str8 SerializeOsmMap(Arena* arena, OsmMap* map)
 		TwoPassStrNt(&result, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
 		TwoPassStrNt(&result, "<osm version=\"0.6\" generator=\"COSM 1.0\" copyright=\"OpenStreetMap and contributors\" attribution=\"http://www.openstreetmap.org/copyright\" license=\"http://opendatacommons.org/licenses/odbl/1-0/\">\n");
 		
-		v2d boundsMin = MakeV2d(MinR64(map->bounds.Lon, map->bounds.Lon + map->bounds.SizeLon), MinR64(map->bounds.Lat, map->bounds.Lat + map->bounds.SizeLat));
-		v2d boundsMax = MakeV2d(MaxR64(map->bounds.Lon, map->bounds.Lon + map->bounds.SizeLon), MaxR64(map->bounds.Lat, map->bounds.Lat + map->bounds.SizeLat));
-		TwoPassPrint(&result, "\t<bounds minlat=\"%lf\" minlon=\"%lf\" maxlat=\"%lf\" maxlon=\"%lf\"/>\n", boundsMin.Lat, boundsMin.Lon, boundsMax.Lat, boundsMax.Lon);
+		v2d boundsMin = MakeV2d(MinR64(map->bounds.lon, map->bounds.lon + map->bounds.sizeLon), MinR64(map->bounds.lat, map->bounds.lat + map->bounds.sizeLat));
+		v2d boundsMax = MakeV2d(MaxR64(map->bounds.lon, map->bounds.lon + map->bounds.sizeLon), MaxR64(map->bounds.lat, map->bounds.lat + map->bounds.sizeLat));
+		TwoPassPrint(&result, "\t<bounds minlat=\"%lf\" minlon=\"%lf\" maxlat=\"%lf\" maxlon=\"%lf\"/>\n", boundsMin.lat, boundsMin.lon, boundsMax.lat, boundsMax.lon);
 		
 		VarArrayLoop(&map->nodes, nIndex)
 		{
@@ -379,7 +379,7 @@ Str8 SerializeOsmMap(Arena* arena, OsmMap* map)
 				TwoPassPrint(&result, " user=\"%.*s\"", StrPrint(escapedUser));
 			}
 			if (node->uid != 0) { TwoPassPrint(&result, " uid=\"%llu\"", node->uid); }
-			TwoPassPrint(&result, " lat=\"%lf\" lon=\"%lf\"", node->location.Lat, node->location.Lon);
+			TwoPassPrint(&result, " lat=\"%lf\" lon=\"%lf\"", node->location.lat, node->location.lon);
 			
 			if (node->tags.length > 0)
 			{

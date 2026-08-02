@@ -151,10 +151,10 @@ Result TryParsePbfMap(Arena* arena, DataStream* protobufStream, OsmMap* mapOut)
 			mapOut->areNodesSorted = true;
 			mapOut->areWaysSorted = true;
 			mapOut->areRelationsSorted = true;
-			mapOut->bounds.X = (r64)headerBlock->bbox->left * (r64)Nano(1);
-			mapOut->bounds.Y = (r64)headerBlock->bbox->top * (r64)Nano(1);
-			mapOut->bounds.Width = ((r64)headerBlock->bbox->right * (r64)Nano(1)) - mapOut->bounds.X;
-			mapOut->bounds.Height = ((r64)headerBlock->bbox->bottom * (r64)Nano(1)) - mapOut->bounds.Y;
+			mapOut->bounds.x = (r64)headerBlock->bbox->left * (r64)Nano(1);
+			mapOut->bounds.y = (r64)headerBlock->bbox->top * (r64)Nano(1);
+			mapOut->bounds.width = ((r64)headerBlock->bbox->right * (r64)Nano(1)) - mapOut->bounds.x;
+			mapOut->bounds.height = ((r64)headerBlock->bbox->bottom * (r64)Nano(1)) - mapOut->bounds.y;
 			//TODO: Ensure that all the "required_features" are things we expect to handle
 			//      "OsmSchema-V0.6", "DenseNodes", "Sort.Type_then_ID", "LocationsOnWays", "HistoricalInformation", etc.
 		}
@@ -286,10 +286,10 @@ Result TryParsePbfMap(Arena* arena, DataStream* protobufStream, OsmMap* mapOut)
 						}
 						else if (prevNodeId >= nodeId) { areNewNodesSorted = false; }
 						v2d nodeLocation = MakeV2d(
-							nodeOffset.X + ((r64)nodeLon * granularityMult),
-							nodeOffset.Y + ((r64)nodeLat * granularityMult)
+							nodeOffset.x + ((r64)nodeLon * granularityMult),
+							nodeOffset.y + ((r64)nodeLat * granularityMult)
 						);
-						// if (nIndex < 10) { PrintLine_D("Node[%lld]: (%lld, %lld) -> (%lf, %lf) -> (%lf, %lf)", nodeId, nodeLat, nodeLon, (r64)nodeLon * granularityMult, (r64)nodeLat * granularityMult, nodeLocation.X, nodeLocation.Y); }
+						// if (nIndex < 10) { PrintLine_D("Node[%lld]: (%lld, %lld) -> (%lf, %lf) -> (%lf, %lf)", nodeId, nodeLat, nodeLon, (r64)nodeLon * granularityMult, (r64)nodeLat * granularityMult, nodeLocation.x, nodeLocation.y); }
 						
 						OsmNode* newNode = AddOsmNode(mapOut, nodeLocation, (u64)nodeId);
 						newNode->visible = nodeVisible;

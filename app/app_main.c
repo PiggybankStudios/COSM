@@ -334,7 +334,7 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 		// +==============================+
 		// | F6 Toggles Performance Graph |
 		// +==============================+
-		if (IsKeyboardKeyPressed(&appIn->keyboard, Key_F6, false))
+		if (IsKeyboardKeyPressed(&appIn->keyboard, nullptr, Key_F6, false))
 		{
 			app->showPerfGraph = !app->showPerfGraph;
 		}
@@ -342,7 +342,7 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 		// +==================================+
 		// | Space Centered Selected Item(s)  |
 		// +==================================+
-		if (IsKeyboardKeyPressed(&appIn->keyboard, Key_Space, true) && app->map.selectedItems.length > 0)
+		if (IsKeyboardKeyPressed(&appIn->keyboard, nullptr, Key_Space, true) && app->map.selectedItems.length > 0)
 		{
 			v2d averageLocation = V2d_Zero;
 			uxx averageCount = 0;
@@ -377,30 +377,30 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 		// +==================================+
 		// | Handle Ctrl+Plus/Minus/0/Scroll  |
 		// +==================================+
-		if (IsKeyboardKeyPressed(&appIn->keyboard, Key_Plus, true) && IsKeyboardKeyDown(&appIn->keyboard, Key_Control))
+		if (IsKeyboardKeyPressed(&appIn->keyboard, nullptr, Key_Plus, true) && IsKeyboardKeyDown(&appIn->keyboard, nullptr, Key_Control))
 		{
 			AppChangeFontSize(true);
 		}
-		if (IsKeyboardKeyPressed(&appIn->keyboard, Key_Minus, true) && IsKeyboardKeyDown(&appIn->keyboard, Key_Control))
+		if (IsKeyboardKeyPressed(&appIn->keyboard, nullptr, Key_Minus, true) && IsKeyboardKeyDown(&appIn->keyboard, nullptr, Key_Control))
 		{
 			AppChangeFontSize(false);
 		}
-		if (IsKeyboardKeyPressed(&appIn->keyboard, Key_0, true) && IsKeyboardKeyDown(&appIn->keyboard, Key_Control))
+		if (IsKeyboardKeyPressed(&appIn->keyboard, nullptr, Key_0, true) && IsKeyboardKeyDown(&appIn->keyboard, nullptr, Key_Control))
 		{
 			app->uiFontSize = DEFAULT_UI_FONT_SIZE;
 			app->uiScale = 1.0f;
 			bool fontBakeSuccess = AppCreateFonts();
 			Assert(fontBakeSuccess);
 		}
-		if (IsKeyboardKeyDown(&appIn->keyboard, Key_Control) && appIn->mouse.scrollDelta.Y != 0)
+		if (IsKeyboardKeyDown(&appIn->keyboard, nullptr, Key_Control) && appIn->mouse.scrollDelta.y != 0)
 		{
-			AppChangeFontSize(appIn->mouse.scrollDelta.Y > 0);
+			AppChangeFontSize(appIn->mouse.scrollDelta.y > 0);
 		}
 		
 		// +==================================+
 		// | Ctrl+Shift+O Open TEST_OSM_FILE  |
 		// +==================================+
-		if (IsKeyboardKeyDown(&appIn->keyboard, Key_Control) && IsKeyboardKeyDown(&appIn->keyboard, Key_Shift) && IsKeyboardKeyPressed(&appIn->keyboard, Key_O, false))
+		if (IsKeyboardKeyDown(&appIn->keyboard, nullptr, Key_Control) && IsKeyboardKeyDown(&appIn->keyboard, nullptr, Key_Shift) && IsKeyboardKeyPressed(&appIn->keyboard, nullptr, Key_O, false))
 		{
 			OpenOsmMap(StrLit(TEST_OSM_FILE), false);
 			isOverDisplayLimit = (app->map.nodes.length > DISPLAY_NODE_COUNT_LIMIT || app->map.ways.length > DISPLAY_WAY_COUNT_LIMIT);
@@ -409,7 +409,7 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 		// +==============================+
 		// |      Handle Key_Escape       |
 		// +==============================+
-		if (IsKeyboardKeyPressed(&appIn->keyboard, Key_Escape, true))
+		if (IsKeyboardKeyPressed(&appIn->keyboard, nullptr, Key_Escape, true))
 		{
 			if (app->map.selectedItems.length > 0)
 			{
@@ -432,7 +432,7 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 				VarArrayLoop(&app->map.ways, wIndex) { VarArrayLoopGet(OsmWay, way, &app->map.ways, wIndex); way->isHovered = false; }
 				// if (IsMouseBtnPressed(&appIn->mouse, MouseBtn_Left))
 				// {
-				// 	if (!IsKeyboardKeyDown(&appIn->keyboard, Key_Shift) && !IsKeyboardKeyDown(&appIn->keyboard, Key_Control)) { ClearMapSelection(&app->map); }
+				// 	if (!IsKeyboardKeyDown(&appIn->keyboard, nullptr, Key_Shift) && !IsKeyboardKeyDown(&appIn->keyboard, nullptr, Key_Control)) { ClearMapSelection(&app->map); }
 				// }
 			}
 			else
@@ -536,16 +536,16 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 				
 				isHoveringMapPrimitive = (hoveredWay != nullptr || hoveredNode != nullptr);
 				
-				if (IsMouseBtnPressed(&appIn->mouse, MouseBtn_Left))
+				if (IsMouseBtnPressed(&appIn->mouse, nullptr, MouseBtn_Left))
 				{
-					if (!IsKeyboardKeyDown(&appIn->keyboard, Key_Shift) && !IsKeyboardKeyDown(&appIn->keyboard, Key_Control)) { ClearMapSelection(&app->map); }
+					if (!IsKeyboardKeyDown(&appIn->keyboard, nullptr, Key_Shift) && !IsKeyboardKeyDown(&appIn->keyboard, nullptr, Key_Control)) { ClearMapSelection(&app->map); }
 					if (hoveredNode != nullptr)
 					{
-						SetMapNodeSelected(&app->map, hoveredNode, IsKeyboardKeyDown(&appIn->keyboard, Key_Control) ? !hoveredNode->isSelected : true);
+						SetMapNodeSelected(&app->map, hoveredNode, IsKeyboardKeyDown(&appIn->keyboard, nullptr, Key_Control) ? !hoveredNode->isSelected : true);
 					}
 					else if (hoveredWay != nullptr)
 					{
-						SetMapWaySelected(&app->map, hoveredWay, IsKeyboardKeyDown(&appIn->keyboard, Key_Control) ? !hoveredWay->isSelected : true);
+						SetMapWaySelected(&app->map, hoveredWay, IsKeyboardKeyDown(&appIn->keyboard, nullptr, Key_Control) ? !hoveredWay->isSelected : true);
 					}
 				}
 			}
@@ -554,7 +554,7 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 		// +================================================+
 		// | Ctrl+R Refreshes Way Colors and Triangulation  |
 		// +================================================+
-		if (IsKeyboardKeyDown(&appIn->keyboard, Key_Control) && IsKeyboardKeyPressed(&appIn->keyboard, Key_R, false) && !isOverDisplayLimit)
+		if (IsKeyboardKeyDown(&appIn->keyboard, nullptr, Key_Control) && IsKeyboardKeyPressed(&appIn->keyboard, nullptr, Key_R, false) && !isOverDisplayLimit)
 		{
 			VarArrayLoop(&app->map.ways, wIndex)
 			{
@@ -577,13 +577,13 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 		// +==============================+
 		// |   Alt+R Reloads Background   |
 		// +==============================+
-		if (IsKeyboardKeyDown(&appIn->keyboard, Key_Alt) && IsKeyboardKeyPressed(&appIn->keyboard, Key_R, false))
+		if (IsKeyboardKeyDown(&appIn->keyboard, nullptr, Key_Alt) && IsKeyboardKeyPressed(&appIn->keyboard, nullptr, Key_R, false))
 		{
 			PrintLine_W("Loading background texture from \"%s\" (was \"%.*s\")", MAP_BACKGROUND_TEXTURE_PATH, StrPrint(app->mapBackTexturePath));
 			LoadMapBackTexture();
 		}
 		
-		if (IsKeyboardKeyPressed(&appIn->keyboard, Key_N, true))
+		if (IsKeyboardKeyPressed(&appIn->keyboard, nullptr, Key_N, true))
 		{
 			DbgLevel level = (DbgLevel)GetRandU8Range(&app->random, DbgLevel_Debug, DbgLevel_Count);
 			#if 1
@@ -620,7 +620,7 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 		ClearDepthBuffer(1.0f);
 		SetDepth(1.0f);
 		mat4 projMat = Mat4_Identity;
-		TransformMat4(&projMat, MakeScaleXYZMat4(1.0f/(screenSize.Width/2.0f), 1.0f/(screenSize.Height/2.0f), 1.0f));
+		TransformMat4(&projMat, MakeScaleXYZMat4(1.0f/(screenSize.width/2.0f), 1.0f/(screenSize.height/2.0f), 1.0f));
 		TransformMat4(&projMat, MakeTranslateXYZMat4(-1.0f, -1.0f, 0.0f));
 		TransformMat4(&projMat, MakeScaleYMat4(-1.0f));
 		SetProjectionMat(projMat);
@@ -633,12 +633,15 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 			uiArena,
 			&app->clay,
 			&appIn->keyboard,
+			nullptr,
 			&appIn->mouse,
+			nullptr,
 			app->uiScale,
 			&app->uiFocusedElement,
-			CursorShape_Default,
+			MouseCursorShape_Default,
 			platform->GetNativeWindowHandle(),
-			appIn->programTime
+			appIn->programTime,
+			nullptr
 		);
 		
 		// +==============================+
@@ -648,22 +651,22 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 		i32 tileLevelZ = 0;
 		i32 tileGridSize = 1;
 		r64 tileLongSize = 360.0;
-		if (mainViewportRec.Width > 0 && mainViewportRec.Height > 0)
+		if (mainViewportRec.width > 0 && mainViewportRec.height > 0)
 		{
-			app->view.minZoom = MinR64(mainViewportRec.Width / app->view.mapRec.Width, mainViewportRec.Height / app->view.mapRec.Height);
+			app->view.minZoom = MinR64(mainViewportRec.width / app->view.mapRec.width, mainViewportRec.height / app->view.mapRec.height);
 			if (app->view.zoom == 0.0) { app->view.zoom = app->view.minZoom; }
 			recd mapScreenRec = GetMapScreenRec(&app->view);
-			while (tileLevelZ < MAX_MAP_TILE_DEPTH && mapScreenRec.Width * (tileLongSize / MERCATOR_LONGITUDE_RANGE) > MAP_TILE_IMAGE_SIZE) { tileLevelZ++; tileLongSize /= 2.0; tileGridSize *= 2; }
+			while (tileLevelZ < MAX_MAP_TILE_DEPTH && mapScreenRec.width * (tileLongSize / MERCATOR_LONGITUDE_RANGE) > MAP_TILE_IMAGE_SIZE) { tileLevelZ++; tileLongSize /= 2.0; tileGridSize *= 2; }
 			
-			v2d viewportLocationTopLeft = MapUnproject(app->view.projection, ToV2dFromf(mainViewportRec.TopLeft), mapScreenRec);
-			v2d viewportLocationBottomRight = MapUnproject(app->view.projection, ToV2dFromf(AddV2(mainViewportRec.TopLeft, mainViewportRec.Size)), mapScreenRec);
-			RangeR64 viewableLongitude = NewRangeR64(viewportLocationTopLeft.Longitude, viewportLocationBottomRight.Longitude);
-			RangeR64 viewableLatitude = NewRangeR64(viewportLocationTopLeft.Latitude, viewportLocationBottomRight.Latitude);
+			v2d viewportLocationTopLeft = MapUnproject(app->view.projection, ToV2dFromf(mainViewportRec.topLeft), mapScreenRec);
+			v2d viewportLocationBottomRight = MapUnproject(app->view.projection, ToV2dFromf(AddV2(mainViewportRec.topLeft, mainViewportRec.size)), mapScreenRec);
+			RangeR64 viewableLongitude = NewRangeR64(viewportLocationTopLeft.longitude, viewportLocationBottomRight.longitude);
+			RangeR64 viewableLatitude = NewRangeR64(viewportLocationTopLeft.latitude, viewportLocationBottomRight.latitude);
 			
 			v2 backSize = ToV2Fromi(app->mapBackTexture.size);
 			rec backSourceRec = MakeRec(
-				0 * backSize.Width, 0.0f * backSize.Height,
-				1 * backSize.Width, 1.0f * backSize.Height
+				0 * backSize.width, 0.0f * backSize.height,
+				1 * backSize.width, 1.0f * backSize.height
 			);
 			DrawTexturedRectangleEx(ToRecFromd(mapScreenRec), White, &app->mapBackTexture, backSourceRec);
 			
@@ -674,26 +677,26 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 			{
 				const Color32 tileColor = {.r=100, .g=100, .b=100, .a=255};
 				v2 tileScreenSize = V2_Zero;
-				tileScreenSize.Width = (r32)(mapScreenRec.Width/(r64)tileGridSize);
-				tileScreenSize.Height = (r32)(mapScreenRec.Height/(r64)tileGridSize);
-				i32 minTileX = ClampI32((i32)FloorR64i(((mainViewportRec.X - mapScreenRec.X) / mapScreenRec.Width) * (r64)tileGridSize), 0, tileGridSize-1);
-				i32 minTileY = ClampI32((i32)FloorR64i(((mainViewportRec.Y - mapScreenRec.Y) / mapScreenRec.Height) * (r64)tileGridSize), 0, tileGridSize-1);
+				tileScreenSize.width = (r32)(mapScreenRec.width/(r64)tileGridSize);
+				tileScreenSize.height = (r32)(mapScreenRec.height/(r64)tileGridSize);
+				i32 minTileX = ClampI32((i32)FloorR64i(((mainViewportRec.x - mapScreenRec.x) / mapScreenRec.width) * (r64)tileGridSize), 0, tileGridSize-1);
+				i32 minTileY = ClampI32((i32)FloorR64i(((mainViewportRec.y - mapScreenRec.y) / mapScreenRec.height) * (r64)tileGridSize), 0, tileGridSize-1);
 				TracyCZoneN(_RenderTiles, "RenderTiles", true);
 				for (i32 tileY = minTileY; tileY < tileGridSize; tileY++)
 				{
-					r32 tileScreenY = (r32)(mapScreenRec.Y + ((r64)tileScreenSize.Height * tileY));
-					if (tileScreenY >= screenSize.Height) { break; }
+					r32 tileScreenY = (r32)(mapScreenRec.y + ((r64)tileScreenSize.height * tileY));
+					if (tileScreenY >= screenSize.height) { break; }
 					
 					for (i32 tileX = minTileX; tileX < tileGridSize; tileX++)
 					{
-						r32 tileScreenX = (r32)(mapScreenRec.X + ((r64)tileScreenSize.Width * tileX));
-						if (tileScreenX >= screenSize.Width) { break; }
+						r32 tileScreenX = (r32)(mapScreenRec.x + ((r64)tileScreenSize.width * tileX));
+						if (tileScreenX >= screenSize.width) { break; }
 						
-						rec tileRec = MakeRec(tileScreenX, tileScreenY, tileScreenSize.Width, tileScreenSize.Height);
-						if (tileRec.X + tileRec.Width > 0 && tileRec.Y + tileRec.Height > 0)
+						rec tileRec = MakeRec(tileScreenX, tileScreenY, tileScreenSize.width, tileScreenSize.height);
+						if (tileRec.x + tileRec.width > 0 && tileRec.y + tileRec.height > 0)
 						{
 							bool isMouseHovered = (isMouseOverMainViewport && IsInsideRec(tileRec, appIn->mouse.position) && !isHoveringMapPrimitive);
-							bool shouldDownload = (isMouseHovered && IsMouseBtnPressed(&appIn->mouse, MouseBtn_Left) && IsKeyboardKeyDown(&appIn->keyboard, Key_Control));
+							bool shouldDownload = (isMouseHovered && IsMouseBtnPressed(&appIn->mouse, nullptr, MouseBtn_Left) && IsKeyboardKeyDown(&appIn->keyboard, nullptr, Key_Control));
 							TracyCZoneN(_GetMapTileTexture, "GetMapTileTexture", true);
 							Texture* tileTexture = GetMapTileTexture(MakeV3i(tileX, tileY, tileLevelZ), true, shouldDownload);
 							TracyCZoneEnd(_GetMapTileTexture);
@@ -720,18 +723,18 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 									upperGridSize /= 2;
 									innerLevelZ++;
 									innerGridSize *= 2;
-									if ((upperTileCoord.X % 2) != 0) { innerTileCoord.X += innerGridSize/2; }
-									if ((upperTileCoord.Y % 2) != 0) { innerTileCoord.Y += innerGridSize/2; }
-									upperTileCoord.X /= 2;
-									upperTileCoord.Y /= 2;
-									tileTexture = GetMapTileTexture(MakeV3i(upperTileCoord.X, upperTileCoord.Y, upperLevelZ), true, false);
+									if ((upperTileCoord.x % 2) != 0) { innerTileCoord.x += innerGridSize/2; }
+									if ((upperTileCoord.y % 2) != 0) { innerTileCoord.y += innerGridSize/2; }
+									upperTileCoord.x /= 2;
+									upperTileCoord.y /= 2;
+									tileTexture = GetMapTileTexture(MakeV3i(upperTileCoord.x, upperTileCoord.y, upperLevelZ), true, false);
 								}
 								TracyCZoneEnd(_FindUpperTile);
 								if (tileTexture != nullptr)
 								{
 									rec sourceRec = MakeRec(
-										innerTileCoord.X * (256.0f / (r32)innerGridSize),
-										innerTileCoord.Y * (256.0f / (r32)innerGridSize),
+										innerTileCoord.x * (256.0f / (r32)innerGridSize),
+										innerTileCoord.y * (256.0f / (r32)innerGridSize),
 										(256.0f / (r32)innerGridSize), (256.0f / (r32)innerGridSize)
 									);
 									TracyCZoneN(_DrawTexturedRectangle2, "DrawTexturedRectangle2", true);
@@ -740,7 +743,7 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 								}
 							}
 							
-							if (!hadDesiredTile && isMouseHovered && IsKeyboardKeyDown(&appIn->keyboard, Key_Control))
+							if (!hadDesiredTile && isMouseHovered && IsKeyboardKeyDown(&appIn->keyboard, nullptr, Key_Control))
 							{
 								DrawRectangleOutlineEx(tileRec, 2, ColorWithAlpha(MonokaiPurple, 0.5f), false);
 								DrawRectangle(tileRec, ColorWithAlpha(MonokaiPurple, 0.25f));
@@ -770,10 +773,10 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 				VarArrayLoop(&app->mapFont.atlases, aIndex)
 				{
 					VarArrayLoopGet(FontAtlas, atlas, &app->mapFont.atlases, aIndex);
-					rec atlasRec = MakeRec(atlasPos.X, atlasPos.Y, (r32)atlas->texture.Width, (r32)atlas->texture.Height);
+					rec atlasRec = MakeRec(atlasPos.x, atlasPos.y, (r32)atlas->texture.width, (r32)atlas->texture.height);
 					DrawTexturedRectangle(atlasRec, White, &atlas->texture);
 					DrawRectangleOutline(atlasRec, 1.0f, MonokaiYellow);
-					atlasPos.X += atlasRec.Width + 10;
+					atlasPos.x += atlasRec.width + 10;
 				}
 			}
 			#endif
@@ -792,22 +795,22 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 						VarArrayLoopGet(OsmWay, way, &app->map.ways, wIndex);
 						UpdateOsmWayColorChoice(way);
 						if (way->renderLayer == currentLayer && way->colorsChosen &&
-							way->nodeBounds.Lon <= viewableLongitude.max && way->nodeBounds.Lat <= viewableLatitude.max &&
-							way->nodeBounds.Lon + way->nodeBounds.SizeLon >= viewableLongitude.min && way->nodeBounds.Lat + way->nodeBounds.SizeLat >= viewableLatitude.min)
+							way->nodeBounds.lon <= viewableLongitude.max && way->nodeBounds.lat <= viewableLatitude.max &&
+							way->nodeBounds.lon + way->nodeBounds.sizeLon >= viewableLongitude.min && way->nodeBounds.lat + way->nodeBounds.sizeLat >= viewableLatitude.min)
 						{
 							if (way->fillColor.a > 0 || (way->isClosedLoop && way->borderThickness > 0.0f && way->borderColor.a > 0))
 							{
 								if (way->isClosedLoop)
 								{
-									v2 boundsTopLeft = ToV2Fromd(MapProject(app->view.projection, way->nodeBounds.TopLeft, mapScreenRec));
-									v2 boundsBottomRight = ToV2Fromd(MapProject(app->view.projection, AddV2d(way->nodeBounds.TopLeft, way->nodeBounds.Size), mapScreenRec));
+									v2 boundsTopLeft = ToV2Fromd(MapProject(app->view.projection, way->nodeBounds.topLeft, mapScreenRec));
+									v2 boundsBottomRight = ToV2Fromd(MapProject(app->view.projection, AddV2d(way->nodeBounds.topLeft, way->nodeBounds.size), mapScreenRec));
 									rec boundsRec = NewRecBetweenV(boundsTopLeft, boundsBottomRight);
-									if (boundsRec.Width * boundsRec.Height < 50)
+									if (boundsRec.width * boundsRec.height < 50)
 									{
 										Color32 smallColor = (way->borderThickness > 0.0f && way->borderColor.a > 0) ? way->borderColor : way->fillColor;
 										#if 0
-										r32 radius = LengthV2(boundsRec.Size) / 2.0f;
-										DrawCircle(MakeCircleV(AddV2(boundsRec.TopLeft, ShrinkV2(boundsRec.Size, 2)), radius), smallColor);
+										r32 radius = LengthV2(boundsRec.size) / 2.0f;
+										DrawCircle(MakeCircleV(AddV2(boundsRec.topLeft, ShrinkV2(boundsRec.size, 2)), radius), smallColor);
 										#else
 										DrawRectangle(boundsRec, smallColor);
 										#endif
@@ -847,8 +850,8 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 				VarArrayLoop(&app->map.nodes, nIndex)
 				{
 					VarArrayLoopGet(OsmNode, node, &app->map.nodes, nIndex);
-					if (node->location.Lon <= viewableLongitude.max && node->location.Lat <= viewableLatitude.max &&
-						node->location.Lon >= viewableLongitude.min && node->location.Lat >= viewableLatitude.min)
+					if (node->location.lon <= viewableLongitude.max && node->location.lat <= viewableLatitude.max &&
+						node->location.lon >= viewableLongitude.min && node->location.lat >= viewableLatitude.min)
 					{
 						Str8 populationStr = GetOsmNodeTagValue(node, StrLit("population"), Str8_Empty);
 						Str8 railwayStr = GetOsmNodeTagValue(node, StrLit("railway"), Str8_Empty);
@@ -891,19 +894,19 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 							{
 								TextMeasure nameMeasure = MeasureTextEx(&app->mapFont, app->mapFontSize, MAP_FONT_STYLE, false, 0.0f, japaneseNameStr);
 								BindFontEx(&app->mapFont, app->mapFontSize, MAP_FONT_STYLE);
-								v2 textPos = AddV2(namePos, MakeV2(-nameMeasure.Width/2, 0));
+								v2 textPos = AddV2(namePos, MakeV2(-nameMeasure.width/2, 0));
 								// DrawText(japaneseNameStr, AddV2(textPos, MakeV2(0, 2)), ColorLerpSimple(textColor, Black, 0.75f));
 								DrawText(japaneseNameStr, textPos, textColor);
-								namePos.Y -= nameMeasure.Height + 5;
+								namePos.y -= nameMeasure.height + 5;
 							}
 							if (!IsEmptyStr(englishNameStr))
 							{
 								TextMeasure nameMeasure = MeasureTextEx(&app->mapFont, app->mapFontSize, MAP_FONT_STYLE, false, 0.0f, englishNameStr);
 								BindFontEx(&app->mapFont, app->mapFontSize, MAP_FONT_STYLE);
-								v2 textPos = AddV2(namePos, MakeV2(-nameMeasure.Width/2, 0));
+								v2 textPos = AddV2(namePos, MakeV2(-nameMeasure.width/2, 0));
 								DrawText(englishNameStr, AddV2(textPos, MakeV2(0, 2)), ColorLerpSimple(textColor, Black, 0.75f));
 								DrawText(englishNameStr, textPos, textColor);
-								namePos.Y -= nameMeasure.Height + 5;
+								namePos.y -= nameMeasure.height + 5;
 							}
 						}
 					}
@@ -911,35 +914,35 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 				TracyCZoneEnd(_RenderNodes);
 			}
 			
-			v2 boundsTopLeft = ToV2Fromd(MapProject(app->view.projection, app->map.bounds.TopLeft, mapScreenRec));
-			v2 boundsBottomRight = ToV2Fromd(MapProject(app->view.projection, AddV2d(app->map.bounds.TopLeft, app->map.bounds.Size), mapScreenRec));
+			v2 boundsTopLeft = ToV2Fromd(MapProject(app->view.projection, app->map.bounds.topLeft, mapScreenRec));
+			v2 boundsBottomRight = ToV2Fromd(MapProject(app->view.projection, AddV2d(app->map.bounds.topLeft, app->map.bounds.size), mapScreenRec));
 			rec boundsRec = NewRecBetweenV(boundsTopLeft, boundsBottomRight);
 			DrawRectangleOutline(boundsRec, 2.0f, MonokaiRed);
-			// DrawCircle(MakeCircleV(boundsRec.TopLeft, 5), MonokaiRed);
-			// DrawCircle(MakeCircleV(Add(boundsRec.TopLeft, boundsRec.Size), 5), MonokaiOrange);
+			// DrawCircle(MakeCircleV(boundsRec.topLeft, 5), MonokaiRed);
+			// DrawCircle(MakeCircleV(Add(boundsRec.topLeft, boundsRec.size), 5), MonokaiOrange);
 			
 			// +==============================+
 			// |    Render Center Reticle     |
 			// +==============================+
-			v2 reticleScreenPos = ToV2Fromd(AddV2d(MulV2d(app->view.position, mapScreenRec.Size), mapScreenRec.TopLeft));
+			v2 reticleScreenPos = ToV2Fromd(AddV2d(MulV2d(app->view.position, mapScreenRec.size), mapScreenRec.topLeft));
 			r32 reticleRadius = OscillateBy(appIn->programTime, 3.0f, 6.0f, 1000, 0);
 			// DrawRoundedRectangleOutline(NewRecCenteredV(reticleScreenPos, FillV2(reticleRadius*2)), 1.5f, reticleRadius, ColorWithAlpha(Black, 0.3f));
-			DrawRectangle(NewRecCentered(reticleScreenPos.X, reticleScreenPos.Y, reticleRadius*2, 1.5f), ColorWithAlpha(Black, 0.3f));
-			DrawRectangle(NewRecCentered(reticleScreenPos.X, reticleScreenPos.Y, 1.5f, reticleRadius*2), ColorWithAlpha(Black, 0.3f));
+			DrawRectangle(NewRecCentered(reticleScreenPos.x, reticleScreenPos.y, reticleRadius*2, 1.5f), ColorWithAlpha(Black, 0.3f));
+			DrawRectangle(NewRecCentered(reticleScreenPos.x, reticleScreenPos.y, 1.5f, reticleRadius*2), ColorWithAlpha(Black, 0.3f));
 		}
 		
 		// +==============================+
 		// |          Render UI           |
 		// +==============================+
-		v2 scrollContainerInput = IsKeyboardKeyDown(&appIn->keyboard, Key_Control) ? V2_Zero : appIn->mouse.scrollDelta;
+		v2 scrollContainerInput = IsKeyboardKeyDown(&appIn->keyboard, nullptr, Key_Control) ? V2_Zero : appIn->mouse.scrollDelta;
 		UpdateClayScrolling(&app->clay.clay, 16.6f, false, scrollContainerInput, false);
-		BeginClayUIRender(&app->clay.clay, screenSize, false, mousePos, IsMouseBtnDown(&appIn->mouse, MouseBtn_Left));
+		BeginClayUIRender(&app->clay.clay, screenSize, false, mousePos, IsMouseBtnDown(&appIn->mouse, nullptr, MouseBtn_Left));
 		{
 			u16 fullscreenBorderThickness = (appIn->isWindowTopmost ? 1 : 0);
 			CLAY({ .id = CLAY_ID("FullscreenContainer"),
 				.layout = {
 					.layoutDirection = CLAY_TOP_TO_BOTTOM,
-					.sizing = { .width = CLAY_SIZING_GROW(0, screenSize.Width), .height = CLAY_SIZING_GROW(0, screenSize.Height) },
+					.sizing = { .width = CLAY_SIZING_GROW(0, screenSize.width), .height = CLAY_SIZING_GROW(0, screenSize.height) },
 					.padding = CLAY_PADDING_ALL(fullscreenBorderThickness)
 				},
 				.border = {
@@ -966,19 +969,19 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 					.border = { .color=OUTLINE_GRAY, .width={ .bottom=UI_BORDER(1) } },
 				})
 				{
-					bool showMenuHotkeys = IsKeyboardKeyDown(&appIn->keyboard, Key_Alt);
+					bool showMenuHotkeys = IsKeyboardKeyDown(&appIn->keyboard, nullptr, Key_Alt);
 					
 					// +==============================+
 					// |          File Menu           |
 					// +==============================+
 					if (ClayTopBtn("File", showMenuHotkeys, &app->isFileMenuOpen, &app->keepFileMenuOpenUntilMouseOver, app->isOpenRecentSubmenuOpen))
 					{
-						bool isAdding = IsKeyboardKeyDown(&appIn->keyboard, Key_Shift);
+						bool isAdding = IsKeyboardKeyDown(&appIn->keyboard, nullptr, Key_Shift);
 						if (ClayBtn(isAdding ? "Add" UNICODE_ELLIPSIS_STR : "Open" UNICODE_ELLIPSIS_STR, "Ctrl+O", true, nullptr))
 						{
 							FilePath selectedFilePath = FilePath_Empty;
-							TracyCZoneN(Zone_OsOpenFileDialog, "OsDoOpenFileDialog", true);
-							Result openResult = OsDoOpenFileDialog(scratch, &selectedFilePath);
+							TracyCZoneN(Zone_OsOpenFileDialog, "OsDoOpenFileDialogBlocking", true);
+							Result openResult = OsDoOpenFileDialogBlocking(scratch, &selectedFilePath);
 							TracyCZoneEnd(Zone_OsOpenFileDialog);
 							if (openResult == Result_Success)
 							{
@@ -1194,7 +1197,7 @@ EXPORT_FUNC APP_UPDATE_DEF(AppUpdate)
 					CLAY({ .id = CLAY_ID("ViewPosDisplay") })
 					{
 						CLAY_TEXT(
-							PrintInArenaStr(uiArena, "Pos (%lf, %lf) Scale %lf", app->view.position.X, app->view.position.Y, app->view.zoom),
+							PrintInArenaStr(uiArena, "Pos (%lf, %lf) Scale %lf", app->view.position.x, app->view.position.y, app->view.zoom),
 							CLAY_TEXT_CONFIG({
 								.fontId = app->clayUiFontId,
 								.fontSize = (u16)app->uiFontSize,

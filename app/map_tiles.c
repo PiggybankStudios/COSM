@@ -27,21 +27,21 @@ HTTP_CALLBACK_DEF(MapTileHttpCallback)
 	FreeType(MapTileHttpContext, stdHeap, context); context = nullptr;
 	
 	bool wasSuccessful = false;
-	if (request->state != HttpRequestState_Success) { NotifyPrint_E("Request to download MapTile(%d, %d, %d) failed! Status: %u %s Error: %s", mapTile->coord.X, mapTile->coord.Y, mapTile->coord.Z, request->statusCode, GetHttpStatusCodeDescription(request->statusCode), GetResultStr(request->error)); }
-	else if (request->responseBytes.length == 0) { NotifyPrint_E("Request to download MapTile(%d, %d, %d) return empty response!", mapTile->coord.X, mapTile->coord.Y, mapTile->coord.Z); }
+	if (request->state != HttpRequestState_Success) { NotifyPrint_E("Request to download MapTile(%d, %d, %d) failed! Status: %u %s Error: %s", mapTile->coord.x, mapTile->coord.y, mapTile->coord.z, request->statusCode, GetHttpStatusCodeDescription(request->statusCode), GetResultStr(request->error)); }
+	else if (request->responseBytes.length == 0) { NotifyPrint_E("Request to download MapTile(%d, %d, %d) return empty response!", mapTile->coord.x, mapTile->coord.y, mapTile->coord.z); }
 	else
 	{
 		Slice responseBytes = MakeStr8(request->responseBytes.length, request->responseBytes.items);
-		PrintLine_D("Got %llu byte response for MapTile(%d, %d, %d)", responseBytes.length, mapTile->coord.X, mapTile->coord.Y, mapTile->coord.Z);
+		PrintLine_D("Got %llu byte response for MapTile(%d, %d, %d)", responseBytes.length, mapTile->coord.x, mapTile->coord.y, mapTile->coord.z);
 		ScratchBegin(scratch);
 		ImageData imageData = ZEROED;
 		Result parseResult = TryParseImageFile(responseBytes, scratch, &imageData);
 		if (parseResult != Result_Success) { NotifyPrint_E("Failed to parse response as image! %s", GetResultStr(parseResult)); }
 		else
 		{
-			Str8 textureName = PrintInArenaStr(scratch, "Tile(%d,%d,%d)", mapTile->coord.X, mapTile->coord.Y, mapTile->coord.Z);
+			Str8 textureName = PrintInArenaStr(scratch, "Tile(%d,%d,%d)", mapTile->coord.x, mapTile->coord.y, mapTile->coord.z);
 			Texture imageTexture = InitTexture(stdHeap, textureName, imageData.size, imageData.pixels, TextureFlag_None); //TODO: Pass NoMipmap when we have that working!
-			if (imageTexture.error != Result_Success) { NotifyPrint_E("Failed to upload texture for MapTile(%d, %d, %d): %s", mapTile->coord.X, mapTile->coord.Y, mapTile->coord.Z, GetResultStr(imageTexture.error)); }
+			if (imageTexture.error != Result_Success) { NotifyPrint_E("Failed to upload texture for MapTile(%d, %d, %d): %s", mapTile->coord.x, mapTile->coord.y, mapTile->coord.z, GetResultStr(imageTexture.error)); }
 			else
 			{
 				wasSuccessful = true;
@@ -131,16 +131,16 @@ void InitMapTiles()
 			Str8 xStr = StrSliceRange(fileNameNoExt, xRange);
 			Str8 yStr = StrSliceRange(fileNameNoExt, yRange);
 			v3i coord = V3i_Zero;
-			if (IsEmptyStr(zStr) || !TryParseI32(zStr, &coord.Z, nullptr)) { continue; }
-			if (IsEmptyStr(xStr) || !TryParseI32(xStr, &coord.X, nullptr)) { continue; }
-			if (IsEmptyStr(yStr) || !TryParseI32(yStr, &coord.Y, nullptr)) { continue; }
+			if (IsEmptyStr(zStr) || !TryParseI32(zStr, &coord.z, nullptr)) { continue; }
+			if (IsEmptyStr(xStr) || !TryParseI32(xStr, &coord.x, nullptr)) { continue; }
+			if (IsEmptyStr(yStr) || !TryParseI32(yStr, &coord.y, nullptr)) { continue; }
 			
 			MapTile* tileOnDisk = SparseSetV3iAdd(MapTile, &app->mapTiles, coord);
 			NotNull(tileOnDisk);
 			ClearPointer(tileOnDisk);
 			tileOnDisk->coord = coord;
 			tileOnDisk->fileName = AllocStr8(stdHeap, fileName);
-			PrintLine_D("Found MapTile(%d, %d, %d) at \"%.*s\"", coord.X, coord.Y, coord.Z, StrPrint(tileOnDisk->fileName));
+			PrintLine_D("Found MapTile(%d, %d, %d) at \"%.*s\"", coord.x, coord.y, coord.z, StrPrint(tileOnDisk->fileName));
 			tileOnDisk->isOnDisk = true;
 		}
 	}
@@ -168,7 +168,7 @@ bool EvictUnusedLoadedMapTile()
 	}
 	if (oldestTile != nullptr)
 	{
-		PrintLine_D("Evicting tile (%d, %d, %d) which was used %llums ago", oldestTile->coord.X, oldestTile->coord.Y, oldestTile->coord.Z, oldestTileTime);
+		PrintLine_D("Evicting tile (%d, %d, %d) which was used %llums ago", oldestTile->coord.x, oldestTile->coord.y, oldestTile->coord.z, oldestTileTime);
 		FreeTexture(&oldestTile->texture);
 		oldestTile->isLoaded = false;
 		return true;
@@ -224,7 +224,7 @@ void UpdateMapTiles()
 			ScratchBegin(scratch);
 			HttpRequestArgs args = ZEROED;
 			args.verb = HttpVerb_GET;
-			args.urlStr = PrintInArenaStr(scratch, OSM_TILE_API_URL_FORMAT_STR, mostRecentRequestTile->coord.Z, mostRecentRequestTile->coord.X, mostRecentRequestTile->coord.Y);
+			args.urlStr = PrintInArenaStr(scratch, OSM_TILE_API_URL_FORMAT_STR, mostRecentRequestTile->coord.z, mostRecentRequestTile->coord.x, mostRecentRequestTile->coord.y);
 			Str8Pair headers[] = {
 				{ .key=StrLit("User-Agent"), .value=StrLit(OSM_TILE_API_USER_AGENT) },
 			};
@@ -241,14 +241,14 @@ void UpdateMapTiles()
 			HttpRequest* newRequest = OsMakeHttpRequest(&app->httpManager, &args, appIn->programTime);
 			if (newRequest != nullptr)
 			{
-				PrintLine_D("Downloading MapTile(%d, %d, %d)...", mostRecentRequestTile->coord.X, mostRecentRequestTile->coord.Y, mostRecentRequestTile->coord.Z);
+				PrintLine_D("Downloading MapTile(%d, %d, %d)...", mostRecentRequestTile->coord.x, mostRecentRequestTile->coord.y, mostRecentRequestTile->coord.z);
 				mostRecentRequestTile->isDownloading = true;
 				mostRecentRequestTile->downloadRequestId = newRequest->id;
 				numDownloading++;
 			}
 			else
 			{
-				PrintLine_W("Failed to start request to download MapTile(%d, %d, %d)!", mostRecentRequestTile->coord.X, mostRecentRequestTile->coord.Y, mostRecentRequestTile->coord.Z);
+				PrintLine_W("Failed to start request to download MapTile(%d, %d, %d)!", mostRecentRequestTile->coord.x, mostRecentRequestTile->coord.y, mostRecentRequestTile->coord.z);
 				mostRecentRequestTile->failedToDownload = true;
 				break;
 			}
@@ -279,7 +279,7 @@ Texture* GetMapTileTexture(v3i coord, bool loadFromDisk, bool download)
 		NotNull(resultTile);
 		ClearPointer(resultTile);
 		resultTile->coord = coord;
-		resultTile->fileName = PrintInArenaStr(stdHeap, "tile_%04d_%04d_%04d.png", coord.Z, coord.X, coord.Y);
+		resultTile->fileName = PrintInArenaStr(stdHeap, "tile_%04d_%04d_%04d.png", coord.z, coord.x, coord.y);
 	}
 	if (resultTile != nullptr && resultTile->isOnDisk && !resultTile->isLoaded && loadFromDisk)
 	{
@@ -292,7 +292,7 @@ Texture* GetMapTileTexture(v3i coord, bool loadFromDisk, bool download)
 			false
 		);
 		Str8 fullTilePath = JoinStringsInArena(scratch, tileFolderPath, resultTile->fileName, false);
-		PrintLine_D("Loading MapTile(%d, %d, %d) at \"%.*s\"...", resultTile->coord.X, resultTile->coord.Y, resultTile->coord.Z, StrPrint(fullTilePath));
+		PrintLine_D("Loading MapTile(%d, %d, %d) at \"%.*s\"...", resultTile->coord.x, resultTile->coord.y, resultTile->coord.z, StrPrint(fullTilePath));
 		Slice imageFileContents = Slice_Empty;
 		if (OsReadBinFile(fullTilePath, scratch, &imageFileContents))
 		{
@@ -300,14 +300,14 @@ Texture* GetMapTileTexture(v3i coord, bool loadFromDisk, bool download)
 			Result imageParseResult = TryParseImageFile(imageFileContents, scratch, &imageData);
 			if (imageParseResult == Result_Success)
 			{
-				Str8 textureName = PrintInArenaStr(scratch, "Tile(%d,%d,%d)", resultTile->coord.X, resultTile->coord.Y, resultTile->coord.Z);
+				Str8 textureName = PrintInArenaStr(scratch, "Tile(%d,%d,%d)", resultTile->coord.x, resultTile->coord.y, resultTile->coord.z);
 				Texture imageTexture = InitTexture(stdHeap, textureName, imageData.size, imageData.pixels, TextureFlag_None); //TODO: Pass NoMipmap when we have that working!
 				if (imageTexture.error == Result_Success)
 				{
 					resultTile->texture = imageTexture;
 					resultTile->isLoaded = true;
 				}
-				else { DebugAssert(false); NotifyPrint_E("Failed to load texture for MapTile(%d, %d, %d): %s", resultTile->coord.X, resultTile->coord.Y, resultTile->coord.Z, GetResultStr(imageTexture.error)); resultTile->isOnDisk = false; }
+				else { DebugAssert(false); NotifyPrint_E("Failed to load texture for MapTile(%d, %d, %d): %s", resultTile->coord.x, resultTile->coord.y, resultTile->coord.z, GetResultStr(imageTexture.error)); resultTile->isOnDisk = false; }
 			}
 			else { DebugAssert(false); NotifyPrint_E("Failed to parse %llu byte map tile image at \"%.*s\"", imageFileContents.length, StrPrint(fullTilePath)); resultTile->isOnDisk = false; }
 		}

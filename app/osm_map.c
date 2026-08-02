@@ -207,7 +207,7 @@ OsmWay* AddOsmWay(OsmMap* map, u64 id, u64 numNodes, u64* nodeIds)
 		if (newRef->pntr == nullptr) { map->waysMissingNodes = true; }
 		else
 		{
-			if (!foundFirstNode) { result->nodeBounds = MakeRecd(newRef->pntr->location.Lon, newRef->pntr->location.Lat, 0, 0); foundFirstNode = true; }
+			if (!foundFirstNode) { result->nodeBounds = MakeRecd(newRef->pntr->location.lon, newRef->pntr->location.lat, 0, 0); foundFirstNode = true; }
 			else { result->nodeBounds = BothRecd(result->nodeBounds, MakeRecdV(newRef->pntr->location, V2d_Zero)); }
 		}
 	}

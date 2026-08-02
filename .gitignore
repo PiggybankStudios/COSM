@@ -1,14 +1,15 @@
 *.sublime-workspace
+build/
 core/
-# _data/resources/
-_build/
-_traces/
-_data/*.exe
-_data/*.dll
-_data/*.ini
-_data/*.osm
-_data/*.gpx
-_data/*.tcx
+pig_build/
+# data/resources/
+traces/
+data/*.exe
+data/*.dll
+data/*.ini
+data/*.osm
+data/*.gpx
+data/*.tcx
 third_party/libroxml/
 third_party/libxml2-*/
 third_party/xmlh/

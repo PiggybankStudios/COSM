@@ -37,10 +37,10 @@ v2d MapProject(MapProjection projection, v2d geoLoc, recd mapRec)
 		case MapProjection_Mercator:
 		{
 			v2d result;
-			result.X = mapRec.X + ((geoLoc.Longitude + 180.0) * (mapRec.Width / 360.0));
-			r64 latRadians = ToRadians64(geoLoc.Latitude);
+			result.x = mapRec.x + ((geoLoc.longitude + 180.0) * (mapRec.width / 360.0));
+			r64 latRadians = ToRadians64(geoLoc.latitude);
 			r64 mercN = LnR64(TanR64(QuarterPi64 + (latRadians/2.0)));
-			result.Y = mapRec.Y + (mapRec.Height/2.0) - (mapRec.Width * mercN / TwoPi64);
+			result.y = mapRec.y + (mapRec.height/2.0) - (mapRec.width * mercN / TwoPi64);
 			return result;
 		} break;
 		
@@ -56,13 +56,13 @@ v2d MapUnproject(MapProjection projection, v2d mapPos, recd mapRec)
 		{
 			v2d result;
 			
-			result.Longitude = ((mapPos.X - mapRec.X) / (mapRec.Width / 360.0)) - 180.0;
-			if (!IsInfiniteOrNanR64(result.Longitude)) { result.Longitude = (((result.Longitude+180)/360) - FloorR64((result.Longitude+180)/360))*360 - 180; } //wrap around
+			result.longitude = ((mapPos.x - mapRec.x) / (mapRec.width / 360.0)) - 180.0;
+			if (!IsInfiniteOrNanR64(result.longitude)) { result.longitude = (((result.longitude+180)/360) - FloorR64((result.longitude+180)/360))*360 - 180; } //wrap around
 			
-			r64 relativeY = mapPos.Y - (mapRec.Y + (mapRec.Height/2.0));
-			r64 mercN = -(relativeY * TwoPi64 / mapRec.Width);
+			r64 relativeY = mapPos.y - (mapRec.y + (mapRec.height/2.0));
+			r64 mercN = -(relativeY * TwoPi64 / mapRec.width);
 			r64 latRadians = (AtanJoinedR64(PowR64(e64, mercN)) - QuarterPi64) * 2.0;
-			result.Latitude = ToDegrees64(latRadians);
+			result.latitude = ToDegrees64(latRadians);
 			
 			return result;
 		} break;

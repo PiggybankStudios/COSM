@@ -17,7 +17,7 @@ bool ClayTopBtn(const char* btnText, bool showAltText, bool* isOpenPntr, bool* k
 	Str8 altDisplayStr = PrintInArenaStr(persistScratch, "(%c)%.*s", normalDisplayStr.chars[0], normalDisplayStr.length-1, &normalDisplayStr.chars[1]);
 	v2 normalDisplayStrSize = ClayUiTextSize(&app->uiFont, app->uiFontSize, UI_FONT_STYLE, normalDisplayStr);
 	v2 altDisplayStrSize = ClayUiTextSize(&app->uiFont, app->uiFontSize, UI_FONT_STYLE, altDisplayStr);
-	u16 leftPadding = (u16)(showAltText ? 0 : (altDisplayStrSize.Width - normalDisplayStrSize.Width)/2);
+	u16 leftPadding = (u16)(showAltText ? 0 : (altDisplayStrSize.width - normalDisplayStrSize.width)/2);
 	
 	Str8 btnIdStr = PrintInArenaStr(scratch, "%s_TopBtn", btnText);
 	Str8 menuIdStr = PrintInArenaStr(scratch, "%s_TopBtnMenu", btnText);
@@ -39,7 +39,7 @@ bool ClayTopBtn(const char* btnText, bool showAltText, bool* isOpenPntr, bool* k
 	});
 	CLAY({
 		.layout = {
-			.sizing = { .width=CLAY_SIZING_FIXED(altDisplayStrSize.Width), .height=CLAY_SIZING_FIT(0) },
+			.sizing = { .width=CLAY_SIZING_FIXED(altDisplayStrSize.width), .height=CLAY_SIZING_FIT(0) },
 			.padding = { .left = leftPadding },
 		},
 	})
@@ -55,12 +55,12 @@ bool ClayTopBtn(const char* btnText, bool showAltText, bool* isOpenPntr, bool* k
 			})
 		);
 	}
-	if (IsMouseOverClay(btnId) && IsMouseBtnPressed(&appIn->mouse, MouseBtn_Left)) { *isOpenPntr = !*isOpenPntr; }
+	if (IsMouseOverClay(btnId) && IsMouseBtnPressed(&appIn->mouse, nullptr, MouseBtn_Left)) { *isOpenPntr = !*isOpenPntr; }
 	if (*isOpenPntr == true && isHovered && *keepOpenUntilMouseoverPntr) { *keepOpenUntilMouseoverPntr = false; } //once we are closed or the mouse is over, clear this flag, mouse leaving now will constitute closing
 	if (*isOpenPntr == true && !isHovered && !*keepOpenUntilMouseoverPntr && !isSubmenuOpen) { *isOpenPntr = false; }
 	if (*isOpenPntr)
 	{
-		r32 maxDropdownWidth = isSubmenuOpen ? appIn->screenSize.Width/2.0f : appIn->screenSize.Width;
+		r32 maxDropdownWidth = isSubmenuOpen ? appIn->screenSize.width/2.0f : appIn->screenSize.width;
 		Clay__OpenElement();
 		Clay__ConfigureOpenElement((Clay_ElementDeclaration){
 			.id = menuId,
@@ -142,7 +142,7 @@ bool ClayTopSubmenu(const char* btnText, bool isParentOpen, bool* isOpenPntr, bo
 		);
 	}
 	if (!isParentOpen) { *isOpenPntr = false; *keepOpenUntilMouseoverPntr = false; }
-	if (isParentOpen && IsMouseOverClay(btnId) && IsMouseBtnPressed(&appIn->mouse, MouseBtn_Left))
+	if (isParentOpen && IsMouseOverClay(btnId) && IsMouseBtnPressed(&appIn->mouse, nullptr, MouseBtn_Left))
 	{
 		*isOpenPntr = !*isOpenPntr;
 		*keepOpenUntilMouseoverPntr = *isOpenPntr;
@@ -151,7 +151,7 @@ bool ClayTopSubmenu(const char* btnText, bool isParentOpen, bool* isOpenPntr, bo
 	if (*isOpenPntr == true && !isHovered && !*keepOpenUntilMouseoverPntr) { *isOpenPntr = false; *keepOpenUntilMouseoverPntr = false; }
 	if (*isOpenPntr)
 	{
-		r32 maxDropdownWidth = appIn->screenSize.Width/2.0f;
+		r32 maxDropdownWidth = appIn->screenSize.width/2.0f;
 		Clay__OpenElement();
 		Clay__ConfigureOpenElement((Clay_ElementDeclaration){
 			.id = menuId,
@@ -194,7 +194,7 @@ bool ClayBtnStrEx(Str8 idStr, Str8 btnText, Str8 hotkeyStr, bool isEnabled, Text
 	ClayId btnId = ToClayId(fullIdStr);
 	ClayId hotkeyId = ToClayId(hotkeyIdStr);
 	bool isHovered = IsMouseOverClay(btnId);
-	bool isPressed = (isHovered && IsMouseBtnDown(&appIn->mouse, MouseBtn_Left));
+	bool isPressed = (isHovered && IsMouseBtnDown(&appIn->mouse, nullptr, MouseBtn_Left));
 	Color32 backgroundColor = !isEnabled ? BACKGROUND_BLACK : (isPressed ? SELECTED_BLUE : (isHovered ? HOVERED_BLUE : Transparent));
 	Color32 borderColor = SELECTED_BLUE;
 	u16 borderWidth = (isHovered && isEnabled) ? 1 : 0;
@@ -261,7 +261,7 @@ bool ClayBtnStrEx(Str8 idStr, Str8 btnText, Str8 hotkeyStr, bool isEnabled, Text
 		}
 	}
 	ScratchEnd(scratch);
-	return (isHovered && isEnabled && IsMouseBtnPressed(&appIn->mouse, MouseBtn_Left));
+	return (isHovered && isEnabled && IsMouseBtnPressed(&appIn->mouse, nullptr, MouseBtn_Left));
 }
 bool ClayBtnStr(Str8 btnText, Str8 hotkeyStr, bool isEnabled, Texture* icon)
 {

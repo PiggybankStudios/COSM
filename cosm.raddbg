@@ -1,4 +1,4 @@
-// raddbg 0.9.24 project file
+// raddbg 0.9.27 project file
 
 recent_file: path: "app/app_main.c"
 recent_file: path: "app/parse_xml.c"
@@ -29,8 +29,8 @@ recent_file: path: "third_party/hoxml/hoxml.h"
 recent_file: path: "core/third_party/miniz/miniz.c"
 target:
 {
-  executable: "_build/cosm.exe"
-  working_directory: _data
+  executable: "build/cosm.exe"
+  working_directory: data
   label: COSM
   enabled: 1
 }
@@ -39,7 +39,6 @@ type_view:
   type: Str8
   expr: "rows($, $.chars, $.length)"
 }
-theme: Naysayer
 type_view:
 {
   type: HMM_Vec2
@@ -65,39 +64,11 @@ type_view:
   type: RangeUXX
   expr: "rows($, $.min, $.max)"
 }
-debug_info:
-{
-  path: "C:/gamedev/projects/COSM/_build/cosm.pdb"
-  timestamp: 66198407992195
-}
-debug_info:
-{
-  path: "C:/gamedev/projects/COSM/_build/pig_core.pdb"
-  timestamp: 66198407991323
-}
-debug_info:
-{
-  path: "C:/gamedev/projects/COSM/_build/cosm_app.pdb"
-  timestamp: 66198407993159
-}
 breakpoint:
 {
   source_location: "app/app_main.c:582:1"
   hit_count: 0
   enabled: 0
 }
-debug_info:
-{
-  path: "D:/gamedev/projects/Cosm/_build/cosm.pdb"
-  timestamp: 66198486541174
-}
-debug_info:
-{
-  path: "D:/gamedev/projects/Cosm/_build/pig_core.pdb"
-  timestamp: 66198486540407
-}
-debug_info:
-{
-  path: "D:/gamedev/projects/Cosm/_build/cosm_app.pdb"
-  timestamp: 66198486541883
-}
+theme: Grove
+name: COSM

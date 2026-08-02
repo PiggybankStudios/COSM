@@ -46,7 +46,7 @@ void LoadNotificationIcons()
 	{
 		ScratchBegin(scratch);
 		ImageData imageData = LoadImageData(scratch, NOTIFICATION_ICONS_TEXTURE_PATH);
-		AssertMsg(imageData.pixels != nullptr && imageData.size.Width > 0 && imageData.size.Height > 0, "Failed to load notification icons texture!");
+		AssertMsg(imageData.pixels != nullptr && imageData.size.width > 0 && imageData.size.height > 0, "Failed to load notification icons texture!");
 		Texture newTexture = InitTexture(stdHeap, StrLit("notificationIcons"), imageData.size, imageData.pixels, 0x00);
 		AssertMsg(newTexture.error == Result_Success, "Failed to init texture for notification icons!");
 		FreeTexture(&app->notificationIconsTexture);
@@ -54,12 +54,12 @@ void LoadNotificationIcons()
 		ScratchEnd(scratch);
 	}
 	
-	const v2i sheetSize = { .X=2, .Y=2 };
+	const v2i sheetSize = { .x=2, .y=2 };
 	v2 cellSize = MakeV2(
-		(r32)app->notificationIconsTexture.Width / (r32)sheetSize.Width,
-		(r32)app->notificationIconsTexture.Height / (r32)sheetSize.Height
+		(r32)app->notificationIconsTexture.width / (r32)sheetSize.width,
+		(r32)app->notificationIconsTexture.height / (r32)sheetSize.height
 	);
-	r32 iconScale = NOTIFICATION_ICONS_SIZE / cellSize.Width;
+	r32 iconScale = NOTIFICATION_ICONS_SIZE / cellSize.width;
 	for (uxx lIndex = DbgLevel_Debug; lIndex < DbgLevel_Count; lIndex++)
 	{
 		DbgLevel dbgLevel = (DbgLevel)lIndex;
@@ -74,12 +74,12 @@ void LoadNotificationIcons()
 			case DbgLevel_Warning: cellPos = MakeV2i(0, 1); break;
 			case DbgLevel_Error:   cellPos = MakeV2i(1, 1); break;
 		}
-		if (cellPos.X != 0 || cellPos.Y != 0)
+		if (cellPos.x != 0 || cellPos.y != 0)
 		{
 			rec iconSourceRec = MakeRec(
-				cellSize.Width * cellPos.X,
-				cellSize.Height * cellPos.Y,
-				cellSize.Width, cellSize.Height
+				cellSize.width * cellPos.x,
+				cellSize.height * cellPos.y,
+				cellSize.width, cellSize.height
 			);
 			SetNotificationIconEx(&app->notificationQueue, dbgLevel, &app->notificationIconsTexture, iconScale, GetDbgLevelTextColor(dbgLevel), iconSourceRec);
 		}
@@ -93,7 +93,7 @@ void LoadMapBackTexture()
 	TracyCZoneN(funcZone, "LoadMapBackTexture", true);
 	ScratchBegin(scratch);
 	ImageData mapBackImageData = LoadImageData(scratch, MAP_BACKGROUND_TEXTURE_PATH);
-	if (mapBackImageData.pixels != nullptr && mapBackImageData.size.Width > 0 && mapBackImageData.size.Height > 0)
+	if (mapBackImageData.pixels != nullptr && mapBackImageData.size.width > 0 && mapBackImageData.size.height > 0)
 	{
 		TracyCZoneN(_InitTexture, "InitTexture", true);
 		Texture newTexture = InitTexture(stdHeap, StrLit("mapBackTexture"), mapBackImageData.size, mapBackImageData.pixels, 0x00);
@@ -105,7 +105,7 @@ void LoadMapBackTexture()
 			FreeStr8(stdHeap, &app->mapBackTexturePath);
 			app->mapBackTexturePath = AllocStr8Nt(stdHeap, MAP_BACKGROUND_TEXTURE_PATH);
 		}
-		else { NotifyPrint_E("Failed to parse/create background Texture from %dx%d ImageData!", mapBackImageData.size.Width, mapBackImageData.size.Height); }
+		else { NotifyPrint_E("Failed to parse/create background Texture from %dx%d ImageData!", mapBackImageData.size.width, mapBackImageData.size.height); }
 	}
 	else { NotifyPrint_E("Failed to load map background texture from \"%s\"", MAP_BACKGROUND_TEXTURE_PATH); }
 	ScratchEnd(scratch);
@@ -271,13 +271,13 @@ bool AppChangeFontSize(bool increase)
 recd GetMapScreenRec(MapView* view)
 {
 	recd result = view->mapRec;
-	result.TopLeft = SubV2d(result.TopLeft, view->position);
+	result.topLeft = SubV2d(result.topLeft, view->position);
 	result = ScaleRecd(result, view->zoom);
 	
 	rec mainViewportRec = GetClayElementDrawRecNt("MainViewport");
-	if (mainViewportRec.Width > 0 && mainViewportRec.Height > 0)
+	if (mainViewportRec.width > 0 && mainViewportRec.height > 0)
 	{
-		result.TopLeft = AddV2d(result.TopLeft, ToV2dFromf(AddV2(mainViewportRec.TopLeft, ShrinkV2(mainViewportRec.Size, 2.0f))));
+		result.topLeft = AddV2d(result.topLeft, ToV2dFromf(AddV2(mainViewportRec.topLeft, ShrinkV2(mainViewportRec.size, 2.0f))));
 	}
 	
 	return result;
@@ -461,16 +461,16 @@ void OpenOsmMap(FilePath filePath, bool addToMap)
 		}
 		AppRememberRecentFile(filePath);
 		
-		v2d boundsOnMapTopLeft = MapProject(app->view.projection, app->map.bounds.TopLeft, app->view.mapRec);
-		v2d boundsOnMapBottomRight = MapProject(app->view.projection, AddV2d(app->map.bounds.TopLeft, app->map.bounds.Size), app->view.mapRec);
+		v2d boundsOnMapTopLeft = MapProject(app->view.projection, app->map.bounds.topLeft, app->view.mapRec);
+		v2d boundsOnMapBottomRight = MapProject(app->view.projection, AddV2d(app->map.bounds.topLeft, app->map.bounds.size), app->view.mapRec);
 		recd boundsOnMap = NewRecdBetweenV(boundsOnMapTopLeft, boundsOnMapBottomRight);
-		app->view.position = AddV2d(boundsOnMap.TopLeft, ShrinkV2d(boundsOnMap.Size, 2.0));
+		app->view.position = AddV2d(boundsOnMap.topLeft, ShrinkV2d(boundsOnMap.size, 2.0));
 		rec mainViewportRec = GetClayElementDrawRecNt("MainViewport");
-		if (boundsOnMap.Width > 0 && boundsOnMap.Height > 0 && mainViewportRec.Width > 0)
+		if (boundsOnMap.width > 0 && boundsOnMap.height > 0 && mainViewportRec.width > 0)
 		{
 			app->view.zoom = MinR64(
-				mainViewportRec.Width / boundsOnMap.Width,
-				mainViewportRec.Height / boundsOnMap.Height
+				mainViewportRec.width / boundsOnMap.width,
+				mainViewportRec.height / boundsOnMap.height
 			);
 		}
 		
@@ -764,10 +764,10 @@ void UpdateOsmWayTriangulation(OsmMap* map, OsmWay* way)
 					else if (offset == 2) { offset = 1; }
 					uxx vertIndex = way->triIndices[iIndex + offset];
 					v2 normalizedPosition = MakeV2(
-						(r32)InverseLerpClampR64(way->nodeBounds.Lon, way->nodeBounds.Lon + way->nodeBounds.Width, polygonVerts[vertIndex].Lon),
-						(r32)InverseLerpClampR64(way->nodeBounds.Lat + way->nodeBounds.Height, way->nodeBounds.Lat, polygonVerts[vertIndex].Lat)
+						(r32)InverseLerpClampR64(way->nodeBounds.lon, way->nodeBounds.lon + way->nodeBounds.width, polygonVerts[vertIndex].lon),
+						(r32)InverseLerpClampR64(way->nodeBounds.lat + way->nodeBounds.height, way->nodeBounds.lat, polygonVerts[vertIndex].lat)
 					);
-					bufferVertices[iIndex + tIndex] = MakeVertex2D(normalizedPosition, normalizedPosition, V4r_One);
+					bufferVertices[iIndex + tIndex] = MakeVertex2D(normalizedPosition, normalizedPosition, V4_One);
 				}
 			}
 			way->triVertBuffer = InitVertBuffer2D(map->arena, StrLit("Way_TriVertBuffer"), VertBufferUsage_Static, numBufferVertices, bufferVertices, false);
@@ -792,7 +792,7 @@ void RenderWayLine(OsmWay* way, recd mapScreenRec, r32 thickness, Color32 color)
 		simpPoly.vertices[nIndex].state = 0;
 		simpPoly.vertices[nIndex].pos = nodeRef->pntr->location;
 	}
-	r64 epsilonDegrees = ((r64)WAY_SIMPLIFYING_EPSILON_PX / mapScreenRec.Width) * MERCATOR_LONGITUDE_RANGE;
+	r64 epsilonDegrees = ((r64)WAY_SIMPLIFYING_EPSILON_PX / mapScreenRec.width) * MERCATOR_LONGITUDE_RANGE;
 	TracyCZoneN(_SimplifyPolygonR64, "SimplifyPolygonR64", true);
 	SimplifyPolygonR64(&simpPoly, epsilonDegrees);
 	TracyCZoneEnd(_SimplifyPolygonR64);
@@ -828,8 +828,8 @@ void RenderWayFilled(OsmWay* way, recd mapScreenRec, rec wayOnScreenBoundsRec, C
 	if (way->triVertBuffer.arena != nullptr && way->triVertBuffer.numVertices > 0)
 	{
 		mat4 worldMat = Mat4_Identity;
-		TransformMat4(&worldMat, Make2DScaleMat4(wayOnScreenBoundsRec.Size));
-		TransformMat4(&worldMat, MakeTranslateXYZMat4(wayOnScreenBoundsRec.X, wayOnScreenBoundsRec.Y, gfx.state.depth));
+		TransformMat4(&worldMat, Make2DScaleMat4(wayOnScreenBoundsRec.size));
+		TransformMat4(&worldMat, MakeTranslateXYZMat4(wayOnScreenBoundsRec.x, wayOnScreenBoundsRec.y, gfx.state.depth));
 		SetWorldMat(worldMat);
 		SetTintColor(fillColor);
 		BindTexture(&gfx.pixelTexture);
