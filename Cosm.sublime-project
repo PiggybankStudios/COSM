@@ -19,19 +19,10 @@
 		},
 		{
 			"name": "PigBuild",
-			"path": "pig_build",
+			"path": "../pig_build/src",
 			"folder_exclude_patterns": [
-				"examples",
-				"src/third_party",
 			],
 			"file_exclude_patterns": [
-				"build.bat",
-				"build.sh",
-				"LICENSE.txt",
-				"NOTES.todo",
-				"README.md",
-				"*.sublime-*",
-				".gitignore",
 			],
 		},
 		{
